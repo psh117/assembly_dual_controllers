@@ -25,10 +25,13 @@ struct FrankaModelUpdater
   Eigen::Matrix<double, 3, 3> rotation_;
   Eigen::Matrix<double, 6, 1> xd_;
 
+  Eigen::Affine3d initial_transform_; ///< initial transform for 
   // -- arm parameters 
 
   ros::Time task_start_time_; ///< time when a task starts
   ros::Time task_end_time_; ///< you may use this to indicate the timeout
+
+  bool target_updated_ {false};
 
   FrankaModelUpdater() {}
 
@@ -71,6 +74,7 @@ struct FrankaModelUpdater
     {
       joint_handles_[i].setCommand(torque_command(i));
     }
+    target_updated_ = true;
   }
 public:
   std::shared_ptr<franka_hw::FrankaModelHandle> model_handle_;

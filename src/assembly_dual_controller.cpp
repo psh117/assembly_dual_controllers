@@ -133,6 +133,8 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   tf::transformTFToEigen(transform, Ol_T_Or_);  // NOLINT (readability-identifier-naming)
 
 
+  idle_control_server_ = std::make_unique<IdleControlServer>
+  ("/assembly_dual_controller/idle_control", node_handle, arms_data_);
   assemble_approach_action_server_ = std::make_unique<AssembleApproachActionServer>
   ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, arms_data_);
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>

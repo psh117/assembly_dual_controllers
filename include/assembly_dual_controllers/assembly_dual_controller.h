@@ -19,11 +19,11 @@
 
 #include <assembly_dual_controllers/franka_model_updater.h>
 #include <assembly_dual_controllers/assemble_approach_action_server.h>
+#include <assembly_dual_controllers/idle_control_server.h>
 // #include <assembly_dual_controllers/single_peginhole_action_server.h>
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
 #include <geometry_msgs/PoseStamped.h>
-
 
 #include <fstream>
 
@@ -50,6 +50,7 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
 
   // std::unique_ptr<SinglePegInHoleActionServer> single_peginhole_action_server_;
   std::unique_ptr<AssembleApproachActionServer> assemble_approach_action_server_;
+  std::unique_ptr<IdleControlServer> idle_control_server_;
   
   std::map<std::string, std::shared_ptr<FrankaModelUpdater> >  arms_data_; ///< Holds all relevant data for both arms.
   std::string left_arm_id_;   ///< Name of the left arm, retreived from the parameter server.
