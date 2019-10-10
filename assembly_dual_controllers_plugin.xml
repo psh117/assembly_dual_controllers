@@ -1,0 +1,25 @@
+<library path="lib/libassembly_dual_controllers">
+  <class name="assembly_dual_controllers/AssemblyDualController" type="assembly_dual_controllers::AssemblyDualController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      A controller that executes a short motion based on joint velocities to demonstrate correct usage
+    </description>
+  </class>
+</library>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

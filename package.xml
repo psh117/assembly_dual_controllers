@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>assembly_dual_controllers</name>
+  <version>0.0.0</version>
+  <description>The assembly_controller package</description>
+
+  <!-- One maintainer tag required, multiple allowed, one person per tag -->
+  <!-- Example:  -->
+  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
+  <maintainer email="dyros@todo.todo">dyros</maintainer>
+
+
+  <!-- One license tag required, multiple allowed, one license per tag -->
+  <!-- Commonly used license strings: -->
+  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
+  <license>TODO</license>
+
+  <depend>assembly_msgs</depend>
+  <depend>controller_interface</depend>
+  <depend>dynamic_reconfigure</depend>
+  <depend>franka_hw</depend>
+  <depend>franka_gripper</depend>
+  <depend>geometry_msgs</depend>
+  <depend>hardware_interface</depend>
+  <depend>libfranka</depend>
+  <depend>pluginlib</depend>
+  <depend>realtime_tools</depend>
+  <depend>roscpp</depend>
+  <depend>roslib</depend>
+  <depend>moveit_ros_planning</depend>
+  <depend>moveit_ros_planning_interface</depend>
+  <depend>moveit_core</depend>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  <build_export_depend>rospy</build_export_depend>
+  <exec_depend>rospy</exec_depend>
+
+  <export>
+    <controller_interface plugin="${prefix}/assembly_dual_controllers_plugin.xml"/>
+
+  </export>
+</package>

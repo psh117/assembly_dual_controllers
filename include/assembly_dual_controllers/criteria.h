@@ -1,0 +1,231 @@
+#ifndef CRITERIA_H
+#define CRITERIA_H
+
+#include <iostream>
+#include <Eigen/Dense>
+#include <unsupported/Eigen/MatrixFunctions>
+
+#include "dyros_math.h"
+
+using namespace dyros_math;
+// using namespace FuzzyLogic;
+
+namespace Criteria
+{
+    static bool checkContact(const double current_force)
+    {
+        double contact_force = -6.0;
+        bool result;
+
+        if(current_force <= contact_force) result = true; //contact is detected
+        else result = false;
+        return result;
+    }
+
+    static bool checkDisplacement(const double origin,
+        const double current_position,        
+        const double base_position, //0.270
+        const double component_info) // the distance from end-effecto to the edge of the component
+    {
+        double safty = 0.0005;
+        double current_dis;
+        double target_dis;
+        bool result;
+
+        current_dis = origin - current_position;
+        target_dis = origin - component_info - base_position ;
+
+        if(current_dis <= target_dis) result = true;
+        else result = false;
+               
+        return result;
+    }
+
+    static bool detectHole(const double origin,
+        const double current_position,
+        const double friction,
+        const double depth_threshold,
+        const double force_threshold)
+    {
+        double dz;
+        bool result; // true = success, false = fail
+
+        dz = origin - current_position;
+
+        // Keep considering conditions, which is || or &&
+        if(dz >= depth_threshold && friction >= force_threshold)
+        {
+            //std::cout<<"Z_l + F_L"<<std::endl;
+            result = true;  //z_l + f_l
+        } 
+        else if(dz >= depth_threshold && friction < force_threshold)
+        {
+            //std::cout<<"Z_l + F_s"<<std::endl;
+            result = true; //z_l + f_s
+        } 
+        else if(dz < depth_threshold && friction >= force_threshold)
+        {
+            //std::cout<<"Z_s + F_l"<<std::endl;
+            //std::cout<<dz<<"    "<<friction<<std::endl;
+            result = true; //z_s + f_l
+        } 
+        else result = false;  //z_s + f_s        
+        return result;
+    }
+
+    static double judgeInsertion(const double origin,
+        const double current_position,
+        const double current_velocity,
+        const double friction,
+        const double target_depth)
+    {
+        double velocity_threshold = 0.01; // fix it later
+        double force_threshold = 15.0;
+        double depth_threshold;
+        double dz;
+        double result; //1.0 = success, 0.0 = ?, -1.0 = fail(dead or fake)
+
+        depth_threshold = target_depth*0.8; // 
+        dz = origin - current_position;
+        result = 0.0;
+
+        if(abs(current_velocity) <= velocity_threshold)
+        {
+            if(dz < depth_threshold && friction <= force_threshold)
+            {
+                std::cout<<"keep inserting"<<std::endl;
+                result = 0.0; //not to consider
+            } 
+            else if(dz < depth_threshold && friction > force_threshold)
+            {
+                std::cout<<"fake"<<std::endl;
+                result = -1.0; // fake
+            } 
+            else if((depth_threshold <= dz && dz <= target_depth) && friction <= force_threshold)
+            {
+                std::cout<<"dead"<<std::endl;
+                result = -1.0; // dead
+            } 
+            else if((depth_threshold <= dz && dz <= target_depth) && friction > force_threshold)
+            {
+              std::cout<<"success"<<std::endl;
+              result = 1.0; // success  
+            } 
+            else
+            {
+                std::cout<<"dead"<<std::endl;
+                result = -1.0; // dead
+            } 
+        }
+
+        else
+        {
+            if(dz >= target_depth) result = -1.0;               
+        }        
+    } 
+
+    static bool timeOut(const double current_time, const double start_time, const double duration)
+    {
+        double running_time;
+        bool is_timeout;
+
+        running_time = current_time - start_time;
+
+        if(running_time >= duration) is_timeout = true;
+        else is_timeout = false;
+
+        return is_timeout;
+    }
+    
+    static bool checkForceLimit(const std::vector<double> f,
+        const double threshold)        
+    {   
+        bool is_done;
+        int size;
+        double sum;
+        double avg;
+
+        size = int(f.size());
+
+        for(int i = 0; i < size; i ++)
+        {
+            sum += fabs(double(f[i]));
+        }
+        
+        avg = sum / size;
+
+        if(avg >= threshold) is_done = true;
+        else is_done = false;
+
+        // std::cout<<"size : "<<size<<std::endl;
+        // std::cout<<"sum : "<<sum<<std::endl;
+        std::cout<<"force avg : "<<avg<<std::endl;
+        // std::cout<<"is_done : "<<is_done<<std::endl;
+        
+        return is_done;
+    }
+
+    static bool checkMomentLimit(const std::vector<double> m,
+        const double threshold)        
+    {   
+        bool is_done;
+        int size;
+        double sum;
+        double avg;
+
+        size = int(m.size());
+
+        for(int i = 0; i < size; i ++)
+        {
+            sum += fabs(double(m[i]));
+        }
+        
+        avg = sum / size;
+
+        if(avg >= threshold) is_done = true;
+        else is_done = false;
+
+        // std::cout<<"size : "<<size<<std::endl;
+        // std::cout<<"sum : "<<sum<<std::endl;
+        std::cout<<"moment avg : "<<avg<<std::endl;
+        // std::cout<<"is_done : "<<is_done<<std::endl;
+        
+        return is_done;
+    }
+
+    static bool checkSideChairDone(const std::vector<double> v1,
+        const std::vector<double> v2,
+        const std::vector<double> v3)
+    {
+        bool is_done;
+
+        auto x = leastSquareLinear(v1,1000);
+        auto y = leastSquareLinear(v2,1000);
+        auto z = leastSquareLinear(v3,1000);
+
+        std::cout<<x.transpose()<<std::endl;
+        std::cout<<y.transpose()<<std::endl;
+        std::cout<<z.transpose()<<std::endl;
+
+        return is_done;
+    }
+
+    // static double fuzzyLogic(const double origin, const double vel, const double dis, const double force)
+    // {
+    //     Eigen::Vector2d v;
+    //     Eigen::Matrix<double, 5, 1> z;
+    //     Eigen::Vector3d f;
+
+    //     double u;
+        
+    //     v = velocityInput(vel);        
+    //     z = displacementInput(origin, dis);        
+    //     f = forceInput(force);      
+        
+    //     u = fuzzyOutput(v,z,f);
+    //     // std::cout<<"---------------------------------------"<<std::endl;
+    //     return u;
+    // }
+};
+
+#endif // CRITERIA_H

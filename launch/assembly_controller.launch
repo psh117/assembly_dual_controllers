@@ -1,0 +1,21 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <arg name="robot" default="$(find assembly_env_description)/robots/assembly_env.urdf.xacro" />
+  <arg name="robot_id" default="panda_dual" />
+  <arg name="robot_left_ip" default="172.16.0.2" />
+  <arg name="robot_right_ip" default="172.16.1.3" />
+  <arg name="rviz" default="false" />
+  <arg name="rqt" default="false" />
+
+  <include file="$(find franka_combined_control)/launch/franka_combined_control.launch" >
+    <arg name="robot_id" value="$(arg robot_id)" />
+    <arg name="robot_left_ip" value="$(arg robot_left_ip)" />
+    <arg name="robot_right_ip" value="$(arg robot_right_ip)" />
+  </include>
+
+  <group ns="$(arg robot_id)">
+    <rosparam command="load" file="$(find assembly_dual_controllers)/config/assembly_dual_controllers.yaml" />
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"  args="assembly_dual_controller"/>
+  </group>
+</launch>
