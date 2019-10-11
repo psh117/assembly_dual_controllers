@@ -23,15 +23,17 @@ struct FrankaModelUpdater
   Eigen::Matrix<double, 6, 7> jacobian_;
   Eigen::Matrix<double, 3, 1> position_;
   Eigen::Matrix<double, 3, 3> rotation_;
+  Eigen::Affine3d transform_;
   Eigen::Matrix<double, 6, 1> xd_;
 
-  Eigen::Affine3d initial_transform_; ///< initial transform for 
+  Eigen::Affine3d initial_transform_; ///< initial transform for idle control
+  bool idle_controlled_ {false}; ///< it indicates that this arm is under the idle control status. that is FrankaModelUpdater has valid initial transform and is using the transform.
+  bool target_updated_ {false}; ///< it is used to check whether any other action is on going excep the idle control
   // -- arm parameters 
 
   ros::Time task_start_time_; ///< time when a task starts
   ros::Time task_end_time_; ///< you may use this to indicate the timeout
 
-  bool target_updated_ {false};
 
   FrankaModelUpdater() {}
 
@@ -61,20 +63,26 @@ struct FrankaModelUpdater
     tau_desired_read_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(robot_state.tau_J_d.data());
     gravity_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(gravity_array.data());
   
-    Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
-    position_ = transform.translation();
-    rotation_ = transform.rotation();
+    transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE.data());
+
+    position_ = transform_.translation();
+    rotation_ = transform_.rotation();
 		
     xd_ = jacobian_ * qd_;
   }
 
-  void setTorque(Eigen::Matrix<double,7,1> &torque_command)
+  void setTorque(const Eigen::Matrix<double,7,1> &torque_command)
   {
     for(int i=0; i<7; ++i)
     {
       joint_handles_[i].setCommand(torque_command(i));
     }
     target_updated_ = true;
+  }
+
+  void setInitialTransform()
+  {
+    initial_transform_ = transform_;
   }
 public:
   std::shared_ptr<franka_hw::FrankaModelHandle> model_handle_;
