@@ -5,16 +5,16 @@
 #include <Eigen/Dense>
 #include <unsupported/Eigen/MatrixFunctions>
 
-#include "dyros_math.h"
+#include <assembly_dual_controllers/utils/dyros_math.h>
 
 using namespace dyros_math;
 // using namespace FuzzyLogic;
 
 namespace Criteria
 {
-    static bool checkContact(const double current_force)
+    static bool checkContact(const double current_force, const double threshold)
     {
-        double contact_force = -6.0;
+        double contact_force = threshold; //-6.0
         bool result;
 
         if(current_force <= contact_force) result = true; //contact is detected
@@ -165,13 +165,22 @@ namespace Criteria
         return is_done;
     }
 
-    static bool checkMomentLimit(const std::vector<double> m,
+    static bool checkMomentLimit(const std::vector<double> m1,
+        const std::vector<double> m2,
+        const std::vector<double> m3,
+        const int swing_dir,
         const double threshold)        
     {   
         bool is_done;
         int size;
         double sum;
         double avg;
+        
+        std::vector<double> m;
+
+        if(swing_dir == 1) m = m1;
+        if(swing_dir == 2) m = m2;
+        if(swing_dir == 3) m = m3;
 
         size = int(m.size());
 

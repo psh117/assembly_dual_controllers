@@ -62,9 +62,13 @@ include_directories(
 
 add_library(${PROJECT_NAME}
   src/assembly_dual_controller.cpp
-  #src/joint_trajectory_action_server.cpp
   #src/assemble_peginhole_action_server.cpp
-  src/assemble_approach_action_server.cpp
+  #src/servers/joint_trajectory_action_server.cpp
+  src/servers/assemble_approach_action_server.cpp
+  src/servers/assemble_insert_action_server.cpp
+  src/servers/assemble_spiral_action_server.cpp
+  src/servers/assemble_verify_action_server.cpp
+  src/servers/idle_control_server.cpp
   #src/single_peginhole_action_server.cpp
  )
 

@@ -71,13 +71,16 @@ struct FrankaModelUpdater
     xd_ = jacobian_ * qd_;
   }
 
-  void setTorque(const Eigen::Matrix<double,7,1> &torque_command)
+  void setTorque(const Eigen::Matrix<double,7,1> &torque_command, bool idle_control = false)
   {
     for(int i=0; i<7; ++i)
     {
       joint_handles_[i].setCommand(torque_command(i));
     }
-    target_updated_ = true;
+    if (!idle_control)
+    {
+      target_updated_ = true;
+    }
   }
 
   void setInitialTransform()

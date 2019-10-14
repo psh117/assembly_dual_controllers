@@ -1,4 +1,4 @@
-#include <assembly_dual_controllers/assemble_approach_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_approach_action_server.h>
 
 AssembleApproachActionServer::AssembleApproachActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu)
@@ -28,9 +28,15 @@ void AssembleApproachActionServer::goalCallback()
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
   f_measured_.setZero();
   desired_xd_.setZero();
-  desired_x_ = mu_[goal_->arm_name]->position_;
-  desired_xd_(2) = descent_speed_;
-  ori_init_assembly_ = mu_[goal_->arm_name]->rotation_;
+  // desired_x_ = mu_[goal_->arm_name]->position_;
+  // desired_xd_(2) = descent_speed_;
+  
+  origin_ = mu_[goal_->arm_name]->position_;  
+  init_rot_ = mu_[goal_->arm_name]->rotation_;
+
+  contact_force_ = goal_->contact_force;
+  assemble_dir_ = goal_ ->assemble_dir;
+  descent_speed_ = goal_ ->descent_speed;
 }
 
 void AssembleApproachActionServer::preemptCallback()
@@ -59,60 +65,41 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
 {
   if (!as_.isActive())
       return false; 
-
+  
+  auto & mass = arm.mass_matrix_;
   auto & rotation = arm.rotation_;
   auto & position = arm.position_;
   auto & jacobian = arm.jacobian_;
   auto & tau_measured = arm.tau_measured_;
   auto & gravity = arm.gravity_;
   auto & xd = arm.xd_;
+  
+  Eigen::Vector3d f_star;
+  Eigen::Vector3d m_star;
+  Eigen::Matrix<double, 6, 1> f_star_zero;
+  Eigen::Matrix<double, 6, 6> lambda;
+  Eigen::Matrix<double, 7, 6> J_bar;
 
-  double contact_force = goal_->contact_force;   
+  lambda = (jacobian*mass.inverse()*jacobian.transpose()).inverse();
+  J_bar = mass.inverse()*jacobian.transpose()*lambda;
+  f_measured_ = J_bar.transpose()*(tau_measured - gravity);
       
-  Eigen::Matrix3d K_p_asm;
-  Eigen::Matrix3d K_v_asm; //control gain for peg in hole task
-  Eigen::Vector3d f_star_asm; //linear force
-	Eigen::Vector3d m_star_asm; //orientation
-	Eigen::Matrix<double, 6, 1> f_star_zero_asm;
-  Eigen::Vector3d delphi_delta_asm; // value related with orientation
+  if(checkContact(f_measured_(assemble_dir_), contact_force_))
+  {
+    std::cout<<"CHECK CONTATCT!!!!!"<<std::endl;
+    as_.setSucceeded();
+  }
+  else
+  {
+    f_star = straightMove(origin_, position, xd, assemble_dir_, descent_speed_, time.toSec(), arm.task_start_time_.toSec());
+    m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
+  }   
 
-  
-  K_p_asm.setZero(); K_v_asm.setZero();
-	for (int i = 0; i < 3; i++)
-	{
-		K_p_asm(i, i) = 10000.0; K_v_asm(i, i) = 40.; //7000
-	}
-  //K_p_asm(2, 2) = 3000.0; //5000
-  
-  f_star_asm = K_p_asm * (desired_x_ - position) + K_v_asm *(desired_xd_.head<3>() - xd.head<3>());  
-  //f_star_asm = K_v_asm *(desired_xd_.head(3) - xd.head(3));  
-  
-  delphi_delta_asm = -0.5 * getPhi(rotation, ori_init_assembly_);
-  m_star_asm = (1.0) * 200 * delphi_delta_asm - 20 * xd.tail(3);
-  
-  
-  f_star_zero_asm.head(3) = f_star_asm;
-  f_star_zero_asm.tail(3) = m_star_asm;
+  f_star_zero.head<3>() = f_star;
+  f_star_zero.tail<3>() = m_star;
 
-  
-  //f_measured_ = (jacobian * jacobian.transpose()).inverse() * jacobian * (tau_measured - gravity);
-      
-
-  // std::cout << f_star_zero_asm.transpose() << std::endl;
-
-  //if (abs(f_measured_(2)) > contact_force)
-  //{
-  //    as_.setSucceeded();
-  //}
-
-  f_star_zero_asm(2) = -1.0;
-
-
-  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero_asm;
+  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
 
-  desired_x_(2) += descent_speed_ / 1000.;
-
-  std::cout<<f_star_zero_asm.transpose()<<std::endl;
   return true;
 }

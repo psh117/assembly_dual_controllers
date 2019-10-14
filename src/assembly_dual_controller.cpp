@@ -135,8 +135,16 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
 
   idle_control_server_ = std::make_unique<IdleControlServer>
   ("/assembly_dual_controller/idle_control", node_handle, arms_data_);
+
   assemble_approach_action_server_ = std::make_unique<AssembleApproachActionServer>
-  ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, arms_data_);
+  ("/assembly_dual_controller/assemble_approach_control", node_handle, arms_data_);
+  assemble_spiral_action_server_ = std::make_unique<AssembleSpiralActionServer>
+  ("/assembly_dual_controller/assemble_spiral_control", node_handle, arms_data_);
+  assemble_insert_action_server_ = std::make_unique<AssembleInsertActionServer>
+  ("/assembly_dual_controller/assemble_exert_force_control", node_handle, arms_data_);
+  assemble_verify_action_server_ = std::make_unique<AssembleVerifyActionServer>
+  ("/assembly_dual_controller/assemble_verify_completion_control", node_handle, arms_data_);
+
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
 
@@ -156,16 +164,6 @@ void AssemblyDualController::startingArm(FrankaModelUpdater& arm_data) {
   Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_initial(initial_state.dq.data());
   Eigen::Map<Eigen::Matrix<double, 7, 1>> q_initial(initial_state.q.data());
   Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
-
-  // // set target point to current state
-  // arm_data.position_d_ = initial_transform.translation();
-  // arm_data.orientation_d_ = Eigen::Quaterniond(initial_transform.linear());
-  // arm_data.position_d_target_ = initial_transform.translation();
-  // arm_data.orientation_d_target_ = Eigen::Quaterniond(initial_transform.linear());  
-
-  // // set nullspace target configuration to initial q
-  // arm_data.q_d_nullspace_ = q_initial;
-  // arm_data.q_init_ = q_initial;
 }
 
 void AssemblyDualController::starting(const ros::Time& time) {
@@ -193,52 +191,18 @@ void AssemblyDualController::starting(const ros::Time& time) {
 
 void AssemblyDualController::update(const ros::Time& time, const ros::Duration& period) {
 
-  arms_data_[left_arm_id_]->updateModel();
-  arms_data_[right_arm_id_]->updateModel();
+  
+  for (auto& arm : arms_data_) {
+    arm.second->updateModel();
+  }
 
- // for (auto& arm_data : arms_data_) {
-  //   updateArm(arm_data.second);
-  // }
-
-
-  Eigen::Matrix<double, 7, 1> tau_cmd_main;
-  Eigen::Matrix<double, 7, 1> tau_cmd_sub;
-  std::string main_arm_id;
-  std::string sub_arm_id;
 
   assemble_approach_action_server_->compute(time);
+  assemble_spiral_action_server_->compute(time);
+  assemble_insert_action_server_->compute(time);
+  assemble_verify_action_server_->compute(time);
+  idle_control_server_->compute(time);
   
-  // if(single_peginhole_action_server_->getTarget(time, tau_cmd_main, tau_cmd_sub))
-  // { 
-  //   single_peginhole_action_server_->taskArmDefine(left_arm_id_, right_arm_id_, main_arm_id, sub_arm_id);
-
-  //   for (size_t i = 0; i < 7; ++i) {
-  //     arms_data_[main_arm_id].joint_handles_[i].setCommand(tau_cmd_main(i));
-  //     arms_data_[sub_arm_id].joint_handles_[i].setCommand(tau_cmd_sub(i));
-  //   }
-  //   return;
-  // }
-
-/*if(assemble_peginhole_action_server_->getTarget(time, tau_cmd))
-  { 
-    for (size_t i = 0; i < 7; ++i) {
-      joint_handles_[i].setCommand(tau_cmd(i));
-    }
-    return;
-  }
-  if(assemble_approach_action_server_->getTarget(time, tau_cmd))
-  {
-    for (size_t i = 0; i < 7; ++i) {
-      joint_handles_[i].setCommand(tau_cmd(i));
-    }
-    return;
-  }
-
-  tau_cmd.setZero();
-  for (size_t i = 0; i < 7; ++i) {
-    joint_handles_[i].setCommand(tau_cmd(i));
-  }
-*/
 
   // Eigen::Matrix<double, 7, 1> tau_cmd;  
   // tau_cmd.setZero();
@@ -249,11 +213,7 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   //   arms_data_[left_arm_id_].joint_handles_[i].setCommand(tau_cmd(i));
   // }
 ///////////////////////////////////////////////
-
-  
-
 }
-
 
 Eigen::Matrix<double, 7, 1> AssemblyDualController::saturateTorqueRate(
     const FrankaModelUpdater& arm_data,
@@ -268,6 +228,7 @@ Eigen::Matrix<double, 7, 1> AssemblyDualController::saturateTorqueRate(
   return tau_d_saturated;
 }
 
+/*
 void AssemblyDualController::updateArm(FrankaModelUpdater& arm_data) {
   // get state variables
   arm_data.updateModel();
@@ -281,6 +242,7 @@ void AssemblyDualController::updateArm(FrankaModelUpdater& arm_data) {
   }
       //arm_data.orientation_d_.slerp(arm_data.filter_params_, arm_data.orientation_d_target_);
 }
+*/
 
 
 }  // namespace assembly_dual_controllers

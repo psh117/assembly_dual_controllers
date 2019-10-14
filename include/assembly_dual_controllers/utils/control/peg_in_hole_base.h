@@ -3,46 +3,43 @@
 #include <Eigen/Dense>
 #include <unsupported/Eigen/MatrixFunctions>
 #include <cmath>
-#include "dyros_math.h"
+#include <assembly_dual_controllers/utils/dyros_math.h>
 #include <cstdlib>
 #include <ctime>
 
 namespace PegInHole
 {
-    static Eigen::Matrix<double, 6, 1> straightMove(const Eigen::Vector3d origin,
-        const Eigen::Matrix3d initial_rotation_M,
-        const Eigen::Matrix3d rotation_M,
+    static Eigen::Vector3d straightMove(const Eigen::Vector3d origin,
         const Eigen::Vector3d current_position,
         const Eigen::Matrix<double, 6, 1> current_velocity,
+        const int dir,
+        const double speed,
         const double current_time,
         const double init_time)
     {
-        double desent_speed = -0.02; //-0.005; // 5cm/s
+        // double desent_speed = -0.02; //-0.005; // 5cm/s
 
         Eigen::Vector3d desired_position;
         Eigen::Vector3d desired_linear_velocity;
-        Eigen::Vector3d delphi_delta;
         Eigen::Vector3d f_star;
-        Eigen::Vector3d m_star;
-        Eigen::Matrix<double, 6, 1> f_star_zero;
         Eigen::Matrix3d K_p; 
         Eigen::Matrix3d K_v;
         
         K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
         K_v << 100, 0, 0, 0, 100, 0, 0, 0, 100;
 
-        desired_position.head<2>() = origin.head<2>();
-        desired_position(2) = origin(2) + desent_speed*(current_time - init_time);
-        desired_linear_velocity << 0, 0, desent_speed;
         
-        delphi_delta = -0.5 * dyros_math::getPhi(rotation_M, initial_rotation_M);
+        desired_position = origin;
+        desired_position(dir) = origin(dir) + speed*(current_time - init_time);
+        
+        desired_linear_velocity.setZero();
+        desired_linear_velocity(dir) = speed;
+                
+        
         f_star = K_p * (desired_position - current_position) + K_v * ( desired_linear_velocity- current_velocity.head<3>());  
-        m_star = (1.0) * 200.0* delphi_delta+ 5.0*(-current_velocity.tail<3>()) ;
+        
        
-        f_star_zero.head<3>() = f_star;
-        f_star_zero.tail<3>() = m_star;
-
-        return f_star_zero;    
+        return f_star;
     }
 
     static Eigen::Vector3d oneDofMove(const Eigen::Vector3d origin,
@@ -216,19 +213,19 @@ namespace PegInHole
     }    
 
     static Eigen::Vector3d  generateSpiral(const Eigen::Vector3d origin, 
-        const Eigen::Matrix3d initial_rotation_M,
-        const Eigen::Matrix3d rotation_M,
         const Eigen::Vector3d current_position,
         const Eigen::Matrix<double, 6, 1> current_velocity,
+        const double pitch,
+        const double lin_vel,
+        const int dir, //the direction where a peg is inserted
         const double current_time,
         const double init_time,
         const double spiral_duration)
     {
-        double pitch = 0.0010; 
-        double lin_vel = 0.005; 
-        
-        //double d = 0.15;
-
+        // double pitch = 0.0010; 
+        // double lin_vel = 0.005; 
+        Eigen::Vector2d start_point;
+        Eigen::Vector2d traj;
         Eigen::Vector3d desired_position;
         Eigen::Vector3d desired_linear_velocity;
         Eigen::Vector3d f_star;
@@ -240,12 +237,19 @@ namespace PegInHole
 
         K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
         K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
+
+        if(dir == 0) start_point << origin(1), origin(2);
+        if(dir == 1) start_point << origin(0), origin(2);
+        if(dir == 2) start_point << origin(0), origin(1);
         
-        desired_position.head<2>() = dyros_math::spiral(current_time, init_time, init_time + spiral_duration, origin.head<2>(), lin_vel, pitch);
-        desired_position(2) = origin(2);
+        traj = dyros_math::spiral(current_time, init_time, init_time + spiral_duration, start_point, lin_vel, pitch);
+
+        if(dir == 0) desired_position << origin(dir), traj(0), traj(1);
+        if(dir == 1) desired_position << traj(0), origin(dir), traj(1);
+        if(dir == 2) desired_position << traj(0), traj(1), origin(dir);
+        
         desired_linear_velocity.setZero();
     
-
         f_star = K_p * (desired_position - current_position) + K_v * (desired_linear_velocity- current_velocity.head<3>());  
             
         return f_star;
@@ -431,12 +435,12 @@ namespace PegInHole
 
 		val = initial_rotation_M(2, 2);
 		e = 1.0 - fabs(val);
-
+        std::cout<<"e: "<<e<<std::endl;
 		// angle_set_45 << -135, -45, 45, 135;
         angle_set_45 << -180.0, -90.0, 0.0, 90.0, 180.0;
 		angle_set_45 = angle_set_45 * DEG2RAD;
 
-		if (val > 0 && e <= 0.01 * DEG2RAD) //upward
+		if (val > 0 && e <= 0.01) //upward
 		{
 			roll = 0;
 			pitch = 0;
@@ -455,7 +459,7 @@ namespace PegInHole
 			yaw = angle_set_45(index);
 
 		}
-		else if (val < 0 && e <= 0.01 * DEG2RAD) //downward
+		else if (val < 0 && e <= 0.01) //downward
 		{
 			if (roll > 0) roll = 180 * DEG2RAD;
 			else roll = -180 * DEG2RAD;
@@ -502,16 +506,25 @@ namespace PegInHole
 
 		m_star = (1.0) * 200.0 * delphi_delta + 5.0 * (-current_velocity.tail<3>());
 
-        // std::cout<<"pitch angle: "<<euler_angle(1)*180/M_PI<<std::endl;
-        // std::cout<<"angle_set: "<<angle_set_45.transpose()*180/M_PI<<std::endl;
-        // std::cout<<"angle_error_set: "<<angle_set_error.transpose()*180/M_PI<<std::endl;
+        std::cout<<"----------------------"<<std::endl;
+        std::cout<<"roll: "<<roll*180/M_PI<<std::endl;
+        std::cout<<"pitch: "<<pitch*180/M_PI<<std::endl;
+        std::cout<<"yaw: "<<yaw*180/M_PI<<std::endl;
+        std::cout<<"alpha: "<<alpha*180/M_PI<<std::endl;
+        std::cout<<"beta: "<<beta*180/M_PI<<std::endl;
+        std::cout<<"gamma: "<<gamma*180/M_PI<<std::endl;
+        std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
+        // std::cout<<"start_time: "<<init_time<<std::endl;
+        // std::cout<<"current_time: "<<current_time<<std::endl;
+        // std::cout<<"running_time: "<<current_time - init_time<<std::endl;
+        
         // std::cout<<index<<std::endl;
         
         // std::cout<<roll*180/M_PI<<" "<<pitch*180/M_PI<<" "<<yaw*180/M_PI<<std::endl;
 		return m_star;
 	}    
 
-    static Eigen::Vector3d rotateWithLocalAxis(const Eigen::Matrix3d initial_rotation_M,
+    static Eigen::Vector3d rotateWithGlobalAxis(const Eigen::Matrix3d initial_rotation_M,
         const Eigen::Matrix3d rotation_M,
         const Eigen::Matrix<double, 6, 1> current_velocity,
         const double goal,
@@ -554,7 +567,7 @@ namespace PegInHole
         if(dir == 2)    rot << cos(theta), -sin(theta), 0, sin(theta), cos(theta), 0, 0, 0, 1;
         
         
-        target_rotation_M = initial_rotation_M * rot;
+        target_rotation_M = rot * initial_rotation_M;
 
         delphi_delta = -0.5 * dyros_math::getPhi(rotation_M, target_rotation_M);
 
@@ -566,6 +579,15 @@ namespace PegInHole
         // std::cout<<"duration : "<<duration<<std::endl;
         // std::cout<<"theta: "<<theta*180/M_PI<<std::endl;
         return m_star;
+    }
+
+    static double calculateFriction(const int dir, const Eigen::Vector3d f_measured, double friction)
+    {
+        if(dir == 0) friction = sqrt(f_measured(1)*f_measured(1) +f_measured(2)*f_measured(2));
+        if(dir == 1) friction = sqrt(f_measured(0)*f_measured(0) +f_measured(2)*f_measured(2));
+        if(dir == 2) friction = sqrt(f_measured(0)*f_measured(0) +f_measured(1)*f_measured(1));
+
+        return friction;
     }
 
 };

@@ -6,11 +6,11 @@
 #include <cstdlib>
 #include <ctime>
 
-#include <assembly_dual_controllers/action_server_base.h>
+#include <assembly_dual_controllers/servers/action_server_base.h>
 #include <assembly_msgs/SinglePegInHoleAction.h>
-#include <assembly_dual_controllers/peg_in_hole_base.h>
-#include <assembly_dual_controllers/dyros_math.h>
-#include <assembly_dual_controllers/criteria.h>
+#include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
+#include <assembly_dual_controllers/utils/dyros_math.h>
+#include <assembly_dual_controllers/utils/control/criteria.h>
 
 using namespace PegInHole;
 using namespace Criteria;

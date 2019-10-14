@@ -1,8 +1,14 @@
 #pragma once
 
-#include <assembly_dual_controllers/action_server_base.h>
+#include <assembly_dual_controllers/servers/action_server_base.h>
 #include <assembly_msgs/AssembleApproachAction.h>
-#include <assembly_dual_controllers/dyros_math.h>
+#include <assembly_dual_controllers/utils/dyros_math.h>
+#include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
+#include <assembly_dual_controllers/utils/control/criteria.h>
+
+using namespace dyros_math;
+using namespace Criteria;
+using namespace PegInHole;
 
 using namespace dyros_math;
 
@@ -21,8 +27,13 @@ class AssembleApproachActionServer : public ActionServerBase
     Eigen::Matrix<double, 6, 1> desired_xd_;
     Eigen::Vector3d desired_x_;
     Eigen::Matrix<double, 7, 6> j_inverse_;
-    Eigen::Matrix<double, 3, 3> ori_init_assembly_;
-    double descent_speed_ {-0.02};
+    
+    Eigen::Vector3d origin_;
+    Eigen::Matrix<double, 3, 3> init_rot_;
+
+    double descent_speed_; 
+    double contact_force_;    
+    int assemble_dir_;
 
 public:
   AssembleApproachActionServer(std::string name, ros::NodeHandle &nh, 

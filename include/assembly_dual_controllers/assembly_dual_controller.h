@@ -17,9 +17,12 @@
 #include <ros/transport_hints.h>
 #include <Eigen/Dense>
 
-#include <assembly_dual_controllers/franka_model_updater.h>
-#include <assembly_dual_controllers/assemble_approach_action_server.h>
-#include <assembly_dual_controllers/idle_control_server.h>
+#include <assembly_dual_controllers/utils/model/franka_model_updater.h>
+#include <assembly_dual_controllers/servers/assemble_approach_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_insert_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_spiral_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_verify_action_server.h>
+#include <assembly_dual_controllers/servers/idle_control_server.h>
 // #include <assembly_dual_controllers/single_peginhole_action_server.h>
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
@@ -43,13 +46,13 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   void starting(const ros::Time&) override;
   void update(const ros::Time&time, const ros::Duration& period) override;
 
-  // static Eigen::Vector2d Spiral(double time, double time_0,
-	// double time_f, Eigen::Vector2d x_0, double line_v, double pitch );
-
  private:
 
-  // std::unique_ptr<SinglePegInHoleActionServer> single_peginhole_action_server_;
   std::unique_ptr<AssembleApproachActionServer> assemble_approach_action_server_;
+  std::unique_ptr<AssembleSpiralActionServer> assemble_spiral_action_server_;
+  std::unique_ptr<AssembleInsertActionServer> assemble_insert_action_server_;
+  std::unique_ptr<AssembleVerifyActionServer> assemble_verify_action_server_;
+  
   std::unique_ptr<IdleControlServer> idle_control_server_;
   
   std::map<std::string, std::shared_ptr<FrankaModelUpdater> >  arms_data_; ///< Holds all relevant data for both arms.
@@ -103,12 +106,6 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
                const std::string& arm_id,
                const std::vector<std::string>& joint_names);
 
-  /**
-   * Computes the decoupled controller update for a single arm.
-   *
-   * @param[in] arm_data The data container of the arm to control.
-   */
-  void updateArm(FrankaModelUpdater& arm_data);
   /**
    * Prepares all internal states to be ready to run the real-time control for one arm.
    *

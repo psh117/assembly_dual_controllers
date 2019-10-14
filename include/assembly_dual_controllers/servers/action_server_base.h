@@ -1,7 +1,7 @@
 #pragma once
 
 #include <actionlib/server/simple_action_server.h>
-#include <assembly_dual_controllers/franka_model_updater.h>
+#include <assembly_dual_controllers/utils/model/franka_model_updater.h>
 #include <Eigen/Dense>
 #include <map>
 
