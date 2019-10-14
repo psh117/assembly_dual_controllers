@@ -62,11 +62,12 @@ public:
     {
       case assembly_msgs::IdleControl::Request::DISABLED:
       {
-        arm.setTorque(Eigen::Vector7d::Zero());
+        arm.setTorque(Eigen::Vector7d::Zero(), true);
       }
       case assembly_msgs::IdleControl::Request::JOINT_SPACE:
       {
         
+        // arm.setTorque(~~~, true); // <<- idle_control = true
       }
       case assembly_msgs::IdleControl::Request::TASK_SPACE:
       {
@@ -82,13 +83,13 @@ public:
         
         auto fstar = PegInHole::keepCurrentStateGain(
           arm.initial_transform_.translation(), arm.initial_transform_.linear(), 
-          arm.position_, arm.rotation_, arm.qd_, param.p_gain, param.d_gain);
+          arm.rotation_, arm.position_, arm.xd_, param.p_gain, param.d_gain);
       
-        arm.setTorque(arm.jacobian_.transpose() * fstar);
+        arm.setTorque(arm.jacobian_.transpose() * fstar, true);
         arm.idle_controlled_ = true;
       }
       default:
-        arm.setTorque(Eigen::Vector7d::Zero());
+        arm.setTorque(Eigen::Vector7d::Zero(), true);
     }
   }
 
