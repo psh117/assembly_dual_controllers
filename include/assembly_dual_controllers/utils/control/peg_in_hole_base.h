@@ -149,11 +149,12 @@ namespace PegInHole
     }
 
 
-    static Eigen::Matrix<double, 6, 1> keepCurrentState(const Eigen::Vector3d origin,
-        const Eigen::Matrix3d initial_rotation_M,
-        const Eigen::Matrix3d rotation_M,
-        const Eigen::Vector3d current_position,
-        const Eigen::Matrix<double, 6, 1> current_velocity)
+    static Eigen::Matrix<double, 6, 1> keepCurrentState(const Eigen::Vector3d initial_position,
+        const Eigen::Matrix3d initial_rotation,
+        const Eigen::Vector3d position,
+        const Eigen::Matrix3d rotation,
+        const Eigen::Matrix<double, 6, 1> current_velocity, 
+        const double kp = 5000, const double kv = 100)
     {
         Eigen::Vector3d desired_position;
         Eigen::Vector3d desired_linear_velocity;
@@ -161,53 +162,22 @@ namespace PegInHole
         Eigen::Vector3d f_star;
         Eigen::Vector3d m_star;
         Eigen::Vector6d f_star_zero;
-        Eigen::Matrix3d K_p; 
-        Eigen::Matrix3d K_v;
+        Eigen::Matrix3d kp_m; 
+        Eigen::Matrix3d kv_m;
 
-        K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
-        K_v << 100, 0, 0, 0, 100, 0, 0, 0, 100;
+        kp_m = Eigen::Matrix3d::Identity() * kp;
+        kv_m = Eigen::Matrix3d::Identity() * kv;
 
-        desired_position = origin;
+        desired_position = initial_position;
         desired_linear_velocity.setZero();
 
-        delphi_delta = -0.5 * dyros_math::getPhi(rotation_M, initial_rotation_M);
+        delphi_delta = -0.5 * dyros_math::getPhi(rotation, initial_rotation);
 
-        f_star = K_p * (desired_position - current_position) + K_v * ( desired_linear_velocity- current_velocity.head<3>());  
+        f_star = kp_m * (desired_position - position) + kv_m * ( desired_linear_velocity- current_velocity.head<3>());  
         m_star = (1.0) * 200.0* delphi_delta+ 5.0*(-current_velocity.tail<3>()) ;
 
         f_star_zero.head<3>() = f_star;
         f_star_zero.tail<3>() = m_star;
-
-        return f_star_zero;    
-    }    
-
-    static Eigen::Matrix<double, 6, 1> keepCurrentStateGain(const Eigen::Vector3d origin,
-        const Eigen::Matrix3d initial_rotation_M,
-        const Eigen::Matrix3d rotation_M,
-        const Eigen::Vector3d current_position,
-        const Eigen::Matrix<double, 6, 1> current_velocity,
-        const double kp,
-        const double kv)
-    {
-        Eigen::Vector3d desired_position;
-        Eigen::Vector3d desired_linear_velocity;
-        Eigen::Vector3d delphi_delta;
-        Eigen::Vector3d f_star;
-        Eigen::Vector3d m_star;
-        Eigen::Vector6d f_star_zero;
-        Eigen::Matrix3d K_p; 
-        Eigen::Matrix3d K_v;
-
-        K_p << kp, 0, 0, 0, kp, 0, 0, 0, kp;
-        K_v << kv, 0, 0, 0, kv, 0, 0, 0, kv;
-
-        desired_position = origin;
-        desired_linear_velocity.setZero();
-
-        delphi_delta = -0.5 * dyros_math::getPhi(rotation_M, initial_rotation_M);
-
-        f_star = K_p * (desired_position - current_position) + K_v * ( desired_linear_velocity- current_velocity.head<3>());  
-        m_star = (1.0) * 200.0* delphi_delta+ 5.0*(-current_velocity.tail<3>()) ;
 
         return f_star_zero;    
     }    

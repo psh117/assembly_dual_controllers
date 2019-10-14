@@ -194,6 +194,7 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   
   for (auto& arm : arms_data_) {
     arm.second->updateModel();
+    arm.second->target_updated_ = false;
   }
 
 

@@ -32,6 +32,10 @@ public:
                   std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu) :
   nh_(nh), mu_(mu)
   {
+    for (auto & pair : mu_)
+    {
+      params_.emplace(std::make_pair(pair.first, assembly_msgs::IdleControl::Request()));
+    }
     server_  = nh_.advertiseService(name, &IdleControlServer::setTarget, this);
   }
 
@@ -63,30 +67,37 @@ public:
       case assembly_msgs::IdleControl::Request::DISABLED:
       {
         arm.setTorque(Eigen::Vector7d::Zero(), true);
+        arm.idle_controlled_ = false;
+        break;
       }
       case assembly_msgs::IdleControl::Request::JOINT_SPACE:
       {
         
         // arm.setTorque(~~~, true); // <<- idle_control = true
+        break;
       }
       case assembly_msgs::IdleControl::Request::TASK_SPACE:
       {
         // default gain (gains are not set)
         if (param.p_gain <= 0.01)
         {
+          ROS_INFO("IdleController::computeArm -- Set P gain to default(5000) %s", param.arm_name.c_str());
           param.p_gain = 5000.;
         } 
         if (param.d_gain <= 0.01)
         {
+          ROS_INFO("IdleController::computeArm -- Set D gain to default(100) %s", param.arm_name.c_str());
           param.d_gain = 100.;
         }
         
-        auto fstar = PegInHole::keepCurrentStateGain(
+        auto fstar = PegInHole::keepCurrentState(
           arm.initial_transform_.translation(), arm.initial_transform_.linear(), 
-          arm.rotation_, arm.position_, arm.xd_, param.p_gain, param.d_gain);
-      
+          arm.position_, arm.rotation_, arm.xd_, param.p_gain, param.d_gain);
+
+        // std::cout << fstar.transpose() << std::endl;
         arm.setTorque(arm.jacobian_.transpose() * fstar, true);
         arm.idle_controlled_ = true;
+        break;
       }
       default:
         arm.setTorque(Eigen::Vector7d::Zero(), true);
@@ -97,6 +108,15 @@ private:
   bool setTarget(assembly_msgs::IdleControl::Request  &req,
                  assembly_msgs::IdleControl::Response &res)
   {
+    for (auto & pair : mu_)
+    {
+      if (pair.first == req.arm_name)
+      {
+        ROS_INFO("IdleController::setTarget -- receiving request. %s",pair.first.c_str());
+        params_[pair.first] = req;
+        res.is_succeed = true;
+      }
+    }
     return true;
   }
 
