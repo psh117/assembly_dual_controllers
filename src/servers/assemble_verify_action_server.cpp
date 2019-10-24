@@ -11,7 +11,7 @@ as_(nh,name,false)
 }
 
 void AssembleVerifyActionServer::goalCallback()
-{
+{ 
   feedback_header_stamp_ = 0;
   goal_ = as_.acceptNewGoal();
 

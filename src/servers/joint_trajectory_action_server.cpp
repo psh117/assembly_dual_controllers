@@ -1,7 +1,7 @@
-#include <assembly_controllers/joint_trajectory_action_server.h>
+#include <assembly_dual_controllers/servers/joint_trajectory_action_server.h>
 
 JointTrajectoryActionServer::JointTrajectoryActionServer(std::string name, ros::NodeHandle &nh, 
-                                std::shared_ptr<FrankaModelUpdater> &mu)
+                                std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu)
 : ActionServerBase(name,nh,mu),
 as_(nh,name,false)
 {
@@ -15,9 +15,33 @@ void JointTrajectoryActionServer::goalCallback()
   feedback_header_stamp_ = 0;
   goal_ = as_.acceptNewGoal();
 
-  ROS_INFO("Joint trajectory goal has been received.");
+  if(goal_->trajectory.joint_names.size() == 0)
+  {
+    ROS_INFO("[JointTrajectoryActionServer::goalCallback] Joint trajectory goal but no data has been received. Just passing it.");
+    as_.setAborted();
+    return; 
+  }
+  ROS_INFO("[JointTrajectoryActionServer::goalCallback] Joint trajectory goal has been received.");
 
   start_time_ = ros::Time::now();
+
+  bool find_arm = false;
+  for (auto iter = mu_.begin(); iter != mu_.end(); iter++)
+  {
+    // Find 'panda_left' in 'panda_left_joint1' 
+    if (goal_->trajectory.joint_names[0].find(iter->first))
+    {
+      active_arm_ = iter->first;
+      find_arm = true;
+    }
+  }
+
+  if (find_arm == false)
+  {
+    ROS_ERROR("[JointTrajectoryActionServer::goalCallback] the name %s is not in the arm list.", goal_->trajectory.joint_names[0].c_str());
+    as_.setAborted();
+    return;
+  }
 
   auto as_joint_size = goal_->trajectory.points[0].positions.size();
 
@@ -33,11 +57,18 @@ void JointTrajectoryActionServer::preemptCallback()
 }
 
 
-bool JointTrajectoryActionServer::getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque)
+bool JointTrajectoryActionServer::compute(ros::Time time)
 {
   if (!as_.isActive())
-    return false;
+      return false; 
+  
+  computeArm(time, *mu_[active_arm_]);
+  return false;
+}
 
+
+bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm)
+{
   Eigen::Matrix<double, 7, 1> q_desired, qd_desired, qdd_desired, tau_cmd;
   auto total_time = goal_->trajectory.points.back().time_from_start;
   ros::Duration passed_time = time - start_time_;
@@ -77,14 +108,14 @@ bool JointTrajectoryActionServer::getTarget(ros::Time time, Eigen::Matrix<double
     feedback_.actual.accelerations[j] = position_now(2);
   }
 
-
   Eigen::Matrix<double, 7,7> kp, kv;
   
   kp = Eigen::Matrix<double, 7,7>::Identity() * 800;
   kv = Eigen::Matrix<double, 7,7>::Identity() * 15;
   kp(6,6) = 600;
   kv(6,6) = 5;
-  torque = (kp*(q_desired - mu_->q_) + kv*(qd_desired - mu_->qd_)) + mu_->coriolis_;
+  Eigen::Matrix<double,7,1> desired_torque;
+  desired_torque = (kp*(q_desired - arm.q_) + kv*(qd_desired - arm.qd_)) + arm.coriolis_;
 
   feedback_.actual.time_from_start = passed_time;
   feedback_.header.seq=feedback_header_stamp_;
@@ -95,6 +126,7 @@ bool JointTrajectoryActionServer::getTarget(ros::Time time, Eigen::Matrix<double
   {
     as_.setSucceeded();
   }
+  arm.setTorque(desired_torque);
 
   return true;
 }

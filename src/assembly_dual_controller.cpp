@@ -144,7 +144,8 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_exert_force_control", node_handle, arms_data_);
   assemble_verify_action_server_ = std::make_unique<AssembleVerifyActionServer>
   ("/assembly_dual_controller/assemble_verify_completion_control", node_handle, arms_data_);
-
+  joint_trajectory_action_server_ = std::make_unique<JointTrajectoryActionServer>
+  ("/assembly_dual_controller/joint_trajectory_control", node_handle, arms_data_);
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
 
@@ -202,7 +203,10 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   assemble_spiral_action_server_->compute(time);
   assemble_insert_action_server_->compute(time);
   assemble_verify_action_server_->compute(time);
-  idle_control_server_->compute(time);
+  joint_trajectory_action_server_->compute(time);
+
+  
+  idle_control_server_->compute(time); // it should be the last computation.
   
 
   // Eigen::Matrix<double, 7, 1> tau_cmd;  

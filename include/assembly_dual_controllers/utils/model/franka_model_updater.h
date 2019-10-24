@@ -26,6 +26,8 @@ struct FrankaModelUpdater
   Eigen::Affine3d transform_;
   Eigen::Matrix<double, 6, 1> xd_;
 
+
+  Eigen::Matrix<double, 7, 1> initial_q_;  ///< initial joint configuration for idle control
   Eigen::Affine3d initial_transform_; ///< initial transform for idle control
   bool idle_controlled_ {false}; ///< it indicates that this arm is under the idle control status. that is FrankaModelUpdater has valid initial transform and is using the transform.
   bool target_updated_ {false}; ///< it is used to check whether any other action is on going excep the idle control

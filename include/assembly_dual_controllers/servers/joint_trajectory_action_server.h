@@ -1,7 +1,7 @@
 #pragma once
 
-#include <assembly_controllers/action_server_base.h>
-#include <assembly_controllers/dyros_math.h>
+#include <assembly_dual_controllers/servers/action_server_base.h>
+#include <assembly_dual_controllers/utils/dyros_math.h>
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
 
@@ -19,9 +19,12 @@ public:
 
   void goalCallback() override;
   void preemptCallback() override;
+  
+  std::string active_arm_;
 
   JointTrajectoryActionServer(std::string name, ros::NodeHandle &nh, 
-                                std::shared_ptr<FrankaModelUpdater> &mu);
-
-  bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
+                          std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);
+  // bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
+  bool compute(ros::Time time) override;
+  bool computeArm(ros::Time time, FrankaModelUpdater &arm);
 };
