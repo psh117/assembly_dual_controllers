@@ -18,12 +18,17 @@
 #include <Eigen/Dense>
 
 #include <assembly_dual_controllers/utils/model/franka_model_updater.h>
+#include <assembly_dual_controllers/servers/joint_trajectory_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_approach_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_insert_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_spiral_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_verify_action_server.h>
-#include <assembly_dual_controllers/servers/joint_trajectory_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_parallel_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_move_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_press_action_server.h>
 #include <assembly_dual_controllers/servers/idle_control_server.h>
+
+// #include <assembly_dual_controllers/single_peginhole_action_server.h>
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -53,6 +58,9 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   std::unique_ptr<AssembleInsertActionServer> assemble_insert_action_server_;
   std::unique_ptr<AssembleVerifyActionServer> assemble_verify_action_server_;
   std::unique_ptr<JointTrajectoryActionServer> joint_trajectory_action_server_;
+  std::unique_ptr<AssembleParallelActionServer> assemble_parallel_action_server_;
+  std::unique_ptr<AssembleMoveActionServer> assemble_move_action_server_;
+  std::unique_ptr<AssemblePressActionServer> assemble_press_action_server_;
   
   std::unique_ptr<IdleControlServer> idle_control_server_;
   

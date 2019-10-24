@@ -405,7 +405,7 @@ namespace PegInHole
 
 		val = initial_rotation_M(2, 2);
 		e = 1.0 - fabs(val);
-        std::cout<<"e: "<<e<<std::endl;
+        
 		// angle_set_45 << -135, -45, 45, 135;
         angle_set_45 << -180.0, -90.0, 0.0, 90.0, 180.0;
 		angle_set_45 = angle_set_45 * DEG2RAD;
@@ -476,23 +476,61 @@ namespace PegInHole
 
 		m_star = (1.0) * 200.0 * delphi_delta + 5.0 * (-current_velocity.tail<3>());
 
-        std::cout<<"----------------------"<<std::endl;
-        std::cout<<"roll: "<<roll*180/M_PI<<std::endl;
-        std::cout<<"pitch: "<<pitch*180/M_PI<<std::endl;
-        std::cout<<"yaw: "<<yaw*180/M_PI<<std::endl;
-        std::cout<<"alpha: "<<alpha*180/M_PI<<std::endl;
-        std::cout<<"beta: "<<beta*180/M_PI<<std::endl;
-        std::cout<<"gamma: "<<gamma*180/M_PI<<std::endl;
-        std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
-        // std::cout<<"start_time: "<<init_time<<std::endl;
-        // std::cout<<"current_time: "<<current_time<<std::endl;
-        // std::cout<<"running_time: "<<current_time - init_time<<std::endl;
-        
-        // std::cout<<index<<std::endl;
-        
-        // std::cout<<roll*180/M_PI<<" "<<pitch*180/M_PI<<" "<<yaw*180/M_PI<<std::endl;
 		return m_star;
 	}    
+    
+    static Eigen::Vector3d keepOrientationPerpenticularOnlyXY(const Eigen::Matrix3d initial_rotation_M,
+        const Eigen::Matrix3d rotation_M,
+        const Eigen::Matrix<double, 6, 1> current_velocity,
+        const double duration,
+        const double current_time,
+        const double init_time)
+    {
+        Eigen::Matrix3d target_rotation_M;
+        Eigen::Vector3d delphi_delta;
+        Eigen::Vector3d m_star;
+        Eigen::Vector3d euler_angle;
+
+        double val;
+        double e;
+
+        double roll, alpha;
+        double pitch, beta;
+        double yaw, gamma;
+
+        euler_angle = dyros_math::rot2Euler(initial_rotation_M);
+        roll = euler_angle(0);
+        pitch = euler_angle(1);
+        yaw = euler_angle(2);
+
+        val = initial_rotation_M(2, 2);
+        e = 1.0 - fabs(val);
+
+        if (val > 0) //upward
+        {
+            roll = 0;
+            pitch = 0;
+        }
+        
+        else //downward
+        {
+            if (roll > 0) roll = 180 * DEG2RAD;
+            else roll = -180 * DEG2RAD;
+            pitch = 0;
+        }
+
+        alpha = dyros_math::cubic(current_time, init_time, init_time + duration, euler_angle(0), roll, 0, 0);
+        beta = dyros_math::cubic(current_time, init_time, init_time + duration, euler_angle(1), pitch, 0, 0);
+        gamma = dyros_math::cubic(current_time, init_time, init_time + duration, euler_angle(2), yaw, 0, 0);
+
+        target_rotation_M = dyros_math::rotateWithZ(gamma) * dyros_math::rotateWithY(beta) * dyros_math::rotateWithX(alpha);
+
+        delphi_delta = -0.5 * dyros_math::getPhi(rotation_M, target_rotation_M);
+
+        m_star = (1.0) * 250.0 * delphi_delta + 5.0 * (-current_velocity.tail<3>());
+
+        return m_star;
+    }
 
     static Eigen::Vector3d rotateWithGlobalAxis(const Eigen::Matrix3d initial_rotation_M,
         const Eigen::Matrix3d rotation_M,
@@ -559,5 +597,34 @@ namespace PegInHole
 
         return friction;
     }
+
+   
+    static Eigen::Vector3d vectorNormalization(const Eigen::Vector3d v)
+    {
+        Eigen::Vector3d n;
+
+        n = v/sqrt(pow(v(0),2) + pow(v(1),2) + pow(v(2),2));
+
+        return n;
+    }
+    static Eigen::Vector3d computeNomalVector(const Eigen::Vector3d p1,
+        const Eigen::Vector3d p2,
+        const Eigen::Vector3d p3)
+    {
+        Eigen::Vector3d r1;
+        Eigen::Vector3d r2;
+        Eigen::Vector3d r3;
+        Eigen::Vector3d result;
+
+        r1 = p1 - p2;
+        r2 = p1 - p3;
+
+        r3 = r1.cross(r2);
+        r3 = r3/sqrt(pow(r3(0),2) + pow(r3(1),2) + pow(r3(2),2));
+
+        result = r3;
+        return result;
+    }
+   
 
 };
