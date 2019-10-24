@@ -34,6 +34,7 @@ class AssembleApproachActionServer : public ActionServerBase
     double descent_speed_; 
     double contact_force_;    
     int assemble_dir_;
+    int mode_;
 
 public:
   AssembleApproachActionServer(std::string name, ros::NodeHandle &nh, 

@@ -95,7 +95,10 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   f_measured_ = J_bar.transpose()*(tau_measured - gravity);
 
   if(timeOut(time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec()))
-  {
+  { 
+    std::cout<<"start time: "<<arm.task_start_time_.toSec()<<std::endl;
+    std::cout<<"current time: "<<time.toSec()<<std::endl;
+    std::cout<<"end time: "<<arm.task_end_time_.toSec()<<std::endl;
     std::cout<<"Time out"<<std::endl;
     as_.setAborted();
   } 
@@ -107,11 +110,10 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   if(mode_ == 1) //signle peg in hole
   {
     m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
-    // motionForSingle(time, arm, m_star, rotation, xd);
   }
   if(mode_ == 2) //dual peg in hole
   {
-    motionForDual(time, m_star, rotation, xd.tail<3>());
+    m_star = motionForDual(time, rotation, xd.tail<3>());
   }
 
 
@@ -138,17 +140,11 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   return true;
 }
 
-void AssembleSpiralActionServer::motionForSingle(ros::Time time, FrankaModelUpdater &arm,
-  Eigen::Vector3d m_star, Eigen::Matrix3d rot, Eigen::Matrix<double, 6, 1> xd)
+Eigen::Vector3d AssembleSpiralActionServer::motionForDual(ros::Time time, Eigen::Matrix3d rot, Eigen::Vector3d angular)
 {
-  m_star = keepOrientationPerpenticular(init_rot_, rot, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
-  // std::cout<<"running time : "<<time.toSec() - arm.task_start_time_.toSec()<<std::endl;
-  // std::cout<<"start time : "<<time.toSec()<<std::endl;
-  // std::cout<<"current time : "<<arm.task_end_time_.toSec()<<std::endl;
-}
 
-void AssembleSpiralActionServer::motionForDual(ros::Time time, Eigen::Vector3d m_star, Eigen::Matrix3d rot, Eigen::Vector3d angular)
-{
+  Eigen::Vector3d m_star;
+
   if (ori_change_dir_ == 0)
   {
     if (is_first_ == true)
@@ -200,4 +196,6 @@ void AssembleSpiralActionServer::motionForDual(ros::Time time, Eigen::Vector3d m
       is_first_ = true;
     }
   }
+
+  return m_star;
 }

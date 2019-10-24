@@ -1,7 +1,7 @@
 #pragma once
 
 #include <assembly_dual_controllers/servers/action_server_base.h>
-#include <assembly_msgs/AssembleVerifyCompletionAction.h>
+#include <assembly_msgs/AssembleExertForceAction.h>
 #include <assembly_dual_controllers/utils/dyros_math.h>
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 #include <assembly_dual_controllers/utils/control/criteria.h>
@@ -10,13 +10,13 @@ using namespace dyros_math;
 using namespace Criteria;
 using namespace PegInHole;
 
-class AssembleVerifyActionServer : public ActionServerBase
+class AssemblePressActionServer : public ActionServerBase
 {
-    actionlib::SimpleActionServer<assembly_msgs::AssembleVerifyCompletionAction> as_;
+    actionlib::SimpleActionServer<assembly_msgs::AssembleExertForceAction> as_;
 
-    assembly_msgs::AssembleVerifyCompletionFeedback feedback_;
-    assembly_msgs::AssembleVerifyCompletionResult result_;
-    assembly_msgs::AssembleVerifyCompletionGoalConstPtr goal_;
+    assembly_msgs::AssembleExertForceFeedback feedback_;
+    assembly_msgs::AssembleExertForceResult result_;
+    assembly_msgs::AssembleExertForceGoalConstPtr goal_;
 
     void goalCallback() override;
     void preemptCallback() override;
@@ -27,24 +27,19 @@ class AssembleVerifyActionServer : public ActionServerBase
     Eigen::Matrix<double, 3, 3> init_rot_;
     Eigen::Vector3d origin_;
 
-    std::vector<double> mx_;
-    std::vector<double> my_;
-    std::vector<double> mz_;
-
-    double threshold_; //0.8
-    double range_; //5*M_PI/180
-    int mode_;
-    int swing_dir_;
-
-    FILE *save_data_fm;
+    Eigen::Vector3d target_force_;
+    Eigen::Vector3d target_torque_;
+    bool is_first_;
+    int assemble_dir_;
+    
 
 public:
-  AssembleVerifyActionServer(std::string name, ros::NodeHandle &nh, 
+  AssemblePressActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);
 
   bool compute(ros::Time time) override;
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
   //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
 
-  void saveMoment(const Eigen::Vector3d m);
+  double getDistance(const Eigen::Vector3d target, const Eigen::Vector3d start, const int type, const int dir);
 };

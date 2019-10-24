@@ -48,7 +48,6 @@ public:
 
   bool compute(ros::Time time) override;
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
-  void motionForSingle(ros::Time time, FrankaModelUpdater &arm, Eigen::Vector3d m_star, Eigen::Matrix3d rot, Eigen::Matrix<double, 6, 1> xd);
-  void motionForDual(ros::Time time, Eigen::Vector3d m_star, Eigen::Matrix3d rot, Eigen::Vector3d angular);
+  Eigen::Vector3d motionForDual(ros::Time time, Eigen::Matrix3d rot, Eigen::Vector3d angular);
   //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
 };

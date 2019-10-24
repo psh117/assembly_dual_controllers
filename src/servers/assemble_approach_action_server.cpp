@@ -37,6 +37,7 @@ void AssembleApproachActionServer::goalCallback()
   contact_force_ = goal_->contact_force;
   assemble_dir_ = goal_ ->assemble_dir;
   descent_speed_ = goal_ ->descent_speed;
+  mode_ = goal_ ->mode;
 }
 
 void AssembleApproachActionServer::preemptCallback()
@@ -92,9 +93,12 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   else
   {
     f_star = straightMove(origin_, position, xd, assemble_dir_, descent_speed_, time.toSec(), arm.task_start_time_.toSec());
-    m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
+    if(mode_ == 0)  m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 1.0, time.toSec(), arm.task_start_time_.toSec());
+    if(mode_ == 1)  m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 1.0, time.toSec(), arm.task_start_time_.toSec());
+    if(mode_ == 2)  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
   }   
 
+        
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
 

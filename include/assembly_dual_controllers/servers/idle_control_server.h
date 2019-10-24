@@ -34,7 +34,10 @@ public:
   {
     for (auto & pair : mu_)
     {
-      params_.emplace(std::make_pair(pair.first, assembly_msgs::IdleControl::Request()));
+      auto msg = assembly_msgs::IdleControl::Request();
+      msg.arm_name = pair.first;
+      msg.mode = assembly_msgs::IdleControlRequest::TASK_SPACE;
+      params_.emplace(std::make_pair(pair.first, msg));
     }
     server_  = nh_.advertiseService(name, &IdleControlServer::setTarget, this);
   }

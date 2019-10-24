@@ -38,6 +38,7 @@ void AssembleVerifyActionServer::goalCallback()
   range_ = goal_ ->range*M_PI/180;
   mode_ = goal_ ->mode;
   swing_dir_ = goal_ ->swing_dir;
+
 }
 
 void AssembleVerifyActionServer::preemptCallback()
@@ -89,22 +90,16 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   f_measured_ = J_bar.transpose()*(tau_measured - gravity);
   
   //base on end-effector's frame
-  f_ee = rotation*f_measured_.head<3>();
-  m_ee = rotation*f_measured_.tail<3>();
+  f_ee = rotation.transpose()*f_measured_.head<3>();
+  m_ee = rotation.transpose()*f_measured_.tail<3>();
 
-  if(time.toSec() < arm.task_start_time_.toSec())
+  if(time.toSec() < arm.task_end_time_.toSec())
   { 
-    if(mode_ == 1)
-    {}
-    
-    if(mode_ == 2)
-    {
-      f_star.setZero();
-      f_star(2) = -20.0;
-      m_star = rotateWithGlobalAxis(init_rot_, rotation, xd, range_, arm.task_start_time_.toSec(), time.toSec() ,arm.task_end_time_.toSec(), swing_dir_);
-      saveMoment(m_ee);
-    }
-    
+    f_star.setZero();
+    f_star(2) = -0.0;
+    m_star = rotateWithGlobalAxis(init_rot_, rotation, xd, range_, arm.task_start_time_.toSec(), time.toSec() ,arm.task_end_time_.toSec(), swing_dir_);
+    saveMoment(m_ee);
+   
   }
   else
   {
@@ -154,4 +149,6 @@ void AssembleVerifyActionServer::saveMoment(const Eigen::Vector3d m)
     mx_.push_back(m(0));
     my_.push_back(m(1));
     mz_.push_back(m(2));
+
+    // fprintf(save_data_fm, "%lf\t %lf\t %lf\t\n", mx_.back(), my_.back(), mz_.back() );
 }
