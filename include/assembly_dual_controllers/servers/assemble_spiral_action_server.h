@@ -34,6 +34,8 @@ class AssembleSpiralActionServer : public ActionServerBase
     double pitch_;
     int mode_;
     int assemble_dir_;
+    double depth_;
+    double friction_;
     //--- parameters from .action file
 
     int ori_change_dir_;

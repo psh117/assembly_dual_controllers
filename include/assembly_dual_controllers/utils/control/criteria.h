@@ -133,7 +133,7 @@ namespace Criteria
 
         if(running_time >= duration) is_timeout = true;
         else is_timeout = false;
-
+        
         return is_timeout;
     }
     

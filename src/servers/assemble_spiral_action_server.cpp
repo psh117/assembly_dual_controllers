@@ -38,6 +38,8 @@ void AssembleSpiralActionServer::goalCallback()
   pitch_ = goal_ ->pitch;
   mode_ = goal_ ->mode;
   assemble_dir_ = goal_ ->assemble_dir;
+  depth_ = goal_ ->depth;
+  friction_ = goal_ ->friction;
 
   ori_change_dir_ = 0;
   is_first_ = true;
@@ -96,15 +98,12 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   if(timeOut(time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec()))
   { 
-    std::cout<<"start time: "<<arm.task_start_time_.toSec()<<std::endl;
-    std::cout<<"current time: "<<time.toSec()<<std::endl;
-    std::cout<<"end time: "<<arm.task_end_time_.toSec()<<std::endl;
     std::cout<<"Time out"<<std::endl;
     as_.setAborted();
   } 
 
   f_star = generateSpiral(origin_, position, xd, pitch_, lin_vel_, assemble_dir_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
-  f_star(assemble_dir_) = -6.0; // put some value!!! //-6 //-12
+  f_star(assemble_dir_) = -4.0; // put some value!!! //-6 //-12
 
   // command for m_star
   if(mode_ == 1) //signle peg in hole
@@ -119,7 +118,7 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   f = calculateFriction(assemble_dir_, f_measured_.head<3>(), f);
   
-  if(detectHole(origin_(assemble_dir_),position(assemble_dir_),f,0.003,15.0))
+  if(detectHole(origin_(assemble_dir_),position(assemble_dir_),f,depth_,friction_))
   {
     std::cout<<"HOLE IS DETECTED"<<std::endl;
     std::cout<<"dz: "<<origin_(assemble_dir_)-position(assemble_dir_)<<std::endl;
@@ -128,8 +127,6 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   }
   
   
-  // f_star.setZero();
-  // m_star.setZero();
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
 

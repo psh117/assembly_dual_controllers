@@ -17,7 +17,7 @@ void JointTrajectoryActionServer::goalCallback()
 
   if(goal_->trajectory.joint_names.size() == 0)
   {
-    ROS_INFO("[JointTrajectoryActionServer::goalCallback] Joint trajectory goal but no data has been received. Just passing it.");
+    ROS_WARN("[JointTrajectoryActionServer::goalCallback] Joint trajectory goal but no data has been received. Just passing it.");
     as_.setAborted();
     return; 
   }
@@ -29,8 +29,12 @@ void JointTrajectoryActionServer::goalCallback()
   for (auto iter = mu_.begin(); iter != mu_.end(); iter++)
   {
     // Find 'panda_left' in 'panda_left_joint1' 
-    if (goal_->trajectory.joint_names[0].find(iter->first))
+    // ROS_INFO("%s ",goal_->trajectory.joint_names[0].c_str());
+    // ROS_INFO("%s ",iter->first.c_str());
+    // ROS_INFO("%d ", goal_->trajectory.joint_names[0].find(iter->first));
+    if (goal_->trajectory.joint_names[0].find(iter->first) != std::string::npos)
     {
+      ROS_INFO("[JointTrajectoryActionServer::goalCallback] target arm: %s.", iter->first.c_str());
       active_arm_ = iter->first;
       find_arm = true;
     }
@@ -110,23 +114,29 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
 
   Eigen::Matrix<double, 7,7> kp, kv;
   
-  kp = Eigen::Matrix<double, 7,7>::Identity() * 800;
-  kv = Eigen::Matrix<double, 7,7>::Identity() * 15;
-  kp(6,6) = 600;
-  kv(6,6) = 5;
+  kp = Eigen::Matrix<double, 7,7>::Identity() * 600;
+  kv = Eigen::Matrix<double, 7,7>::Identity() * 5;
+
+  kp(6,6) = 200;
+  kv(6,6) = 2;
+
   Eigen::Matrix<double,7,1> desired_torque;
   desired_torque = (kp*(q_desired - arm.q_) + kv*(qd_desired - arm.qd_)) + arm.coriolis_;
 
   feedback_.actual.time_from_start = passed_time;
   feedback_.header.seq=feedback_header_stamp_;
   feedback_header_stamp_++;
-  as_.publishFeedback(feedback_);
+  
+  // std::cout << "q : " << arm.q_.transpose() << std::endl;
+  // std::cout << "qd: " << q_desired.transpose() << std::endl;
+  // std::cout << "dt: " << desired_torque.transpose() << std::endl;
+  
+  arm.setTorque(desired_torque);
+  // as_.publishFeedback(feedback_);
 
   if(time.toSec() > (start_time_.toSec() +  total_time.toSec() + 0.5))
   {
     as_.setSucceeded();
   }
-  arm.setTorque(desired_torque);
-
   return true;
 }

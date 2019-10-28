@@ -152,7 +152,8 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_move_control", node_handle, arms_data_);
   assemble_press_action_server_ = std::make_unique<AssemblePressActionServer>
   ("/assembly_dual_controller/assemble_press_control", node_handle, arms_data_);
-
+  assemble_side_chair_action_server_ = std::make_unique<AssembleSideChairActionServer>
+  ("/assembly_dual_controller/assemble_side_chair_control", node_handle, arms_data_);
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
 
@@ -214,6 +215,7 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   assemble_parallel_action_server_->compute(time);
   assemble_move_action_server_->compute(time);
   assemble_press_action_server_->compute(time);
+  assemble_side_chair_action_server_ ->compute(time);
   idle_control_server_->compute(time);
   
 
