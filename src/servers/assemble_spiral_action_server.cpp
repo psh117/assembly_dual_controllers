@@ -43,7 +43,7 @@ void AssembleSpiralActionServer::goalCallback()
 
   ori_change_dir_ = 0;
   is_first_ = true;
-  ori_duration_ = 1.0;
+  ori_duration_ = 0.5; //1.0
 
   std::cout<<"sprial origin: "<<origin_.transpose()<<std::endl;
   if(mode_ == 1)std::cout<<"Single peg in hole"<<std::endl;
@@ -96,14 +96,14 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   J_bar = mass.inverse()*jacobian.transpose()*lambda;
   f_measured_ = J_bar.transpose()*(tau_measured - gravity);
 
-  if(timeOut(time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec()))
+  if(timeOut(time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec())) //duration wrong??
   { 
     std::cout<<"Time out"<<std::endl;
     as_.setAborted();
   } 
 
   f_star = generateSpiral(origin_, position, xd, pitch_, lin_vel_, assemble_dir_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
-  f_star(assemble_dir_) = -4.0; // put some value!!! //-6 //-12
+  f_star(assemble_dir_) = -5.5; //-4.0// put some value!!! //-6 //-12
 
   // command for m_star
   if(mode_ == 1) //signle peg in hole
@@ -113,6 +113,10 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   if(mode_ == 2) //dual peg in hole
   {
     m_star = motionForDual(time, rotation, xd.tail<3>());
+  }
+  if(mode_ == 3) //triple peg in hole
+  {
+    m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
   }
 
 

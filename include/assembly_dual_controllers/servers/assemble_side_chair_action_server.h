@@ -37,8 +37,10 @@ class AssembleSideChairActionServer : public ActionServerBase
     int assemble_dir_;
     double duration_;
     
-    FILE *save_data_fm;
-    FILE *save_data_pv;
+    FILE *save_data_fm_mover_;
+    FILE *save_data_pv_mover_;
+    FILE *save_data_fm_pusher_;
+    FILE *save_data_pv_pusher_;
     
 public:
   AssembleSideChairActionServer(std::string name, ros::NodeHandle &nh, 

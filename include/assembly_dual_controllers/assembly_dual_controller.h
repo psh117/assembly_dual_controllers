@@ -27,6 +27,8 @@
 #include <assembly_dual_controllers/servers/assemble_move_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_press_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_side_chair_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_rotation_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_triple_recovery_action_server.h>
 #include <assembly_dual_controllers/servers/idle_control_server.h>
 
 // #include <assembly_dual_controllers/single_peginhole_action_server.h>
@@ -63,6 +65,8 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   std::unique_ptr<AssembleMoveActionServer> assemble_move_action_server_;
   std::unique_ptr<AssemblePressActionServer> assemble_press_action_server_;
   std::unique_ptr<AssembleSideChairActionServer> assemble_side_chair_action_server_;
+  std::unique_ptr<AssembleRotationActionServer> assemble_rotation_action_server_;
+  std::unique_ptr<AssembleTripleRecoveryActionServer> assemble_triple_recovery_action_server_;
 
   std::unique_ptr<IdleControlServer> idle_control_server_;
   

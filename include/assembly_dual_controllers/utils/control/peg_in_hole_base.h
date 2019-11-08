@@ -174,7 +174,7 @@ namespace PegInHole
         delphi_delta = -0.5 * dyros_math::getPhi(rotation, initial_rotation);
 
         f_star = kp_m * (desired_position - position) + kv_m * ( desired_linear_velocity- current_velocity.head<3>());  
-        m_star = (1.0) * 200.0* delphi_delta+ 5.0*(-current_velocity.tail<3>()) ;
+        m_star = (1.0) * 300.0* delphi_delta+ 5.0*(-current_velocity.tail<3>());
 
         f_star_zero.head<3>() = f_star;
         f_star_zero.tail<3>() = m_star;
@@ -532,6 +532,59 @@ namespace PegInHole
         return m_star;
     }
 
+    static Eigen::Vector3d rotateOrientationPerpenticular(const Eigen::Matrix3d initial_rotation_M,
+		const Eigen::Matrix3d rotation_M,
+		const Eigen::Matrix<double, 6, 1> current_velocity,
+		const double duration,
+		const double current_time,
+		const double init_time)
+	{
+        Eigen::Matrix3d target_rotation_M;
+        Eigen::Vector3d delphi_delta;
+        Eigen::Vector3d m_star;
+        Eigen::Vector3d euler_angle;
+
+        double val;
+        double e;
+
+        double roll, alpha;
+        double pitch, beta;
+        double yaw, gamma;
+
+        euler_angle = dyros_math::rot2Euler(initial_rotation_M);
+        roll = euler_angle(0);
+        pitch = euler_angle(1);
+        yaw = euler_angle(2);
+
+        val = initial_rotation_M(2, 2);
+        e = 1.0 - fabs(val);
+
+        if (val > 0) //upward
+        {
+            roll = 0;
+            pitch = 0;
+        }
+        
+        else //downward
+        {
+            if (roll > 0) roll = 180 * DEG2RAD;
+            else roll = -180 * DEG2RAD;
+            pitch = 0;
+        }
+
+        alpha = dyros_math::cubic(current_time, init_time, init_time + duration, euler_angle(0), roll, 0, 0);
+        beta = dyros_math::cubic(current_time, init_time, init_time + duration, euler_angle(1), pitch + (3*M_PI/180), 0, 0);
+        gamma = dyros_math::cubic(current_time, init_time, init_time + duration, euler_angle(2), yaw, 0, 0);
+
+        target_rotation_M = dyros_math::rotateWithZ(gamma) * dyros_math::rotateWithY(beta) * dyros_math::rotateWithX(alpha);
+
+        delphi_delta = -0.5 * dyros_math::getPhi(rotation_M, target_rotation_M);
+
+        m_star = (1.0) * 250.0 * delphi_delta + 5.0 * (-current_velocity.tail<3>());
+
+        return m_star;
+	}    
+
     static Eigen::Vector3d rotateWithGlobalAxis(const Eigen::Matrix3d initial_rotation_M,
         const Eigen::Matrix3d rotation_M,
         const Eigen::Matrix<double, 6, 1> current_velocity,
@@ -576,6 +629,55 @@ namespace PegInHole
         
         
         target_rotation_M = rot * initial_rotation_M;
+
+        delphi_delta = -0.5 * dyros_math::getPhi(rotation_M, target_rotation_M);
+
+        m_star = (1.0) * 200.0 * delphi_delta + 5.0*(-current_velocity.tail<3>());
+
+                
+        // std::cout<<"----------------------"<<std::endl;
+        // std::cout<<"time: "<<run_time<<std::endl;
+        // std::cout<<"duration : "<<duration<<std::endl;
+        // std::cout<<"theta: "<<theta*180/M_PI<<std::endl;
+        return m_star;
+    }
+
+    static Eigen::Vector3d rotateWithEeAxis(const Eigen::Matrix3d initial_rotation_M,
+        const Eigen::Matrix3d rotation_M,
+        const Eigen::Matrix<double, 6, 1> current_velocity,
+        const double goal,
+        const double init_time,
+        const double current_time,
+        const double end_time,
+        const int dir) // 0 = x-axis, 1 = y-axis, 2 = z-axis
+    {
+        Eigen::Matrix3d rot;
+        Eigen::Matrix3d target_rotation_M;
+        Eigen::Vector3d delphi_delta;
+        Eigen::Vector3d m_star;
+        
+
+        double theta;
+        double run_time;
+        double duration = (end_time - init_time); //0.5s
+        
+        run_time = current_time - init_time;
+
+        
+        //if(run_time <= duration)
+        //{
+            theta = dyros_math::cubic(current_time, init_time, init_time + duration, 0, goal, 0, 0);        
+        //} 
+
+
+                
+        
+        if(dir == 0)    rot << 1, 0, 0, 0, cos(theta), -sin(theta), 0, sin(theta), cos(theta);
+        if(dir == 1)    rot << cos(theta), 0, sin(theta), 0, 1, 0, -sin(theta), 0, cos(theta);
+        if(dir == 2)    rot << cos(theta), -sin(theta), 0, sin(theta), cos(theta), 0, 0, 0, 1;
+        
+        
+        target_rotation_M = initial_rotation_M * rot;
 
         delphi_delta = -0.5 * dyros_math::getPhi(rotation_M, target_rotation_M);
 

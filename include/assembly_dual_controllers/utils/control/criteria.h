@@ -137,31 +137,15 @@ namespace Criteria
         return is_timeout;
     }
     
-    static bool checkForceLimit(const std::vector<double> f,
+    static bool checkForceLimit(const double f,
         const double threshold)        
     {   
         bool is_done;
-        int size;
-        double sum;
-        double avg;
-
-        size = int(f.size());
-
-        for(int i = 0; i < size; i ++)
-        {
-            sum += fabs(double(f[i]));
-        }
         
-        avg = sum / size;
-
-        if(avg >= threshold) is_done = true;
+        
+        if(f >= threshold) is_done = true;
         else is_done = false;
-
-        // std::cout<<"size : "<<size<<std::endl;
-        // std::cout<<"sum : "<<sum<<std::endl;
-        std::cout<<"force avg : "<<avg<<std::endl;
-        // std::cout<<"is_done : "<<is_done<<std::endl;
-        
+                
         return is_done;
     }
 

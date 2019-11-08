@@ -24,6 +24,9 @@ void JointTrajectoryActionServer::goalCallback()
   ROS_INFO("[JointTrajectoryActionServer::goalCallback] Joint trajectory goal has been received.");
 
   start_time_ = ros::Time::now();
+  auto now_time = ros::WallTime::now();
+  ROS_INFO("start time = %lf %lf", start_time_.toSec(), now_time.toSec());
+  // start_time_ = ros::Time::now();
 
   bool find_arm = false;
   for (auto iter = mu_.begin(); iter != mu_.end(); iter++)
@@ -36,6 +39,7 @@ void JointTrajectoryActionServer::goalCallback()
     {
       ROS_INFO("[JointTrajectoryActionServer::goalCallback] target arm: %s.", iter->first.c_str());
       active_arm_ = iter->first;
+      traj_running_ = true;
       find_arm = true;
     }
   }
@@ -65,6 +69,9 @@ bool JointTrajectoryActionServer::compute(ros::Time time)
 {
   if (!as_.isActive())
       return false; 
+  
+  if(!traj_running_)  // wait for acceptance of the goal, active but not accepted
+    return false; 
   
   computeArm(time, *mu_[active_arm_]);
   return false;
@@ -136,7 +143,9 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
 
   if(time.toSec() > (start_time_.toSec() +  total_time.toSec() + 0.5))
   {
+    ROS_INFO("joint_trajectory_done %lf %lf", start_time_.toSec(), total_time.toSec() );
     as_.setSucceeded();
+    traj_running_ = false;
   }
   return true;
 }

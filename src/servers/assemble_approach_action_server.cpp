@@ -96,6 +96,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
     if(mode_ == 0)  m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 1.0, time.toSec(), arm.task_start_time_.toSec());
     if(mode_ == 1)  m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 1.0, time.toSec(), arm.task_start_time_.toSec());
     if(mode_ == 2)  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
+    if(mode_ == 3)  m_star = rotateOrientationPerpenticular(init_rot_, rotation, xd, 1.0, time.toSec(), arm.task_start_time_.toSec());
   }   
 
         

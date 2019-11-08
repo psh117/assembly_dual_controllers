@@ -46,9 +46,13 @@ void AssembleSideChairActionServer::goalCallback()
   target_force_(2) = goal_ ->target_force.force.z;
 
   mu_[goal_->mover]->task_end_time_ = ros::Time(mu_[goal_->mover]->task_start_time_.toSec() + duration_);
-
-  save_data_fm = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_fm.txt","w");   
-  save_data_pv = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_pv.txt","w");
+  
+  
+  save_data_fm_mover_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_fm_mover.txt","w");   
+  save_data_pv_mover_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_pv_mover.txt","w");
+  save_data_fm_pusher_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_fm_pusher.txt","w");   
+  save_data_pv_pusher_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_pv_pusher.txt","w");
+  
 }
 
 void AssembleSideChairActionServer::preemptCallback()
@@ -69,7 +73,7 @@ bool AssembleSideChairActionServer::compute(ros::Time time)
   } else {
     ROS_ERROR("[AssembleSideChairActionServer::compute] the name %s and %s are not in the arm list.", goal_->pusher.c_str(), goal_ ->mover.c_str());
   }
-
+  
   return false;
 }
 
@@ -95,21 +99,18 @@ bool AssembleSideChairActionServer::computePusher(ros::Time time, FrankaModelUpd
   Eigen::Vector3d f_ee;
   Eigen::Vector3d m_ee;
 
+  double reaction_force = 0.0;
+
   lambda = (jacobian*mass.inverse()*jacobian.transpose()).inverse();
   J_bar = mass.inverse()*jacobian.transpose()*lambda;
   f_measured_ = J_bar.transpose()*(tau_measured - gravity);
+
   f_ee = rotation.transpose()*f_measured_.head<3>();
   m_ee = rotation.transpose()*f_measured_.tail<3>();
   
-  // pressSideChair(f_star, m_star, position, rotation, xd);
   f_star = keepCurrentState(origin_pusher_, init_rot_pusher_, position, rotation, xd, 5000, 100).head<3>();
   f_star(assemble_dir_) = target_force_(assemble_dir_);
   m_star = keepCurrentState(origin_pusher_, init_rot_pusher_, position, rotation, xd, 5000, 100).tail<3>();  
-
-  std::cout<<"---------------pusher-----------------"<<std::endl;
-  std::cout<<"origin_pusher_: "<<origin_pusher_.transpose()<<std::endl;
-  std::cout<<"position_pusher_: "<<position.transpose()<<std::endl;
-  std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
        
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
@@ -117,8 +118,26 @@ bool AssembleSideChairActionServer::computePusher(ros::Time time, FrankaModelUpd
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
 
-  fprintf(save_data_fm, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", f_ee(0), f_ee(1), f_ee(2), m_ee(0), m_ee(1), m_ee(2));
+  for(int i = 0; i < 3; i++)
+  {
+    if( i == assemble_dir_) reaction_force += 0.0;
+    else reaction_force += pow(f_ee(i),2);
+  }
+  reaction_force = sqrt(reaction_force);
 
+  
+  if(checkForceLimit(reaction_force, 12.0))
+  {
+    as_.setSucceeded();
+    std::cout<<"reaction_force: "<<reaction_force<<std::endl;
+    std::cout<<"f_sensing: "<<f_ee.transpose()<<std::endl;
+  
+  }
+  
+  fprintf(save_data_fm_pusher_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", f_ee(0), f_ee(1), f_ee(2), m_ee(0), m_ee(1), m_ee(2));
+  fprintf(save_data_pv_pusher_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", position(0), position(1), position(2), xd(0), xd(1), xd(2));
+
+  
   return true;
 }
 
@@ -135,16 +154,21 @@ bool AssembleSideChairActionServer::computeMover(ros::Time time, FrankaModelUpda
   auto & tau_measured = arm.tau_measured_;
   auto & gravity = arm.gravity_;
   auto & xd = arm.xd_;
-  
+    
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
   Eigen::Matrix<double, 6, 1> f_star_zero;
   Eigen::Matrix<double, 6, 6> lambda;
   Eigen::Matrix<double, 7, 6> J_bar;
+  Eigen::Vector3d f_ee;
+  Eigen::Vector3d m_ee;
 
   lambda = (jacobian*mass.inverse()*jacobian.transpose()).inverse();
   J_bar = mass.inverse()*jacobian.transpose()*lambda;
   f_measured_ = J_bar.transpose()*(tau_measured - gravity);
+
+  f_ee = rotation.transpose()*f_measured_.head<3>();
+  m_ee = rotation.transpose()*f_measured_.tail<3>();
 
   if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_))
   { 
@@ -164,6 +188,9 @@ bool AssembleSideChairActionServer::computeMover(ros::Time time, FrankaModelUpda
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
 
+  fprintf(save_data_fm_mover_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", f_ee(0), f_ee(1), f_ee(2), m_ee(0), m_ee(1), m_ee(2));
+  fprintf(save_data_pv_mover_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", position(0), position(1), position(2), xd(0), xd(1), xd(2));
+  
   return true;
 }
 

@@ -19,6 +19,8 @@ public:
 
   void goalCallback() override;
   void preemptCallback() override;
+
+  bool traj_running_ {false}; // multi-threading error prevention
   
   std::string active_arm_;
 
