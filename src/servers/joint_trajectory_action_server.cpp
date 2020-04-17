@@ -8,6 +8,19 @@ as_(nh,name,false)
   as_.registerGoalCallback(boost::bind(&JointTrajectoryActionServer::goalCallback, this));
   as_.registerPreemptCallback(boost::bind(&JointTrajectoryActionServer::preemptCallback, this));
   as_.start();
+
+  std::string joint_name_prefix = "_joint";
+  for (auto iter = mu_.begin(); iter != mu_.end(); iter++)
+  {
+    std::vector<std::string> joint_names;
+    for(int i=1; i<=7; i++)
+    {
+      std::string joint_name = iter->first + joint_name_prefix + std::to_string(i);
+      std::cout << joint_name;
+      joint_names.push_back(joint_name);
+    }
+    joint_names_[iter->first] = joint_names;
+  }
 }
 
 void JointTrajectoryActionServer::goalCallback()
@@ -28,27 +41,67 @@ void JointTrajectoryActionServer::goalCallback()
   ROS_INFO("start time = %lf %lf", start_time_.toSec(), now_time.toSec());
   // start_time_ = ros::Time::now();
 
-  bool find_arm = false;
+  bool find_any_arm = false;
+  
   for (auto iter = mu_.begin(); iter != mu_.end(); iter++)
   {
+    active_arms_[iter->first] = false;
+    bool find_arm = false;
+    find_any_arm = true;
     // Find 'panda_left' in 'panda_left_joint1' 
     // ROS_INFO("%s ",goal_->trajectory.joint_names[0].c_str());
     // ROS_INFO("%s ",iter->first.c_str());
     // ROS_INFO("%d ", goal_->trajectory.joint_names[0].find(iter->first));
-    if (goal_->trajectory.joint_names[0].find(iter->first) != std::string::npos)
+    for (int i=0; i<goal_->trajectory.joint_names.size(); i++)
     {
-      ROS_INFO("[JointTrajectoryActionServer::goalCallback] target arm: %s.", iter->first.c_str());
-      active_arm_ = iter->first;
+      if (goal_->trajectory.joint_names[i] == *joint_names_[iter->first].begin())
+      {
+        start_index_map_[iter->first] = i;
+        find_arm = true;
+        break;
+      }
+    }
+    if(find_arm == true)
+    {
+      active_arms_[iter->first] = true;
       traj_running_ = true;
-      find_arm = true;
     }
   }
 
-  if (find_arm == false)
+  q_desired_.resize(goal_->trajectory.joint_names.size());
+  for(int i=0; i<q_desired_.size(); i++)
+  {
+    q_desired_(i) = goal_->trajectory.points[0].positions[i];
+  }
+
+  qd_desired_.setZero(goal_->trajectory.joint_names.size());
+  qdd_desired_.setZero(goal_->trajectory.joint_names.size());
+  // trajectory_data_.resize(goal_->trajectory.joint_names.size(), goal_->trajectory.points.size());
+
+  if (find_any_arm == false)
   {
     ROS_ERROR("[JointTrajectoryActionServer::goalCallback] the name %s is not in the arm list.", goal_->trajectory.joint_names[0].c_str());
     as_.setAborted();
     return;
+  }
+
+  for (int i=0; i<goal_->trajectory.joint_names.size(); i++)
+  {
+    for (auto iter = mu_.begin(); iter != mu_.end(); iter++)
+    {
+      bool is_found = false;
+      for (int j=0; j<joint_names_[iter->first].size(); j++)
+      {
+        if ( goal_->trajectory.joint_names[i] == joint_names_[iter->first].at(j) )
+        {
+          is_found = true;
+          joint_map_[i] = std::make_pair(iter->first, j);       
+          break;
+        }
+      }
+      if (is_found)
+        break;
+    }
   }
 
   auto as_joint_size = goal_->trajectory.points[0].positions.size();
@@ -73,12 +126,18 @@ bool JointTrajectoryActionServer::compute(ros::Time time)
   if(!traj_running_)  // wait for acceptance of the goal, active but not accepted
     return false; 
   
-  computeArm(time, *mu_[active_arm_]);
+  for (auto & arm : active_arms_)
+  {
+    if (arm.second == true)
+    {
+      computeArm(time, *mu_[arm.first], start_index_map_[arm.first]);
+    }
+  }
   return false;
 }
 
 
-bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm)
+bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm, int start_index)
 {
   Eigen::Matrix<double, 7, 1> q_desired, qd_desired, qdd_desired, tau_cmd;
   auto total_time = goal_->trajectory.points.back().time_from_start;
@@ -87,7 +146,7 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
   Eigen::Vector3d position_now;
 
   bool value_updated = false;
-  for (int j = 0; j < 7; j++){ 
+  for (int j = start_index; j < start_index+7; j++){ 
     for (int i = 0; i < goal_->trajectory.points.size()-1; i++)
     {
       auto & cur_point = goal_->trajectory.points[i];
@@ -110,9 +169,9 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
       position_now(2) = goal_->trajectory.points.back().accelerations[j];
     }
     
-    q_desired(j) = position_now(0);
-    qd_desired(j) = position_now(1);
-    qdd_desired(j) = position_now(2);
+    q_desired(j-start_index) = position_now(0);
+    qd_desired(j-start_index) = position_now(1);
+    qdd_desired(j-start_index) = position_now(2);
 
     feedback_.actual.positions[j] = position_now(0);
     feedback_.actual.velocities[j] = position_now(1);
