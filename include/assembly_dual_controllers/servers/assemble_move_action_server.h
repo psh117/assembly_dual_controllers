@@ -31,6 +31,7 @@ class AssembleMoveActionServer : public ActionServerBase
     int type_;
     int dir_;
     int option_;
+    double target_distance_;
 
     bool is_first_;
     double duration_;

@@ -56,12 +56,12 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
       if (param.p_gain <= 0.01)
       {
         ROS_INFO("IdleController::computeArm -- Set P gain to default(5000) %s", param.arm_name.c_str());
-        param.p_gain = 5000.;
+        param.p_gain = 4000.;
       } 
       if (param.d_gain <= 0.01)
       {
         ROS_INFO("IdleController::computeArm -- Set D gain to default(100) %s", param.arm_name.c_str());
-        param.d_gain = 100.;
+        param.d_gain = 200.;
       }
       
       auto fstar = PegInHole::keepCurrentState(

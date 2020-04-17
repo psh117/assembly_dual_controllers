@@ -122,13 +122,17 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
   Eigen::Matrix<double, 7,7> kp, kv;
   
   kp = Eigen::Matrix<double, 7,7>::Identity() * 600;
-  kv = Eigen::Matrix<double, 7,7>::Identity() * 5;
+  kv = Eigen::Matrix<double, 7,7>::Identity() * 10;
 
   kp(6,6) = 200;
-  kv(6,6) = 2;
+  kv(6,6) = 4.0;
 
   Eigen::Matrix<double,7,1> desired_torque;
-  desired_torque = (kp*(q_desired - arm.q_) + kv*(qd_desired - arm.qd_)) + arm.coriolis_;
+  
+  Eigen::Matrix<double, 7,7> kpp = Eigen::Matrix<double, 7,7>::Identity() * 0.2;
+  kpp(6,6) = 0.05;
+  desired_torque = kpp * qdd_desired + (kp*(q_desired - arm.q_) + kv*(qd_desired - arm.qd_)) + arm.coriolis_;
+  
 
   feedback_.actual.time_from_start = passed_time;
   feedback_.header.seq=feedback_header_stamp_;

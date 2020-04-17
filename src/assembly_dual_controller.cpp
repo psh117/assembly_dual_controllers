@@ -158,6 +158,8 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_rotation_control", node_handle, arms_data_);
   assemble_triple_recovery_action_server_ = std::make_unique<AssembleTripleRecoveryActionServer>
   ("/assembly_dual_controller/assemble_triple_recovery_control", node_handle, arms_data_);
+  assemble_bolt_action_server_ = std::make_unique<AssembleBoltActionServer>
+  ("/assembly_dual_controller/assemble_bolt_control", node_handle, arms_data_);
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
 
@@ -222,6 +224,7 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   assemble_side_chair_action_server_ ->compute(time);
   assemble_rotation_action_server_->compute(time);
   assemble_triple_recovery_action_server_->compute(time);
+  assemble_bolt_action_server_->compute(time);
   idle_control_server_->compute(time);
   
 

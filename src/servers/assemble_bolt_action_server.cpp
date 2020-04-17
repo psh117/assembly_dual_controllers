@@ -1,27 +1,27 @@
-#include <assembly_dual_controllers/servers/assemble_insert_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_bolt_action_server.h>
 
-AssembleInsertActionServer::AssembleInsertActionServer(std::string name, ros::NodeHandle &nh, 
+AssembleBoltActionServer::AssembleBoltActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu)
 : ActionServerBase(name,nh,mu),
 as_(nh,name,false)
 {
-	as_.registerGoalCallback(boost::bind(&AssembleInsertActionServer::goalCallback, this));
-	as_.registerPreemptCallback(boost::bind(&AssembleInsertActionServer::preemptCallback, this));
+	as_.registerGoalCallback(boost::bind(&AssembleBoltActionServer::goalCallback, this));
+	as_.registerPreemptCallback(boost::bind(&AssembleBoltActionServer::preemptCallback, this));
   as_.start();
 }
 
-void AssembleInsertActionServer::goalCallback()
+void AssembleBoltActionServer::goalCallback()
 {
   feedback_header_stamp_ = 0;
   goal_ = as_.acceptNewGoal();
 
   if ( mu_.find(goal_->arm_name) != mu_.end() ) 
   {
-    ROS_INFO("AssembleInsert goal has been received.");
+    ROS_INFO("AssembleBolt goal has been received.");
   } 
   else 
   {
-    ROS_ERROR("[AssembleInsertActionServer::goalCallback] the name %s is not in the arm list.", goal_->arm_name.c_str());
+    ROS_ERROR("[AssembleBoltActionServer::goalCallback] the name %s is not in the arm list.", goal_->arm_name.c_str());
     return ;
   }
 
@@ -59,15 +59,20 @@ void AssembleInsertActionServer::goalCallback()
 
   rot_compliant_mode_ = goal_->rot_compliant_mode;
 
+  count_ = 0;
+  prev_position_ = origin_(assemble_dir_);
+
+  pos_rot = fopen("/home/dyros/catkin_ws/src/snu_assembly/assembly_dual_controllers/data/pos_rot","w");
+
 }
 
-void AssembleInsertActionServer::preemptCallback()
+void AssembleBoltActionServer::preemptCallback()
 {
   ROS_INFO("[%s] Preempted", action_name_.c_str());
   as_.setPreempted();
 }
 
-bool AssembleInsertActionServer::compute(ros::Time time)
+bool AssembleBoltActionServer::compute(ros::Time time)
 {
   if (!as_.isActive())
       return false; 
@@ -76,14 +81,14 @@ bool AssembleInsertActionServer::compute(ros::Time time)
     computeArm(time, *mu_[goal_->arm_name]);
     return true;
   } else {
-    ROS_ERROR("[AssembleInsertActionServer::compute] the name %s is not in the arm list.", goal_->arm_name.c_str());
+    ROS_ERROR("[AssembleBoltActionServer::compute] the name %s is not in the arm list.", goal_->arm_name.c_str());
   }
 
   return false;
 }
 
 
-bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm)
+bool AssembleBoltActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm)
 {
   if (!as_.isActive())
       return false; 
@@ -100,11 +105,29 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   Eigen::Vector3d m_star;
   Eigen::Matrix<double, 6, 1> f_star_zero;
   
-  if(arm.task_start_time_.toSec() + target_time_ <= time.toSec()) //after pushing for 3 seconds
+  // if(arm.task_start_time_.toSec() + target_time_ <= time.toSec()) //after pushing for 3 seconds
+  // {
+  //   std::cout<<"INSERTION IS FINISHED"<<std::endl;
+  //   as_.setSucceeded();    
+  // }
+
+  int last_count = 3000;
+  if(checkDisplacement(prev_position_, position(assemble_dir_),0.0001 ))
   {
-    std::cout<<"INSERTION IS FINISHED"<<std::endl;
-    as_.setSucceeded();    
+    count_ ++;
+
+    if(count_ >= last_count)
+    {
+      std::cout<<"BOLTING IS FINISHED"<<std::endl;
+      as_.setSucceeded();   
+    }  
   }
+  else
+  {
+    count_ = 0;
+  }
+  
+  prev_position_ = position(assemble_dir_);
 
   f_star = task_p_gain_ * (origin_ - position);
   f_star(assemble_dir_) = target_force_(assemble_dir_); 
@@ -126,6 +149,8 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
+
+  fprintf(pos_rot, "%lf\t %lf\t %lf\t %lf\t %lf\t %f\t\n", position(0), position(1), position(2), rotation(0),rotation(1), rotation(2));
   
   return true;
 }

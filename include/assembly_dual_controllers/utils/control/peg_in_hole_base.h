@@ -148,7 +148,47 @@ namespace PegInHole
         return f_star;    
     }
 
+    static Eigen::Vector3d oneDofMoveEE(const Eigen::Vector3d origin,
+        const Eigen::Matrix3d init_rot,
+        const Eigen::Vector3d current_position,
+        const Eigen::Matrix<double, 6, 1> current_velocity,
+        const double current_time,
+        const double init_time,
+        const double duration,
+        const double target_distance, // + means go forward, - mean go backward
+        const int direction) // 0 -> x_ee, 1 -> y_ee, 2 -> z_ee //DESIRED DIRECTION W.R.T END EFFECTOR!!
+    {
+        Eigen::Vector3d goal_position;
+        Eigen::Vector3d cmd_position;
+        Eigen::Vector3d f_star;
+        Eigen::Matrix3d K_p; 
+        Eigen::Matrix3d K_v;
+        double theta; //atfer projection the init_rot onto the global frame, the theta means yaw angle difference.
+        
+        K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
+        K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
+        
 
+        // start from EE
+        for(int i = 0; i < 3; i++)
+        {
+            if( i == direction) goal_position(i) = target_distance;
+            else goal_position(i) = 0.0;
+        }
+
+        goal_position = origin + init_rot*goal_position;
+
+        for(int i = 0; i < 3; i++)
+        {
+            cmd_position(i) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(i), goal_position(i), 0, 0);
+        }  
+
+        f_star = K_p * (cmd_position - current_position) + K_v * (- current_velocity.head<3>());  
+        
+        return f_star;    
+    }
+
+   
     static Eigen::Matrix<double, 6, 1> keepCurrentState(const Eigen::Vector3d initial_position,
         const Eigen::Matrix3d initial_rotation,
         const Eigen::Vector3d position,
@@ -584,6 +624,23 @@ namespace PegInHole
 
         return m_star;
 	}    
+
+    static Eigen::Vector3d keepCurrentOrientation(const Eigen::Matrix3d initial_rotation_M,
+        const Eigen::Matrix3d rotation_M,
+        const Eigen::Matrix<double, 6, 1> current_velocity,
+        const double kp = 200,
+        const double kd = 5)
+    {
+        Eigen::Vector3d delphi_delta;
+        Eigen::Vector3d m_star;       
+       
+        delphi_delta = -0.5 * dyros_math::getPhi(rotation_M, initial_rotation_M);
+
+        m_star = (1.0) * kp* delphi_delta+ kd*(-current_velocity.tail<3>());
+
+        
+        return m_star;    
+    }
 
     static Eigen::Vector3d rotateWithGlobalAxis(const Eigen::Matrix3d initial_rotation_M,
         const Eigen::Matrix3d rotation_M,

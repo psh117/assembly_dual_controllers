@@ -219,6 +219,21 @@ namespace Criteria
     //     // std::cout<<"---------------------------------------"<<std::endl;
     //     return u;
     // }
+
+    static bool checkDisplacement(const double origin, const double cur_position, const double threshold)
+    {
+        bool is_done;
+
+        double del;
+
+        del = abs(cur_position - origin);
+
+        if( del < threshold) is_done = true;
+        else is_done = false;
+
+        return is_done;
+
+    }
 };
 
 #endif // CRITERIA_H

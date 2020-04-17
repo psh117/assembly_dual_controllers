@@ -40,6 +40,7 @@ void AssembleMoveActionServer::goalCallback()
   type_ = goal_ ->mode;
   dir_ = goal_ ->dir;
   option_ = goal_ ->option;
+  target_distance_ = goal_->target_distance;
 
   is_first_ = true;
 
@@ -92,7 +93,10 @@ bool AssembleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &ar
     origin_ = position;
     init_rot_ = rotation;
     arm.task_start_time_ = time;
-    dis = getDistance(target_, origin_, type_, dir_);
+    
+    if(type_ != 3)  dis = getDistance(target_, origin_, type_, dir_);
+    else dis = target_distance_;
+
     speed = 0.01;
     duration_ = dis/speed;
 
@@ -109,22 +113,51 @@ bool AssembleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &ar
     as_.setSucceeded();
   }
 
-  if(type_ == 1)
+  switch(type_)
   {
-    f_star = oneDofMove(origin_, position, target_(dir_), xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 0.0, dir_);
-    if(option_ == 0)  m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());  
-    if(option_ == 1)  m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
-    if(option_ == 2)  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
-    
+    case 1:
+      f_star = oneDofMove(origin_, position, target_(dir_), xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 0.0, dir_);
+      break;
+    case 2:
+      f_star = twoDofMove(origin_, position, target_, xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 0.0, dir_);
+      break;
+    case 3:
+      f_star = oneDofMoveEE(origin_, init_rot_, position, xd, time.toSec(), arm.task_start_time_.toSec(), duration_, target_distance_, dir_);
   }
 
-  if(type_ == 2)
+  switch (option_)
   {
-    f_star = twoDofMove(origin_, position, target_, xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 0.0, dir_);
-    if(option_ == 0)  m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());  
-    if(option_ == 1)  m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
-    if(option_ == 2)  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
+    case 0:
+      m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());  
+      break;
+
+    case 1:
+      m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
+      break;
+    
+    case 2:
+      m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
+      break;
   }
+
+
+  // if(type_ == 1)
+  // {
+  //   f_star = oneDofMove(origin_, position, target_(dir_), xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 0.0, dir_);
+  //   if(option_ == 0)  m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());  
+  //   if(option_ == 1)  m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
+  //   if(option_ == 2)  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
+    
+  // }
+
+  // if(type_ == 2)
+  // {
+  //   f_star = twoDofMove(origin_, position, target_, xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 0.0, dir_);
+  //   if(option_ == 0)  m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());  
+  //   if(option_ == 1)  m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
+  //   if(option_ == 2)  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
+  // }
+  
 
 
   f_star_zero.head<3>() = f_star;

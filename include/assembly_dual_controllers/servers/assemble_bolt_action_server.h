@@ -10,7 +10,7 @@ using namespace dyros_math;
 using namespace Criteria;
 using namespace PegInHole;
 
-class AssembleInsertActionServer : public ActionServerBase
+class AssembleBoltActionServer : public ActionServerBase
 {
     actionlib::SimpleActionServer<assembly_msgs::AssembleExertForceAction> as_;
 
@@ -41,11 +41,15 @@ class AssembleInsertActionServer : public ActionServerBase
 
     bool rot_compliant_mode_;
 
+    int count_;
+    double prev_position_;
+
+    FILE *pos_rot;
 
     
 
 public:
-  AssembleInsertActionServer(std::string name, ros::NodeHandle &nh, 
+  AssembleBoltActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);
 
   bool compute(ros::Time time) override;

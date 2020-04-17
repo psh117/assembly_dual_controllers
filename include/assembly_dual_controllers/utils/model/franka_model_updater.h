@@ -37,13 +37,13 @@ struct FrankaModelUpdater
   ros::Time task_end_time_; ///< you may use this to indicate the timeout
 
 
-  FrankaModelUpdater() {}
+  FrankaModelUpdater() {qd_.setZero();}
 
 	FrankaModelUpdater(
   std::shared_ptr<franka_hw::FrankaModelHandle> model_handle, 
   std::shared_ptr<franka_hw::FrankaStateHandle> state_handle) :
 	model_handle_(model_handle), state_handle_(state_handle)
-	{ updateModel(); }
+	{ qd_.setZero(); updateModel(); }
 
   void updateModel()
   {
@@ -58,7 +58,12 @@ struct FrankaModelUpdater
     mass_matrix_ = Eigen::Map<const Eigen::Matrix<double, 7, 7>>(massmatrix_array.data());
     coriolis_ = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(coriolis_array.data());
     q_ = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(robot_state.q.data());
-    qd_ = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(robot_state.dq.data());
+    Eigen::Matrix<double, 7, 1> qd_now = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(robot_state.dq.data());
+    for(int i=0; i<7; i++)
+    {
+      qd_(i) = franka::lowpassFilter(0.001, qd_now(i), qd_(i), 150.0);
+
+    }
 
     jacobian_ = Eigen::Map<Eigen::Matrix<double, 6, 7>>(jacobian_array.data());
     tau_measured_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(robot_state.tau_J.data());

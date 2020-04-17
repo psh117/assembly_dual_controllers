@@ -10,8 +10,6 @@ using namespace dyros_math;
 using namespace Criteria;
 using namespace PegInHole;
 
-using namespace dyros_math;
-
 class AssembleApproachActionServer : public ActionServerBase
 {
     actionlib::SimpleActionServer<assembly_msgs::AssembleApproachAction> as_;
@@ -36,6 +34,9 @@ class AssembleApproachActionServer : public ActionServerBase
     int assemble_dir_;
     int mode_;
 
+    FILE *force_moment_ee;
+
+    
 public:
   AssembleApproachActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);

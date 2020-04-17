@@ -75,6 +75,7 @@ add_library(${PROJECT_NAME}
   src/servers/assemble_side_chair_action_server.cpp
   src/servers/assemble_rotation_action_server.cpp
   src/servers/assemble_triple_recovery_action_server.cpp
+  src/servers/assemble_bolt_action_server.cpp
   #src/single_peginhole_action_server.cpp
  )
 

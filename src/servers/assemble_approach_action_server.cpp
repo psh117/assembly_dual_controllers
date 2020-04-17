@@ -38,6 +38,8 @@ void AssembleApproachActionServer::goalCallback()
   assemble_dir_ = goal_ ->assemble_dir;
   descent_speed_ = goal_ ->descent_speed;
   mode_ = goal_ ->mode;
+
+  force_moment_ee = fopen("/home/dyros/catkin_ws/src/snu_assembly/assembly_dual_controllers/data/force_moment_ee","w");
 }
 
 void AssembleApproachActionServer::preemptCallback()
@@ -105,6 +107,8 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
 
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
+
+  fprintf(force_moment_ee, "%lf\t %lf\t %lf\t %lf\t %lf\t %f\t\n", f_measured_(0), f_measured_(1), f_measured_(2), f_measured_(3),f_measured_(4), f_measured_(5));
 
   return true;
 }

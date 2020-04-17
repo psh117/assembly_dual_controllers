@@ -9,6 +9,7 @@
   <arg name="rqt" default="false" />
 
   <include file="$(find franka_combined_control)/launch/franka_combined_control.launch" >
+    <arg name="robot" value="$(arg robot)" />
     <arg name="robot_id" value="$(arg robot_id)" />
     <arg name="robot_left_ip" value="$(arg robot_left_ip)" />
     <arg name="robot_right_ip" value="$(arg robot_right_ip)" />
