@@ -4,7 +4,7 @@
   <arg name="robot" default="$(find assembly_env_description)/robots/assembly_env.urdf.xacro" />
   <arg name="robot_id" default="panda_dual" />
   <arg name="robot_left_ip" default="172.16.0.2" />
-  <arg name="robot_right_ip" default="172.16.0.3" />
+  <arg name="robot_right_ip" default="172.16.0.4" />
   <arg name="rviz" default="false" />
   <arg name="rqt" default="false" />
 

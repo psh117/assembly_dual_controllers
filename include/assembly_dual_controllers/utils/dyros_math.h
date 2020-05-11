@@ -6,6 +6,7 @@
 #define ZCE (1e-5)
 // constexpr size_t MAX_DOF=50;
 
+#include <vector>
 #include <Eigen/Dense>
 #include <unsupported/Eigen/MatrixFunctions>
 #include <fstream>
@@ -377,7 +378,7 @@ static double cubicDot(double time,     ///< Current time
   return x_dot_t;
 }
 
-static Eigen::Matrix<double, 2, 1> spiral(double time,     ///< Current time
+static Eigen::Vector2d spiral(double time,     ///< Current time
 	double time_0,   ///< Start time
 	double time_f,   ///< End time
 	Eigen::Matrix<double, 2, 1> x_0,      ///< Start state
@@ -928,20 +929,63 @@ static Eigen::Vector3d quinticSpline(
   return result;
 }
 
-static inline double lowPassFilter(double input, double prev, double ts, double tau)
-{
-    return (tau*prev + ts*input)/(tau+ts);
-}
-template <int N>
-static Eigen::Matrix<double, N, 1> lowPassFilter(Eigen::Matrix<double, N, 1> input, Eigen::Matrix<double, N, 1> prev, double ts, double tau)
-{
-  Eigen::Matrix<double, N, 1> res;
-  for(int i=0; i<N; i++)
+  static inline double lowPassFilter(double input, double prev, double ts, double tau)
   {
-    res(i) = lowPassFilter(input(i), prev(i), ts, tau);
+      return (tau*prev + ts*input)/(tau+ts);
   }
-  return res;
-}
+  template <int N>
+  static Eigen::Matrix<double, N, 1> lowPassFilter(Eigen::Matrix<double, N, 1> input, Eigen::Matrix<double, N, 1> prev, double ts, double tau)
+  {
+    Eigen::Matrix<double, N, 1> res;
+    for(int i=0; i<N; i++)
+    {
+      res(i) = lowPassFilter(input(i), prev(i), ts, tau);
+    }
+    return res;
+  }
+
+  static Eigen::Matrix3d angleaxis2rot(Eigen::Vector3d axis_angle_vector, double axis_angle)
+  {
+    Eigen::Matrix3d ROT;
+    double c = cos(axis_angle);
+    double s = sin(axis_angle);
+    double v = 1-c;
+
+    ROT(0,0) = axis_angle_vector(0)*axis_angle_vector(0)*v + c;
+    ROT(0,1) = axis_angle_vector(0)*axis_angle_vector(1)*v - axis_angle_vector(2)*s;
+    ROT(0,2) = axis_angle_vector(0)*axis_angle_vector(2)*v + axis_angle_vector(1)*s;
+    ROT(1,0) = axis_angle_vector(0)*axis_angle_vector(1)*v + axis_angle_vector(2)*s;
+    ROT(1,1) = axis_angle_vector(1)*axis_angle_vector(1)*v + c;
+    ROT(1,2) = axis_angle_vector(1)*axis_angle_vector(2)*v - axis_angle_vector(0)*s;
+    ROT(2,0) = axis_angle_vector(0)*axis_angle_vector(2)*v - axis_angle_vector(1)*s;
+    ROT(2,1) = axis_angle_vector(1)*axis_angle_vector(2)*v + axis_angle_vector(0)*s;
+    ROT(2,2) = axis_angle_vector(2)*axis_angle_vector(2)*v + c;
+
+    return ROT;
+  }
+
+  static Eigen::Matrix3d quat2Rot(const Eigen::Vector4d quat)
+  {
+    Eigen::Matrix3d rot;
+    double q0, q1, q2, q3;
+
+    q0 = quat(3);
+    q1 = quat(0);
+    q2 = quat(1);
+    q3 = quat(2);
+
+    rot(0,0) = 1 - 2*(pow(q2,2)+pow(q3,2));
+    rot(0,1) = 2*(q1*q2 - q0*q3);
+    rot(0,2) = 2*(q0*q2 + q1*q3);
+    rot(1,0) = 2*(q1*q2 + q0*q3);
+    rot(1,1) = 1 - 2*(pow(q1,2) + pow(q3,2));
+    rot(1,2) = 2*(q2*q3 - q0*q1);
+    rot(2,0) = 2*(-q0*q2 + q1*q3);
+    rot(2,1) = 2*(q2*q3 + q0*q1);
+    rot(2,2) = 1 - 2*(pow(q1,2) + pow(q2,2));
+
+    return rot;
+  }
 
 }
 
@@ -1078,6 +1122,7 @@ static Eigen::MatrixXd leastSquareLinear(const std::vector<double> vec, const in
   }
   
   return coeff_vec;
-
+  
 }
+
 #endif

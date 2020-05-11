@@ -48,10 +48,10 @@ void AssembleSideChairActionServer::goalCallback()
   mu_[goal_->mover]->task_end_time_ = ros::Time(mu_[goal_->mover]->task_start_time_.toSec() + duration_);
   
   
-  save_data_fm_mover_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_fm_mover.txt","w");   
-  save_data_pv_mover_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_pv_mover.txt","w");
-  save_data_fm_pusher_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_fm_pusher.txt","w");   
-  save_data_pv_pusher_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_pv_pusher.txt","w");
+  // save_data_fm_mover_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_fm_mover.txt","w");   
+  // save_data_pv_mover_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_pv_mover.txt","w");
+  // save_data_fm_pusher_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_fm_pusher.txt","w");   
+  // save_data_pv_pusher_ = fopen("/home/dyros/catkin_ws/src/snu_assembly/save_data/save_data_pv_pusher.txt","w");
   
 }
 
@@ -134,8 +134,8 @@ bool AssembleSideChairActionServer::computePusher(ros::Time time, FrankaModelUpd
   
   }
   
-  fprintf(save_data_fm_pusher_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", f_ee(0), f_ee(1), f_ee(2), m_ee(0), m_ee(1), m_ee(2));
-  fprintf(save_data_pv_pusher_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", position(0), position(1), position(2), xd(0), xd(1), xd(2));
+  // fprintf(save_data_fm_pusher_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", f_ee(0), f_ee(1), f_ee(2), m_ee(0), m_ee(1), m_ee(2));
+  // fprintf(save_data_pv_pusher_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", position(0), position(1), position(2), xd(0), xd(1), xd(2));
 
   
   return true;
@@ -188,8 +188,8 @@ bool AssembleSideChairActionServer::computeMover(ros::Time time, FrankaModelUpda
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
 
-  fprintf(save_data_fm_mover_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", f_ee(0), f_ee(1), f_ee(2), m_ee(0), m_ee(1), m_ee(2));
-  fprintf(save_data_pv_mover_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", position(0), position(1), position(2), xd(0), xd(1), xd(2));
+  // fprintf(save_data_fm_mover_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", f_ee(0), f_ee(1), f_ee(2), m_ee(0), m_ee(1), m_ee(2));
+  // fprintf(save_data_pv_mover_, "%lf\t %lf\t %lf\t %lf\t %lf\t %lf\t\n", position(0), position(1), position(2), xd(0), xd(1), xd(2));
   
   return true;
 }

@@ -30,41 +30,45 @@ void AssembleInsertActionServer::goalCallback()
   f_measured_.setZero();
   desired_xd_.setZero();
 
-  origin_ = mu_[goal_->arm_name]->position_;  
+  init_pos_ = mu_[goal_->arm_name]->position_;  
   init_rot_ = mu_[goal_->arm_name]->rotation_;
+
+  origin_.linear() = init_rot_;
+  origin_.translation() = init_pos_;
   
-  target_force_(0) = goal_ ->target_force.force.x;
-  target_force_(1) = goal_ ->target_force.force.y;
-  target_force_(2) = goal_ ->target_force.force.z;
+  duration_ = goal_->duration;
+  insertion_force_ = goal_->insertion_force;
+  wiggle_motion_ = goal_->wiggle_motion;
+
+  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+
   
-  target_torque_(0) = goal_ ->target_force.torque.x;
-  target_torque_(1) = goal_ ->target_force.torque.y;
-  target_torque_(2) = goal_ ->target_force.torque.z; 
+  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
+  T_EA_.translation() = ee_to_assembly_point_;
+ 
+  T_WA_ = origin_*T_EA_;
 
+  wiggle_angle_ = 5.0*DEG2RAD;
+  wiggle_angular_vel_ = 4*M_PI; // 2pi / s
 
-  target_time_ = goal_->time;
-  if(target_time_ <= 0.01)
-    target_time_ = 3.0;
+  if(wiggle_motion_) std::cout<<"wiggle motion is activated"<<std::endl;
+  else  std::cout<<"wiggle motion is not activated"<<std::endl;
+  std::cout<<"initial_pos at insertion stage: "<< origin_.translation().transpose()<<std::endl;
 
-  task_p_gain_ = goal_->p_gain;
-  if(task_p_gain_ <= 0.01)
-  {
-    task_p_gain_ = 500.;
-  }
-
-  rot_p_gain_ = goal_->rot_p_gain;
-  rot_d_gain_ = goal_->rot_d_gain;
-
-  assemble_dir_ = goal_ ->assemble_dir;
-
-  rot_compliant_mode_ = goal_->rot_compliant_mode;
-
+  control_running_ = true;
 }
 
 void AssembleInsertActionServer::preemptCallback()
 {
   ROS_INFO("[%s] Preempted", action_name_.c_str());
   as_.setPreempted();
+  control_running_ = false;
 }
 
 bool AssembleInsertActionServer::compute(ros::Time time)
@@ -99,33 +103,46 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
   Eigen::Matrix<double, 6, 1> f_star_zero;
+
+  current_.linear() = rotation;
+  current_.translation() = position;
   
-  if(arm.task_start_time_.toSec() + target_time_ <= time.toSec()) //after pushing for 3 seconds
+  if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_))
   {
-    std::cout<<"INSERTION IS FINISHED"<<std::endl;
-    as_.setSucceeded();    
+    std::cout<<"INSERTION IS DONE"<<std::endl;
+    setSucceeded();
   }
 
-  f_star = task_p_gain_ * (origin_ - position);
-  f_star(assemble_dir_) = target_force_(assemble_dir_); 
-    
-  // m_star.setZero();
-  m_star = keepCurrentOrientation(init_rot_, rotation, xd, rot_p_gain_, rot_d_gain_);
-    
+  f_star = PegInHole::pressEE(origin_, current_, xd, insertion_force_, T_EA_);
+  f_star = T_WA_.linear()*f_star;
 
-  if(rot_compliant_mode_)
+  if(wiggle_motion_)
   {
-    for(size_t i = 0; i < 3; i++)
-    {
-      if(i != assemble_dir_) m_star(i) = 0.0;
-    }
-  }  
+    m_star = PegInHole::generateWiggleMotionEE(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
+    m_star = T_WA_.linear()*m_star;
+  } 
+  else  m_star = keepCurrentOrientation(init_rot_, rotation, xd, 200, 5);
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
 
+  // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
+  // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
+
+  // f_star_zero.setZero();
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
   
   return true;
+}
+
+void AssembleInsertActionServer::setSucceeded()
+{
+  as_.setSucceeded();
+  control_running_ = false;
+}
+void AssembleInsertActionServer::setAborted()
+{
+  as_.setAborted();
+  control_running_ = false;
 }

@@ -44,7 +44,8 @@ class AssembleBoltActionServer : public ActionServerBase
     int count_;
     double prev_position_;
 
-    FILE *pos_rot;
+    // !!! DO NOT USE RAW POINTER OF FILE !!!
+    // FILE *pos_rot;
 
     
 

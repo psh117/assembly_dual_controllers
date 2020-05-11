@@ -21,6 +21,7 @@ class ActionServerBase
     ros::Time start_time_;
   
     ros::NodeHandle & nh_; 
+    bool control_running_ {false}; // multi-threading error prevention
     
     // std::shared_ptr<std::map<std::string, FrankaDataContainer>> mu_;
     std::map<std::string, std::shared_ptr<FrankaModelUpdater> > mu_;

@@ -36,7 +36,8 @@ class AssembleVerifyActionServer : public ActionServerBase
     int mode_;
     int swing_dir_;
 
-    FILE *save_data_fm;
+    // !!! DO NOT USE RAW POINTER OF FILE !!!
+    // FILE *save_data_fm;
 
 public:
   AssembleVerifyActionServer(std::string name, ros::NodeHandle &nh, 

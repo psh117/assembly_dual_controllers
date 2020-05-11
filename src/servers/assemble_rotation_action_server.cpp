@@ -30,39 +30,52 @@ void AssembleRotationActionServer::goalCallback()
 
   f_measured_.setZero();
 
-  origin_ = mu_[goal_->arm_name]->position_;  
-  init_rot_ = mu_[goal_->arm_name]->rotation_;
-
-  target_force_(0) = goal_ ->target_force.force.x;
-  target_force_(1) = goal_ ->target_force.force.y;
-  target_force_(2) = goal_ ->target_force.force.z;
-
-  assemble_dir_ = goal_ ->assemble_dir;
-  
-  target_(0) = goal_ ->p.x;
-  target_(1) = goal_ ->p.y;
-  target_(2) = goal_ ->p.z;  
-  
-  mode_ = goal_ ->mode;
-  dir_ = goal_ ->dir;
-  option_ = goal_ ->option;
-  f_threshold_ = goal_ ->f_threshold;
-
+  pressing_force_ = goal_->pressing_force; 
   range_ = goal_ ->range*M_PI/180;
-  swing_dir_ = goal_ ->swing_dir;
+  f_threshold_ = goal_ ->f_threshold;
+  duration_ = goal_->duration;
+
+  origin_ = mu_[goal_->arm_name]->transform_;  
 
   is_first_ = true;
 
+  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  
+  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
+  T_EA_.translation() = ee_to_assembly_point_;
+
+  T_WA_ = origin_*T_EA_;
+
+  asm_dir_ = T_EA_.linear().col(2);
+
+  if(fm_rotation_search.is_open())  fm_rotation_search.close();
+  if(pr_rotation_search.is_open())  pr_rotation_search.close();
+
+  fm_rotation_search.open("fm_rotation_search.txt");
+  pr_rotation_search.open("pr_rotation_search.txt");
+
+
+  control_running_ = true;
 }
 
 void AssembleRotationActionServer::preemptCallback()
 {
   ROS_INFO("[%s] Preempted", action_name_.c_str());
   as_.setPreempted();
+  control_running_ = false;
 }
 
 bool AssembleRotationActionServer::compute(ros::Time time)
 {
+  if (!control_running_)
+    return false;
+
   if (!as_.isActive())
       return false; 
   
@@ -93,100 +106,78 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
   Eigen::Vector3d delphi_delta;
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
-  double speed;
+  
   double dis;
+  double run_time;  
 
   Eigen::Matrix<double, 6, 1> f_star_zero;
-  Eigen::Matrix<double, 6, 6> lambda;
-  Eigen::Matrix<double, 7, 6> J_bar;
   
-  lambda = (jacobian*mass.inverse()*jacobian.transpose()).inverse();
-  J_bar = mass.inverse()*jacobian.transpose()*lambda;
-  f_measured_ = J_bar.transpose()*(tau_measured - gravity);
+  f_measured_ = arm.f_measured_;
+  current_ = arm.transform_;
 
+  dis = origin_.translation()(2) - current_.translation()(2);
+  run_time = time.toSec() - arm.task_start_time_.toSec();
 
   if(is_first_ == true)
   {
-    origin_ = position;
-    init_rot_ = rotation;
     arm.task_start_time_ = time;
-    dis = getDistance(target_, origin_, mode_, dir_);
-    speed = 0.01;
-    duration_ = dis/speed;
-
     is_first_ = false;
-    std::cout<<"origin_: "<<origin_.transpose()<<std::endl;
-    std::cout<<"distance: "<<dis<<std::endl;
-    std::cout<<"duration: "<<duration_<<std::endl;
-    std::cout<<"Go to the target position!"<<std::endl;
+    std::cout<<"ROTATE TO SEARCH"<<std::endl;
   }
 
-  if(f_measured_(5) >= f_threshold_)
+  if(abs(f_measured_(5)) >= f_threshold_)
   {
     std::cout<<"HOLE IS DETECTED"<<std::endl;
     std::cout<<"f_measured_(5): "<<f_measured_(5)<<std::endl;
-    as_.setSucceeded();
+    setSucceeded();
   }
 
-  if(timeOut(time.toSec(), arm.task_start_time_.toSec(), 5.0)) //duration wrong??
+  if(dis >= 0.005 && abs(f_measured_(5)) < f_threshold_)
   { 
-    std::cout<<"Time out"<<std::endl;
-    as_.setAborted();
+    std::cout<<"dis: "<<dis<<std::endl;
+    std::cout<<"Deviating"<<std::endl;
+    setAborted();
+  }
+
+  if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_)) //duration wrong??
+  { 
+    std::cout<<"No holes"<<std::endl;
+    setAborted();
   } 
 
-  if(mode_ == 0)
-  {
-    f_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).head<3>();
-    f_star(assemble_dir_) = target_force_(assemble_dir_); 
-    m_star = rotateWithEeAxis(init_rot_, rotation, xd, range_, arm.task_start_time_.toSec(), time.toSec() ,arm.task_end_time_.toSec(), swing_dir_);
-    m_star(1) = 0.0;
-  }
 
-  // if(mode_ == 1)
-  // {
-  //   f_star = oneDofMove(origin_, position, target_(dir_), xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 0.0, dir_);
-  //   if(option_ == 0)  m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());  
-  //   if(option_ == 1)  m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
-  //   if(option_ == 2)  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
-    
-  // }
 
-  // if(mode_ == 2)
-  // {
-  //   f_star = twoDofMove(origin_, position, target_, xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 0.0, dir_);
-  //   if(option_ == 0)  m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());  
-  //   if(option_ == 1)  m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
-  //   if(option_ == 2)  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
-  // }
+  f_star = PegInHole::pressEE(origin_, current_, xd, pressing_force_, T_EA_);
+  f_star = T_WA_.linear()*f_star;
 
+  m_star = PegInHole::generateRotationSearchMotionEE(origin_, current_, T_EA_, xd, range_, time.toSec(), arm.task_start_time_.toSec(), duration_);   
+  m_star = T_WA_.linear()*m_star;
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
-  
+
+  // std::cout<<"dis: "<<dis<<std::endl;
+  // std::cout<<"f_reaction: "<<f_measured_(5)<<std::endl;
+  // f_star_zero.setZero();
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
+
   arm.setTorque(desired_torque);
+  
+  fm_rotation_search << f_measured_.transpose() << std::endl;
+  pr_rotation_search << position.transpose() << std::endl;  
+
 
   return true;
 }
 
-double AssembleRotationActionServer::getDistance(const Eigen::Vector3d target, const Eigen::Vector3d start, 
-  const int mode, const int dir)
+
+void AssembleRotationActionServer::setSucceeded()
 {
-  double dis;
-  Eigen::Vector3d dx;
-
-  dx << target(0) - start(0), target(1) - start(1), target(2) - start(2); 
-  
-  if(mode == 1)
-  {
-    dis = sqrt(pow(dx(dir),2));
-  }
-
-  if(mode == 2)
-  {
-    dx(dir) = 0;
-    dis = sqrt(pow(dx(0),2) + pow(dx(1),2) + pow(dx(2),2));
-  }
-
-  return dis;  
+  as_.setSucceeded();
+  control_running_ = false;
+}
+void AssembleRotationActionServer::setAborted()
+{
+  as_.setAborted();
+  control_running_ = false;
 }

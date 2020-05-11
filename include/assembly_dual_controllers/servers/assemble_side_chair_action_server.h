@@ -37,10 +37,11 @@ class AssembleSideChairActionServer : public ActionServerBase
     int assemble_dir_;
     double duration_;
     
-    FILE *save_data_fm_mover_;
-    FILE *save_data_pv_mover_;
-    FILE *save_data_fm_pusher_;
-    FILE *save_data_pv_pusher_;
+    // !!! DO NOT USE RAW POINTER OF FILE !!!
+    // FILE *save_data_fm_mover_;
+    // FILE *save_data_pv_mover_;
+    // FILE *save_data_fm_pusher_;
+    // FILE *save_data_pv_pusher_;
     
 public:
   AssembleSideChairActionServer(std::string name, ros::NodeHandle &nh, 

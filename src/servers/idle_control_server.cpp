@@ -27,7 +27,7 @@ bool IdleControlServer::compute(ros::Time time)
       if (arm.idle_controlled_ == false)
       {
         // initialize
-        arm.setInitialTransform();
+        arm.setInitialValues();
       }
       computeArm(time, arm, params_[pair.first]);
     }
@@ -36,6 +36,22 @@ bool IdleControlServer::compute(ros::Time time)
 
 void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, assembly_msgs::IdleControl::Request &param)
 {
+
+  // For safety
+  Eigen::Quaterniond qt_init(arm.initial_transform_.linear());
+  Eigen::Quaterniond qt_cur(arm.transform_.linear());
+  if (qt_init.angularDistance(qt_cur) > 0.174532889) // 10 DEGREE
+  {
+    arm.setInitialValues();
+    std::cout << "Large angular difference detected. Set initial position to this position" << std::endl;
+  }
+  
+  if ((arm.initial_transform_.translation() -arm.position_ ).norm() > 0.05)
+  {
+    arm.setInitialValues();
+    std::cout << "Large translational difference detected. Set initial position to this position" << std::endl;
+  }
+
   switch (param.mode)
   {
     case assembly_msgs::IdleControl::Request::DISABLED:
@@ -56,12 +72,66 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
       if (param.p_gain <= 0.01)
       {
         ROS_INFO("IdleController::computeArm -- Set P gain to default(5000) %s", param.arm_name.c_str());
-        param.p_gain = 4000.;
+        param.p_gain = 5000.;
       } 
       if (param.d_gain <= 0.01)
       {
         ROS_INFO("IdleController::computeArm -- Set D gain to default(100) %s", param.arm_name.c_str());
-        param.d_gain = 200.;
+        param.d_gain = 30.;
+      }
+      if (param.vel_p_gain <= 0.01)
+      {
+        ROS_INFO("IdleController::computeArm -- Set velocity P gain to default(1500) %s", param.arm_name.c_str());
+        param.vel_p_gain = 1500.; // q_dot = kp/kv(del_q)
+      }
+      if (param.vel_d_gain <= 0.01)
+      {
+        ROS_INFO("IdleController::computeArm -- Set velocity D gain to default(20) %s", param.arm_name.c_str());
+        param.vel_d_gain = 10.0; // q_dot = kp/kv(del_q)
+      }
+      if (param.qdot_max <= 0.01)
+      {
+        ROS_INFO("IdleController::computeArm -- Set qdot_max to default(0.2) %s", param.arm_name.c_str());
+        param.qdot_max = 0.2; // joint velocity when a joint escapes from joint limit
+      }
+      
+      auto fstar = PegInHole::keepCurrentState(
+        arm.initial_transform_.translation(), arm.initial_transform_.linear(), 
+        arm.position_, arm.rotation_, arm.xd_, param.p_gain, param.d_gain);
+
+      Eigen::Vector7d tau_desired = arm.jacobian_.transpose() * fstar;
+     
+      arm.setTorque(tau_desired, true);
+      arm.idle_controlled_ = true;
+      break;
+    }
+    case assembly_msgs::IdleControl::Request::TASK_SPACE_WITH_NULL:
+    {
+      // default gain (gains are not set)
+      if (param.p_gain <= 0.01)
+      {
+        ROS_INFO("IdleController::computeArm -- Set P gain to default(5000) %s", param.arm_name.c_str());
+        param.p_gain = 5000.;
+      } 
+      if (param.d_gain <= 0.01)
+      {
+        ROS_INFO("IdleController::computeArm -- Set D gain to default(100) %s", param.arm_name.c_str());
+        param.d_gain = 30.;
+      }
+      if (param.vel_p_gain <= 0.01)
+      {
+        ROS_INFO("IdleController::computeArm -- Set velocity P gain to default(1500) %s", param.arm_name.c_str());
+        param.vel_p_gain = 1500.; // q_dot = kp/kv(del_q)
+      }
+      if (param.vel_d_gain <= 0.01)
+      {
+        ROS_INFO("IdleController::computeArm -- Set velocity D gain to default(20) %s", param.arm_name.c_str());
+        param.vel_d_gain = 10.0; // q_dot = kp/kv(del_q)
+      }
+      if (param.qdot_max <= 0.01)
+      {
+        ROS_INFO("IdleController::computeArm -- Set qdot_max to default(0.2) %s", param.arm_name.c_str());
+        param.qdot_max = 0.2; // joint velocity when a joint escapes from joint limit
       }
       
       auto fstar = PegInHole::keepCurrentState(
@@ -69,7 +139,29 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
         arm.position_, arm.rotation_, arm.xd_, param.p_gain, param.d_gain);
 
       // std::cout << fstar.transpose() << std::endl;
-      arm.setTorque(arm.jacobian_.transpose() * fstar, true);
+      double qdot_max = param.qdot_max;
+      Eigen::Vector7d qdot_desired;
+      Eigen::Vector7d vel_kp, vel_kv;
+
+      vel_kp.setConstant(param.vel_p_gain);
+      vel_kv.setConstant(param.vel_d_gain);
+
+      for(int i = 0; i < 7; i++)
+      {
+        double del_q = arm.q_limit_center_(i) - arm.q_(i);
+
+        qdot_desired(i) = vel_kp(i)/vel_kv(i)*del_q;       
+        
+        if(qdot_desired(i) > qdot_max) qdot_desired(i) = qdot_max;
+        else if(qdot_desired(i) < - qdot_max) qdot_desired(i) = - qdot_max;
+      }
+
+      Eigen::Vector7d tau0;
+      tau0 = vel_kv.asDiagonal()*(qdot_desired - arm.qd_);
+      
+      Eigen::Vector7d tau_desired = arm.jacobian_.transpose() * fstar + arm.null_projector_ * tau0;
+     
+      arm.setTorque(tau_desired, true);
       arm.idle_controlled_ = true;
       break;
     }
@@ -92,3 +184,4 @@ bool IdleControlServer::setTarget(assembly_msgs::IdleControl::Request  &req,
   }
   return true;
 }
+

@@ -24,23 +24,28 @@ class AssembleRotationActionServer : public ActionServerBase
     Eigen::Matrix<double, 6, 1> f_measured_;
     Eigen::Matrix<double, 6, 1> desired_xd_;
         
-    Eigen::Matrix<double, 3, 3> init_rot_;
-    Eigen::Vector3d origin_;
+    Eigen::Vector3d init_pos_;
+    Eigen::Matrix3d init_rot_;
 
-    Eigen::Vector3d target_force_;
+    Eigen::Isometry3d origin_;
+    Eigen::Isometry3d current_;
 
-    Eigen::Vector3d target_;
-    int dir_;
-    int option_;
+    Eigen::Vector3d ee_to_assembly_point_;
+    Eigen::Quaterniond ee_to_assembly_quat_;
+
+    Eigen::Isometry3d T_EA_, T_WA_;
 
     double f_threshold_;
     double range_; //5*M_PI/180
-    int mode_;
-    int swing_dir_;
 
     bool is_first_;
+
+    double pressing_force_;
+    Eigen::Vector3d asm_dir_;
     double duration_;
-    int assemble_dir_;
+
+    std::ofstream fm_rotation_search;
+    std::ofstream pr_rotation_search;
 
 public:
   AssembleRotationActionServer(std::string name, ros::NodeHandle &nh, 
@@ -48,7 +53,8 @@ public:
 
   bool compute(ros::Time time) override;
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
-  //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
 
-  double getDistance(const Eigen::Vector3d target, const Eigen::Vector3d start, const int mode, const int dir);
+  private:
+    void setSucceeded();
+    void setAborted();
 };

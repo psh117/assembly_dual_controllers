@@ -77,11 +77,11 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   std::string right_arm_id_;  ///< Name of the right arm, retreived from the parameter server.
   
   ///< Transformation between base frames of the robots.
-  Eigen::Affine3d Ol_T_Or_;  // NOLINT (readability-identifier-naming)
+  Eigen::Isometry3d Ol_T_Or_;  // NOLINT (readability-identifier-naming)
   ///< Target transformation between the two endeffectors.
-  Eigen::Affine3d EEr_T_EEl_;  // NOLINT (readability-identifier-naming)
+  Eigen::Isometry3d EEr_T_EEl_;  // NOLINT (readability-identifier-naming)
   ///< Transformation from the centering frame to the left endeffector.
-  Eigen::Affine3d EEl_T_C_;
+  Eigen::Isometry3d EEl_T_C_;
 
   ros::Time start_time_;
   ros::Time task_start_time_;

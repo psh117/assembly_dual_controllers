@@ -24,14 +24,23 @@ class AssemblePressActionServer : public ActionServerBase
     Eigen::Matrix<double, 6, 1> f_measured_;
     Eigen::Matrix<double, 6, 1> desired_xd_;
         
-    Eigen::Matrix<double, 3, 3> init_rot_;
-    Eigen::Vector3d origin_;
+    Eigen::Matrix3d init_rot_;
+    Eigen::Vector3d init_pos_;
+    
+    Eigen::Isometry3d origin_;
+    Eigen::Isometry3d current_;
 
     Eigen::Vector3d target_force_;
     Eigen::Vector3d target_torque_;
     bool is_first_;
     int assemble_dir_;
+
+    Eigen::Vector3d ee_to_assembly_point_;
+    Eigen::Quaterniond ee_to_assembly_quat_;
+   
+    Eigen::Isometry3d T_EA_, T_WA_;
     
+    double duration_;
 
 public:
   AssemblePressActionServer(std::string name, ros::NodeHandle &nh, 
@@ -42,4 +51,8 @@ public:
   //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
 
   double getDistance(const Eigen::Vector3d target, const Eigen::Vector3d start, const int type, const int dir);
+
+  private:
+    void setSucceeded();
+    void setAborted();
 };

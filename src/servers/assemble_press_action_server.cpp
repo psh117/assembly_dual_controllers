@@ -1,6 +1,6 @@
 #include <assembly_dual_controllers/servers/assemble_press_action_server.h>
 
-AssemblePressActionServer::AssemblePressActionServer(std::string name, ros::NodeHandle &nh, 
+AssemblePressActionServer::AssemblePressActionServer(std::string name, ros::NodeHandle &nh,
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu)
 : ActionServerBase(name,nh,mu),
 as_(nh,name,false)
@@ -15,34 +15,41 @@ void AssemblePressActionServer::goalCallback()
   feedback_header_stamp_ = 0;
   goal_ = as_.acceptNewGoal();
 
-  if ( mu_.find(goal_->arm_name) != mu_.end() ) 
+  if ( mu_.find(goal_->arm_name) != mu_.end() )
   {
     ROS_INFO("AssemblePress goal has been received.");
-  } 
-  else 
+  }
+  else
   {
     ROS_ERROR("[AssemblePressActionServer::goalCallback] the name %s is not in the arm list.", goal_->arm_name.c_str());
     return ;
   }
 
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
-  
+
   f_measured_.setZero();
   desired_xd_.setZero();
 
-  origin_ = mu_[goal_->arm_name]->position_;  
+  init_pos_ = mu_[goal_->arm_name]->position_;
   init_rot_ = mu_[goal_->arm_name]->rotation_;
+
+  origin_ = mu_[goal_->arm_name]->transform_;
   
-  target_force_(0) = goal_ ->target_force.force.x;
-  target_force_(1) = goal_ ->target_force.force.y;
-  target_force_(2) = goal_ ->target_force.force.z;
-  
-  target_torque_(0) = goal_ ->target_force.torque.x;
-  target_torque_(1) = goal_ ->target_force.torque.y;
-  target_torque_(2) = goal_ ->target_force.torque.z; 
+  duration_ = goal_->duration;
+
+  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
 
-  assemble_dir_ = goal_ ->assemble_dir;
+  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
+  T_EA_.translation() = ee_to_assembly_point_;
+
+  T_WA_ = origin_*T_EA_;
 }
 
 void AssemblePressActionServer::preemptCallback()
@@ -54,8 +61,8 @@ void AssemblePressActionServer::preemptCallback()
 bool AssemblePressActionServer::compute(ros::Time time)
 {
   if (!as_.isActive())
-      return false; 
-  
+      return false;
+
   if ( mu_.find(goal_->arm_name) != mu_.end() ) {
     computeArm(time, *mu_[goal_->arm_name]);
     return true;
@@ -70,7 +77,7 @@ bool AssemblePressActionServer::compute(ros::Time time)
 bool AssemblePressActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm)
 {
   if (!as_.isActive())
-      return false; 
+      return false;
 
   auto & mass = arm.mass_matrix_;
   auto & rotation = arm.rotation_;
@@ -79,25 +86,25 @@ bool AssemblePressActionServer::computeArm(ros::Time time, FrankaModelUpdater &a
   auto & tau_measured = arm.tau_measured_;
   auto & gravity = arm.gravity_;
   auto & xd = arm.xd_; //velocity
-  
+
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
   Eigen::Matrix<double, 6, 1> f_star_zero;
 
-  if(arm.task_start_time_.toSec() + 3.0 <= time.toSec()) //after pushing for 3 seconds
+  if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_)) //duration wrong??
   {
     std::cout<<"PRESS IS FINISHED"<<std::endl;
-    as_.setSucceeded();    
+    setSucceeded();
   }
 
-  f_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).head<3>();
-  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
-      
-  
 
-  f_star(assemble_dir_) = target_force_(assemble_dir_); 
+  // m_star = keepCurrentState(init_pos_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
 
-  
+  // f_star = keepCurrentState(init_pos_, init_rot_, position, rotation, xd, 5000, 100).head<3>();
+  // m_star = keepCurrentState(init_pos_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
+
+  // f_star(assemble_dir_) = target_force_(assemble_dir_);
+
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
@@ -106,4 +113,16 @@ bool AssemblePressActionServer::computeArm(ros::Time time, FrankaModelUpdater &a
   arm.setTorque(desired_torque);
 
   return true;
+}
+
+void AssemblePressActionServer::setSucceeded()
+{
+  as_.setSucceeded();
+  control_running_ = false;
+}
+
+void AssemblePressActionServer::setAborted()
+{
+  as_.setAborted();
+  control_running_ = false;
 }

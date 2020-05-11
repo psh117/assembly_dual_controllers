@@ -26,24 +26,24 @@ class AssembleInsertActionServer : public ActionServerBase
     Eigen::Vector3d desired_x_;
     Eigen::Matrix<double, 7, 6> j_inverse_;
     
-    Eigen::Matrix<double, 3, 3> init_rot_;
-    Eigen::Vector3d origin_;
-
-    Eigen::Vector3d target_force_;
-    Eigen::Vector3d target_torque_;
+    Eigen::Matrix3d init_rot_;
+    Eigen::Vector3d init_pos_;
     
-    int assemble_dir_;
+    Eigen::Isometry3d origin_;
+    Eigen::Isometry3d current_;
 
-    double target_time_ {3.0};
-    double task_p_gain_ {500.}; 
-    double rot_p_gain_ {200.0};
-    double rot_d_gain_ {5.0};
-
-    bool rot_compliant_mode_;
-
-
+    Eigen::Vector3d ee_to_assembly_point_;
+    Eigen::Quaterniond ee_to_assembly_quat_;
+   
+    Eigen::Isometry3d T_EA_, T_WA_;
     
+    double duration_;
+    double insertion_force_;
+    bool wiggle_motion_;
 
+    double wiggle_angle_;
+    double wiggle_angular_vel_;
+    
 public:
   AssembleInsertActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);
@@ -51,4 +51,8 @@ public:
   bool compute(ros::Time time) override;
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
   //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
+
+  private:
+    void setSucceeded();
+    void setAborted();
 };

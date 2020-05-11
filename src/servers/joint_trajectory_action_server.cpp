@@ -179,12 +179,17 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
   }
 
   Eigen::Matrix<double, 7,7> kp, kv;
+  Eigen::Matrix<double, 7, 1> kp_d, kd_d;
+  kp_d << 800, 800, 800, 800, 500, 400, 300;
+  kd_d << 10, 10, 10, 10, 5, 5, 3;
   
-  kp = Eigen::Matrix<double, 7,7>::Identity() * 600;
-  kv = Eigen::Matrix<double, 7,7>::Identity() * 10;
+  kp = kp_d.asDiagonal();
+  kv = kd_d.asDiagonal();
+  // kp = Eigen::Matrix<double, 7,7>::Identity() * 800;
+  // kv = Eigen::Matrix<double, 7,7>::Identity() * 10;
 
-  kp(6,6) = 200;
-  kv(6,6) = 4.0;
+  // kp(6,6) = 300;
+  // kv(6,6) = 5.0;
 
   Eigen::Matrix<double,7,1> desired_torque;
   
@@ -201,14 +206,22 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
   // std::cout << "qd: " << q_desired.transpose() << std::endl;
   // std::cout << "dt: " << desired_torque.transpose() << std::endl;
   
-  arm.setTorque(desired_torque);
   // as_.publishFeedback(feedback_);
 
   if(time.toSec() > (start_time_.toSec() +  total_time.toSec() + 0.5))
   {
+    Eigen::Vector7d goal_q;
+    goal_q = Eigen::Vector7d::Map(goal_->trajectory.points.back().positions.data());
+    std::cout << "goal_q: " << goal_q.transpose() << std::endl;
     ROS_INFO("joint_trajectory_done %lf %lf", start_time_.toSec(), total_time.toSec() );
     as_.setSucceeded();
     traj_running_ = false;
+    arm.setInitialValues(goal_q);
+    arm.idle_controlled_ = true;
+    arm.setTorque(desired_torque, true);
+    return true;
   }
+
+  arm.setTorque(desired_torque);
   return true;
 }

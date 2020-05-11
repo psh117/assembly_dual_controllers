@@ -27,50 +27,69 @@ void AssembleTripleRecoveryActionServer::goalCallback()
 
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
   mu_[goal_->arm_name]->task_end_time_ = ros::Time(mu_[goal_->arm_name]->task_start_time_.toSec() + 3.0);
-  task_end_time_2_ = ros::Time(mu_[goal_->arm_name]->task_start_time_.toSec() + 6.0);
-  task_end_time_3_ = ros::Time(mu_[goal_->arm_name]->task_start_time_.toSec() + 7.0);
-
+  
   f_measured_.setZero();
 
-  origin_ = mu_[goal_->arm_name]->position_;  
+  init_pos_ = mu_[goal_->arm_name]->position_;  
   init_rot_ = mu_[goal_->arm_name]->rotation_;
 
-  target_force_(0) = goal_ ->target_force.force.x;
-  target_force_(1) = goal_ ->target_force.force.y;
-  target_force_(2) = goal_ ->target_force.force.z;
+  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
-  assemble_dir_ = goal_ ->assemble_dir;
+  target_pose_position_(0) = goal_->recovery_target.position.x;
+  target_pose_position_(1) = goal_->recovery_target.position.y;
+  target_pose_position_(2) = goal_->recovery_target.position.z;
+  target_pose_quat_.x() = goal_->recovery_target.orientation.x;
+  target_pose_quat_.y() = goal_->recovery_target.orientation.y;
+  target_pose_quat_.z() = goal_->recovery_target.orientation.z;
+  target_pose_quat_.w() = goal_->recovery_target.orientation.w;
+
+  origin_ = mu_[goal_->arm_name]->transform_;
+
+  duration_ = goal_->duration;
+
+  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
+  T_EA_.translation() = ee_to_assembly_point_;
+  T_WA_ = origin_*T_EA_;
+
+  target_.linear() = target_pose_quat_.toRotationMatrix();
+  target_.translation() = target_pose_position_;
+
+  state_ = ESCAPE;
+
+  is_escape_first_ = true;
+  is_move_first_ = true;
+  is_approach_first_ = true;
+
+  recover_angle_ = goal_ ->recover_angle*M_PI/180;
   
-  target_(0) = goal_ ->p.x;
-  target_(1) = goal_ ->p.y;
-  target_(2) = goal_ ->p.z;  
-  
-  mode_ = goal_ ->mode;
-  dir_ = goal_ ->dir;
-  option_ = goal_ ->option;
-  //f_threshold_ = goal_ ->f_threshold;
+  state_ = ESCAPE;
 
-  range_ = goal_ ->range*M_PI/180;
-  swing_dir_ = goal_ ->swing_dir;
+  tilt_axis_ = PegInHole::getTiltDirection(T_EA_);
 
-  is_first_ = true;
-  state_ = 0;
+  control_running_ = true;
 
-  range_1_ = -10*M_PI/180;
-  range_2_ = range_;
-  rot_1_ << cos(range_1_), 0, sin(range_1_), 0, 1, 0, -sin(range_1_), 0, cos(range_1_);
-  rot_2_ << cos(range_2_), -sin(range_2_), 0, sin(range_2_), cos(range_2_), 0, 0, 0, 1;
-
+  std::cout<<"TRIPLE RECOVERY START"<<std::endl;
+  std::cout<<"return target: "<<target_pose_position_.transpose()<<std::endl;
 }
 
 void AssembleTripleRecoveryActionServer::preemptCallback()
 {
   ROS_INFO("[%s] Preempted", action_name_.c_str());
   as_.setPreempted();
+  control_running_ = false;
 }
 
 bool AssembleTripleRecoveryActionServer::compute(ros::Time time)
 {
+  if (!control_running_)
+    return false;
+
   if (!as_.isActive())
       return false; 
   
@@ -98,12 +117,8 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
   auto & gravity = arm.gravity_;
   auto & xd = arm.xd_; //velocity
   
-  Eigen::Vector3d delphi_delta;
-  Eigen::Vector3d f_star;
-  Eigen::Vector3d m_star;
-  double speed;
-  double dis;
-
+  Eigen::Vector3d f_star, m_star;
+    
   Eigen::Matrix<double, 6, 1> f_star_zero;
   Eigen::Matrix<double, 6, 6> lambda;
   Eigen::Matrix<double, 7, 6> J_bar;
@@ -112,117 +127,91 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
   J_bar = mass.inverse()*jacobian.transpose()*lambda;
   f_measured_ = J_bar.transpose()*(tau_measured - gravity);
 
+  current_ = arm.transform_;
 
-  if(is_first_ == true)
+  switch(state_)
   {
-    origin_ = position;
-    init_rot_ = rotation;
-    arm.task_start_time_ = time;
-    dis = getDistance(target_, origin_, mode_, dir_);
-    speed = 0.01;
-    duration_ = dis/speed;
+    case ESCAPE:
+      if(is_escape_first_)
+      {
+        origin_ = arm.transform_;
+        arm.task_start_time_ = time;
+        is_escape_first_ = false;
+        std::cout<<"Up"<<std::endl;
+      }
+      
+      if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_+0.25))
+      {
+        state_ = MOVE;
+        std::cout<<"TILT BACK DONE"<<std::endl;
+      }
 
-    is_first_ = false;
-    std::cout<<"origin_: "<<origin_.transpose()<<std::endl;
-    std::cout<<"distance: "<<dis<<std::endl;
-    std::cout<<"duration: "<<duration_<<std::endl;
-    std::cout<<"Go to the target position!"<<std::endl;
- 
-    state_init_rot_1_ = init_rot_ * rot_1_;
-    state_init_rot_2_ = init_rot_ * rot_1_ * rot_2_;
-  }
-
-  // if(timeOut(time.toSec(), arm.task_start_time_.toSec(), 10.0)) //duration wrong??
-  // { 
-  //   std::cout<<"Time out"<<std::endl;
-  //   as_.setAborted();
-  // } 
-
-  if((time.toSec() >= arm.task_end_time_.toSec()) && (time.toSec() < task_end_time_2_.toSec()))
-  { 
-    state_ = 1;
-    //std::cout<<"RECOVERY state1"<<std::endl;
-  }
-  else if(time.toSec() < task_end_time_3_.toSec())
-  { 
-    state_ = 2;
-    //std::cout<<"RECOVERY state2"<<std::endl;
-  }
-  else if(time.toSec() >= task_end_time_3_.toSec())
-  {
-    //std::cout<<"RECOVERY END"<<std::endl;
-    as_.setSucceeded();
-  }
-
-
-
-  if(state_ == 0)
-  {
-    f_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 400, 40).head<3>();
-    f_star(assemble_dir_) = target_force_(assemble_dir_); 
-    m_star = rotateWithEeAxis(init_rot_, rotation, xd, range_1_, arm.task_start_time_.toSec(), time.toSec(), arm.task_end_time_.toSec(), 1);
-    //m_star(1) = 0.0;
-  }
-  else if(state_ == 1)
-  {
-    f_star = keepCurrentState(origin_, state_init_rot_1_, position, rotation, xd, 400, 40).head<3>();
-    f_star(assemble_dir_) = target_force_(assemble_dir_); 
-    m_star = rotateWithEeAxis(state_init_rot_1_, rotation, xd, range_2_, arm.task_end_time_.toSec(), time.toSec(), task_end_time_2_.toSec(), swing_dir_);
-    //m_star(1) = 0.0;
-  }
-  else if(state_ == 2)
-  {
-    f_star.setZero();
-    f_star(assemble_dir_) = target_force_(assemble_dir_); 
-    m_star = keepCurrentState(origin_, state_init_rot_2_, position, rotation, xd, 400, 40).tail<3>();
-    m_star(1) = 0.0;
-  }
-
-  // if(mode_ == 1)
-  // {
-  //   f_star = oneDofMove(origin_, position, target_(dir_), xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 0.0, dir_);
-  //   if(option_ == 0)  m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());  
-  //   if(option_ == 1)  m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
-  //   if(option_ == 2)  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
+      f_star = PegInHole::tiltMotion(origin_, current_, xd, T_EA_, tilt_axis_, recover_angle_, time.toSec(), arm.task_start_time_.toSec(), duration_).head<3>();
+      m_star = PegInHole::tiltMotion(origin_, current_, xd, T_EA_, tilt_axis_, recover_angle_, time.toSec(),  arm.task_start_time_.toSec(), duration_).tail<3>();
     
-  // }
+      break;
 
-  // if(mode_ == 2)
-  // {
-  //   f_star = twoDofMove(origin_, position, target_, xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 0.0, dir_);
-  //   if(option_ == 0)  m_star = keepOrientationPerpenticular(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());  
-  //   if(option_ == 1)  m_star = keepOrientationPerpenticularOnlyXY(init_rot_, rotation, xd, 2.0, time.toSec(), arm.task_start_time_.toSec());
-  //   if(option_ == 2)  m_star = keepCurrentState(origin_, init_rot_, position, rotation, xd, 5000, 100).tail<3>();
-  // }
+    case MOVE:
+      if(is_move_first_)
+      {
+        origin_ = arm.transform_;
+        arm.task_start_time_ = time;
+        is_move_first_ = false;
+        std::cout<<"Move"<<std::endl;
+      }
 
+      if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_+0.25))
+      {
+        state_ = APPROACH;
+      }
 
+      f_star = PegInHole::threeDofMove(origin_, current_, target_.translation(), xd, time.toSec(), arm.task_start_time_.toSec(), duration_);
+      m_star = PegInHole::rotateWithMat(origin_, current_, xd, target_.linear(), time.toSec(), arm.task_start_time_.toSec(), duration_);
+
+      break;
+
+    case APPROACH:
+      if(is_approach_first_)
+      {
+        origin_ = arm.transform_;
+        arm.task_start_time_ = time;
+        is_approach_first_ = false;
+        std::cout<<"Approach"<<std::endl;
+      }
+
+      if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_+0.25))
+      {
+        std::cout<<"TILT BACK DONE"<<std::endl;
+        setSucceeded();
+      }
+
+      f_star = PegInHole::tiltMotion(origin_, current_, xd, T_EA_, tilt_axis_, -recover_angle_+2*DEG2RAD, time.toSec(), arm.task_start_time_.toSec(), duration_).head<3>();
+      m_star = PegInHole::tiltMotion(origin_, current_, xd, T_EA_, tilt_axis_, -recover_angle_+2*DEG2RAD, time.toSec(), arm.task_start_time_.toSec(), duration_).tail<3>();
+    
+      break;
+  }
+  
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
-  
+  // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
+  // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
+
+  if(state_ == APPROACH) f_star_zero.setZero();
+  // f_star_zero.setZero();
+
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
 
   return true;
 }
 
-double AssembleTripleRecoveryActionServer::getDistance(const Eigen::Vector3d target, const Eigen::Vector3d start, 
-  const int mode, const int dir)
+void AssembleTripleRecoveryActionServer::setSucceeded()
 {
-  double dis;
-  Eigen::Vector3d dx;
-
-  dx << target(0) - start(0), target(1) - start(1), target(2) - start(2); 
-  
-  if(mode == 1)
-  {
-    dis = sqrt(pow(dx(dir),2));
-  }
-
-  if(mode == 2)
-  {
-    dx(dir) = 0;
-    dis = sqrt(pow(dx(0),2) + pow(dx(1),2) + pow(dx(2),2));
-  }
-
-  return dis;  
+  as_.setSucceeded();
+  control_running_ = false;
+}
+void AssembleTripleRecoveryActionServer::setAborted()
+{
+  as_.setAborted();
+  control_running_ = false;
 }

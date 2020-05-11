@@ -117,9 +117,9 @@ bool AssembleParallelActionServer::computeArm(ros::Time time, FrankaModelUpdater
     ez = init_rot_.block<3,1>(0,2);
     ex_proj << ex(0), ex(1), (-n(0)*ex(0)-n(1)*ex(1)-d)/n(2) - origin_(2);
     ey_proj << ey(0), ey(1), (-n(0)*ey(0)-n(1)*ey(1)-d)/n(2) - origin_(2);
-    ex_proj = vectorNormalization(ex_proj);
-    ey_proj = vectorNormalization(ey_proj);
-
+    ex_proj = ex_proj.normalized();
+    ey_proj = ey_proj.normalized();
+    
     o_rot_t.block<3,1>(0,0) = ex_proj;
     o_rot_t.block<3,1>(0,1) = ey_proj;
     o_rot_t.block<3,1>(0,2) = n;

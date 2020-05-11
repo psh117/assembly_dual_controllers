@@ -178,7 +178,7 @@ void AssemblyDualController::startingArm(FrankaModelUpdater& arm_data) {
   Eigen::Map<Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
   Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_initial(initial_state.dq.data());
   Eigen::Map<Eigen::Matrix<double, 7, 1>> q_initial(initial_state.q.data());
-  Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
+  Eigen::Isometry3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
 }
 
 void AssemblyDualController::starting(const ros::Time& time) {
@@ -188,9 +188,9 @@ void AssemblyDualController::starting(const ros::Time& time) {
   // franka::RobotState robot_state_right =
   //     arms_data_.at(right_arm_id_).state_handle_->getRobotState();
   // franka::RobotState robot_state_left = arms_data_.at(left_arm_id_).state_handle_->getRobotState();
-  // Eigen::Affine3d Ol_T_EEl(Eigen::Matrix4d::Map(  // NOLINT (readability-identifier-naming)
+  // Eigen::Isometry3d Ol_T_EEl(Eigen::Matrix4d::Map(  // NOLINT (readability-identifier-naming)
   //     robot_state_left.O_T_EE.data()));           // NOLINT (readability-identifier-naming)
-  // Eigen::Affine3d Or_T_EEr(Eigen::Matrix4d::Map(  // NOLINT (readability-identifier-naming)
+  // Eigen::Isometry3d Or_T_EEr(Eigen::Matrix4d::Map(  // NOLINT (readability-identifier-naming)
   //     robot_state_right.O_T_EE.data()));          // NOLINT (readability-identifier-naming)
   // EEr_T_EEl_ =
   //     Or_T_EEr.inverse() * Ol_T_Or_.inverse() * Ol_T_EEl;  // NOLINT (readability-identifier-naming)
@@ -206,7 +206,7 @@ void AssemblyDualController::starting(const ros::Time& time) {
 
 void AssemblyDualController::update(const ros::Time& time, const ros::Duration& period) {
 
-  
+  // std::cout << period.toSec() << std::endl;
   for (auto& arm : arms_data_) {
     arm.second->updateModel();
     arm.second->target_updated_ = false;

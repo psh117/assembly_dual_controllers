@@ -12,6 +12,13 @@ using namespace PegInHole;
 
 class AssembleTripleRecoveryActionServer : public ActionServerBase
 {
+    enum ASSEMBLY_STATE
+    {
+      ESCAPE,
+      MOVE,
+      APPROACH
+    };
+
     actionlib::SimpleActionServer<assembly_msgs::AssembleTripleRecoveryAction> as_;
 
     assembly_msgs::AssembleTripleRecoveryFeedback feedback_;
@@ -23,35 +30,33 @@ class AssembleTripleRecoveryActionServer : public ActionServerBase
 
     Eigen::Matrix<double, 6, 1> f_measured_;
     Eigen::Matrix<double, 6, 1> desired_xd_;
-        
-    Eigen::Matrix<double, 3, 3> init_rot_;
-    Eigen::Matrix<double, 3, 3> state_init_rot_1_;
-    Eigen::Matrix<double, 3, 3> state_init_rot_2_;
-    Eigen::Matrix<double, 3, 3> rot_1_;
-    Eigen::Matrix<double, 3, 3> rot_2_;
-    Eigen::Vector3d origin_;
 
-    Eigen::Vector3d target_force_;
+    Eigen::Vector3d init_pos_;    
+    Eigen::Matrix3d init_rot_;
 
-    Eigen::Vector3d target_;
-    int dir_;
-    int option_;
+    Eigen::Isometry3d origin_;
+    Eigen::Isometry3d current_;
+    Eigen::Isometry3d target_;
+    Eigen::Isometry3d T_EA_, T_WA_;
 
-    double f_threshold_;
-    double range_; //5*M_PI/180
-    double range_1_;
-    double range_2_;
-    int mode_;
-    int swing_dir_;
+    Eigen::Vector3d ee_to_assembly_point_;
+    Eigen::Quaterniond ee_to_assembly_quat_;
 
-    bool is_first_;
+    Eigen::Vector3d target_pose_position_;
+    Eigen::Quaterniond target_pose_quat_;
+
+    double recover_angle_; //5*M_PI/180
     double duration_;
-    int assemble_dir_;
+    
+    
+    ASSEMBLY_STATE state_;
 
-    double state_;
+    bool is_escape_first_;
+    bool is_move_first_;
+    bool is_approach_first_;
 
-    ros::Time task_end_time_2_;
-    ros::Time task_end_time_3_;
+    Eigen::Vector3d tilt_axis_;
+
 
 public:
   AssembleTripleRecoveryActionServer(std::string name, ros::NodeHandle &nh, 
@@ -62,4 +67,9 @@ public:
   //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
 
   double getDistance(const Eigen::Vector3d target, const Eigen::Vector3d start, const int mode, const int dir);
+
+private:
+  void setSucceeded();
+  void setAborted();
+
 };
