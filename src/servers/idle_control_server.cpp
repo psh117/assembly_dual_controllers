@@ -10,6 +10,7 @@ nh_(nh), mu_(mu)
     msg.mode = assembly_msgs::IdleControl::Request::TASK_SPACE;
     params_.emplace(std::make_pair(pair.first, msg));
   }
+  // params_["panda_right"].mode = assembly_msgs::IdleControl::Request::TASK_SPACE_DEV_TEST;
   server_  = nh_.advertiseService(name, &IdleControlServer::setTarget, this);
 }
 
@@ -38,19 +39,19 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
 {
 
   // For safety
-  Eigen::Quaterniond qt_init(arm.initial_transform_.linear());
-  Eigen::Quaterniond qt_cur(arm.transform_.linear());
-  if (qt_init.angularDistance(qt_cur) > 0.174532889) // 10 DEGREE
-  {
-    arm.setInitialValues();
-    std::cout << "Large angular difference detected. Set initial position to this position" << std::endl;
-  }
+  // Eigen::Quaterniond qt_init(arm.initial_transform_.linear());
+  // Eigen::Quaterniond qt_cur(arm.transform_.linear());
+  // if (qt_init.angularDistance(qt_cur) > 0.174532889) // 10 DEGREE
+  // {
+  //   arm.setInitialValues();
+  //   std::cout << "Large angular difference detected. Set initial position to this position" << std::endl;
+  // }
   
-  if ((arm.initial_transform_.translation() -arm.position_ ).norm() > 0.05)
-  {
-    arm.setInitialValues();
-    std::cout << "Large translational difference detected. Set initial position to this position" << std::endl;
-  }
+  // if ((arm.initial_transform_.translation() -arm.position_ ).norm() > 0.05)
+  // {
+  //   arm.setInitialValues();
+  //   std::cout << "Large translational difference detected. Set initial position to this position" << std::endl;
+  // }
 
   switch (param.mode)
   {
@@ -71,13 +72,13 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
       // default gain (gains are not set)
       if (param.p_gain <= 0.01)
       {
-        ROS_INFO("IdleController::computeArm -- Set P gain to default(5000) %s", param.arm_name.c_str());
-        param.p_gain = 5000.;
+        ROS_INFO("IdleController::computeArm -- Set P gain to default(2000) %s", param.arm_name.c_str());
+        param.p_gain = 1000.;
       } 
       if (param.d_gain <= 0.01)
       {
-        ROS_INFO("IdleController::computeArm -- Set D gain to default(100) %s", param.arm_name.c_str());
-        param.d_gain = 30.;
+        ROS_INFO("IdleController::computeArm -- Set D gain to default(89) %s", param.arm_name.c_str());
+        param.d_gain = 15;
       }
       if (param.vel_p_gain <= 0.01)
       {
@@ -94,15 +95,31 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
         ROS_INFO("IdleController::computeArm -- Set qdot_max to default(0.2) %s", param.arm_name.c_str());
         param.qdot_max = 0.2; // joint velocity when a joint escapes from joint limit
       }
-      
-      auto fstar = PegInHole::keepCurrentState(
-        arm.initial_transform_.translation(), arm.initial_transform_.linear(), 
-        arm.position_, arm.rotation_, arm.xd_, param.p_gain, param.d_gain);
+      // auto fstar = PegInHole::keepCurrentState(
+      //   arm.initial_transform_.translation(), arm.initial_transform_.linear(), 
+      //   arm.position_, arm.rotation_, arm.xd_, param.p_gain, param.d_gain);
+
+      auto fstar = PegInHole::keepCurrentPose(arm.initial_transform_, arm.transform_,arm.xd_,
+      param.p_gain, param.d_gain, param.p_gain * 2.0, param.d_gain, arm.modified_lambda_matrix_);
 
       Eigen::Vector7d tau_desired = arm.jacobian_.transpose() * fstar;
-     
+      // std::cout << "fstar: " << fstar.transpose() << std::endl
+      // << "tau: " << tau_desired.transpose() << std::endl;
+
       arm.setTorque(tau_desired, true);
       arm.idle_controlled_ = true;
+
+
+      // auto fstar = PegInHole::keepCurrentPose(
+      //   arm.initial_transform_, arm.transform_, arm.xd_, param.p_gain, param.d_gain);
+
+      // Eigen::Vector7d tau_desired = arm.jacobian_.transpose() * fstar;
+     
+      // std::cout << "fstar: " << fstar.transpose() << std::endl
+      // << "tau: " << tau_desired.transpose() << std::endl;
+
+      // arm.setTorque(tau_desired, true);
+      // arm.idle_controlled_ = true;
       break;
     }
     case assembly_msgs::IdleControl::Request::TASK_SPACE_WITH_NULL:
@@ -110,13 +127,13 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
       // default gain (gains are not set)
       if (param.p_gain <= 0.01)
       {
-        ROS_INFO("IdleController::computeArm -- Set P gain to default(5000) %s", param.arm_name.c_str());
-        param.p_gain = 5000.;
+        ROS_INFO("IdleController::computeArm -- Set P gain to default(3000) %s", param.arm_name.c_str());
+        param.p_gain = 3000.;
       } 
       if (param.d_gain <= 0.01)
       {
         ROS_INFO("IdleController::computeArm -- Set D gain to default(100) %s", param.arm_name.c_str());
-        param.d_gain = 30.;
+        param.d_gain = 100.;
       }
       if (param.vel_p_gain <= 0.01)
       {
@@ -161,6 +178,19 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
       
       Eigen::Vector7d tau_desired = arm.jacobian_.transpose() * fstar + arm.null_projector_ * tau0;
      
+      arm.setTorque(tau_desired, true);
+      arm.idle_controlled_ = true;
+      break;
+    }
+    case assembly_msgs::IdleControl::Request::TASK_SPACE_DEV_TEST:
+    {
+      auto fstar = PegInHole::keepCurrentPose(arm.initial_transform_, arm.transform_,arm.xd_,
+      3000, 40, 5000, 50, arm.modified_lambda_matrix_);
+
+      Eigen::Vector7d tau_desired = arm.jacobian_.transpose() * fstar;
+      // std::cout << "fstar: " << fstar.transpose() << std::endl
+      // << "tau: " << tau_desired.transpose() << std::endl;
+
       arm.setTorque(tau_desired, true);
       arm.idle_controlled_ = true;
       break;

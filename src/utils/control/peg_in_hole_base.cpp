@@ -1,12 +1,12 @@
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 
 Eigen::Vector3d PegInHole::straightMove(const Eigen::Vector3d origin,
-                                    const Eigen::Vector3d current_position,
-                                    const Eigen::Matrix<double, 6, 1> current_velocity,
-                                    const int dir,
-                                    const double speed,
-                                    const double current_time,
-                                    const double init_time)
+                                        const Eigen::Vector3d current_position,
+                                        const Eigen::Matrix<double, 6, 1> current_velocity,
+                                        const int dir,
+                                        const double speed,
+                                        const double current_time,
+                                        const double init_time)
 {
   // double desent_speed = -0.02; //-0.005; // 5cm/s
 
@@ -31,14 +31,14 @@ Eigen::Vector3d PegInHole::straightMove(const Eigen::Vector3d origin,
 }
 
 Eigen::Vector3d PegInHole::oneDofMove(const Eigen::Vector3d origin,
-                                  const Eigen::Vector3d current_position,
-                                  const double target_position,
-                                  const Eigen::Matrix<double, 6, 1> current_velocity,
-                                  const double current_time,
-                                  const double init_time,
-                                  const double duration,
-                                  const double desired_speed, //only positive value!!!
-                                  const int direction)        // 0 -> x, 1 -> y, 2 -> z //DESIRED DIRECTION!!
+                                      const Eigen::Vector3d current_position,
+                                      const double target_position,
+                                      const Eigen::Matrix<double, 6, 1> current_velocity,
+                                      const double current_time,
+                                      const double init_time,
+                                      const double duration,
+                                      const double desired_speed, //only positive value!!!
+                                      const int direction)        // 0 -> x, 1 -> y, 2 -> z //DESIRED DIRECTION!!
 {
   double speed;
   Eigen::Vector3d desired_position;
@@ -81,14 +81,14 @@ Eigen::Vector3d PegInHole::oneDofMove(const Eigen::Vector3d origin,
 }
 
 Eigen::Vector3d PegInHole::twoDofMove(const Eigen::Vector3d origin,
-                                  const Eigen::Vector3d current_position,
-                                  const Eigen::Vector3d target_position,
-                                  const Eigen::Matrix<double, 6, 1> current_velocity,
-                                  const double current_time,
-                                  const double init_time,
-                                  const double duration,
-                                  const double desired_speed,
-                                  const int direction) // 0 -> x, 1 -> y, 2 -> z //NOT DESIRED DIRECTION!!
+                                      const Eigen::Vector3d current_position,
+                                      const Eigen::Vector3d target_position,
+                                      const Eigen::Matrix<double, 6, 1> current_velocity,
+                                      const double current_time,
+                                      const double init_time,
+                                      const double duration,
+                                      const double desired_speed,
+                                      const int direction) // 0 -> x, 1 -> y, 2 -> z //NOT DESIRED DIRECTION!!
 {
   Eigen::Vector3d speed; // x, y, z
   Eigen::Vector3d desired_position;
@@ -141,14 +141,14 @@ Eigen::Vector3d PegInHole::twoDofMove(const Eigen::Vector3d origin,
 }
 
 Eigen::Vector3d PegInHole::oneDofMoveEE(const Eigen::Vector3d origin,
-                                    const Eigen::Matrix3d init_rot,
-                                    const Eigen::Vector3d current_position,
-                                    const Eigen::Matrix<double, 6, 1> current_velocity,
-                                    const double current_time,
-                                    const double init_time,
-                                    const double duration,
-                                    const double target_distance, // + means go forward, - mean go backward
-                                    const int direction)          // 0 -> x_ee, 1 -> y_ee, 2 -> z_ee //DESIRED DIRECTION W.R.T END EFFECTOR!!
+                                        const Eigen::Matrix3d init_rot,
+                                        const Eigen::Vector3d current_position,
+                                        const Eigen::Matrix<double, 6, 1> current_velocity,
+                                        const double current_time,
+                                        const double init_time,
+                                        const double duration,
+                                        const double target_distance, // + means go forward, - mean go backward
+                                        const int direction)          // 0 -> x_ee, 1 -> y_ee, 2 -> z_ee //DESIRED DIRECTION W.R.T END EFFECTOR!!
 {
   Eigen::Vector3d goal_position;
   Eigen::Vector3d cmd_position;
@@ -182,11 +182,11 @@ Eigen::Vector3d PegInHole::oneDofMoveEE(const Eigen::Vector3d origin,
 }
 
 Eigen::Matrix<double, 6, 1> PegInHole::keepCurrentState(const Eigen::Vector3d initial_position,
-                                                    const Eigen::Matrix3d initial_rotation,
-                                                    const Eigen::Vector3d position,
-                                                    const Eigen::Matrix3d rotation,
-                                                    const Eigen::Matrix<double, 6, 1> current_velocity,
-                                                    const double kp, const double kv)
+                                                        const Eigen::Matrix3d initial_rotation,
+                                                        const Eigen::Vector3d position,
+                                                        const Eigen::Matrix3d rotation,
+                                                        const Eigen::Matrix<double, 6, 1> current_velocity,
+                                                        const double kp, const double kv)
 {
   Eigen::Vector3d desired_position;
   Eigen::Vector3d desired_linear_velocity;
@@ -213,47 +213,15 @@ Eigen::Matrix<double, 6, 1> PegInHole::keepCurrentState(const Eigen::Vector3d in
 
   return f_star_zero;
 }
-Eigen::Matrix<double, 6, 1> PegInHole::keepCurrentStateWithLambda(const Eigen::Ref<Eigen::Vector3d> initial_position,
-                                                              const Eigen::Ref<Eigen::Matrix3d> initial_rotation,
-                                                              const Eigen::Ref<Eigen::Vector3d> position,
-                                                              const Eigen::Ref<Eigen::Matrix3d> rotation,
-                                                              const Eigen::Ref<Eigen::Matrix<double, 6, 1>> current_velocity,
-                                                              const double kp, const double kpo, const double kv, const double kvo)
-{
-  Eigen::Vector3d desired_position;
-  Eigen::Vector3d desired_linear_velocity;
-  Eigen::Vector3d delphi_delta;
-  Eigen::Vector3d f_star;
-  Eigen::Vector3d m_star;
-  Eigen::Vector6d f_star_zero;
-  Eigen::Matrix3d kp_m;
-  Eigen::Matrix3d kv_m;
-
-  kp_m = Eigen::Matrix3d::Identity() * kp;
-  kv_m = Eigen::Matrix3d::Identity() * kv;
-
-  desired_position = initial_position;
-  desired_linear_velocity.setZero();
-
-  delphi_delta = -0.5 * dyros_math::getPhi(rotation, initial_rotation);
-
-  f_star = kp_m * (desired_position - position) + kv_m * (desired_linear_velocity - current_velocity.head<3>());
-  m_star = kpo * delphi_delta + kvo * (-current_velocity.tail<3>());
-
-  f_star_zero.head<3>() = f_star;
-  f_star_zero.tail<3>() = m_star;
-
-  return f_star_zero;
-}
 Eigen::Vector3d PegInHole::generateSpiral(const Eigen::Vector3d origin,
-                                      const Eigen::Vector3d current_position,
-                                      const Eigen::Matrix<double, 6, 1> current_velocity,
-                                      const double pitch,
-                                      const double lin_vel,
-                                      const int dir, //the direction where a peg is inserted
-                                      const double current_time,
-                                      const double init_time,
-                                      const double spiral_duration)
+                                          const Eigen::Vector3d current_position,
+                                          const Eigen::Matrix<double, 6, 1> current_velocity,
+                                          const double pitch,
+                                          const double lin_vel,
+                                          const int dir, //the direction where a peg is inserted
+                                          const double current_time,
+                                          const double init_time,
+                                          const double spiral_duration)
 {
   // double pitch = 0.0010;
   // double lin_vel = 0.005;
@@ -294,13 +262,13 @@ Eigen::Vector3d PegInHole::generateSpiral(const Eigen::Vector3d origin,
 }
 
 Eigen::Matrix<double, 3, 1> PegInHole::generateSpiralWithRotation(const Eigen::Matrix3d initial_rotation_M,
-                                                              const Eigen::Matrix3d rotation_M,
-                                                              const Eigen::Matrix<double, 3, 1> current_angular_velocity,
-                                                              const double current_time,
-                                                              const double init_time,
-                                                              const double duration,
-                                                              const double direction, //0 = the first motion, 1 = CCW, 2 == CW
-                                                              const double axis)      // 0 = x-axis, 1 = y-axis, 2 = z-axis
+                                                                  const Eigen::Matrix3d rotation_M,
+                                                                  const Eigen::Matrix<double, 3, 1> current_angular_velocity,
+                                                                  const double current_time,
+                                                                  const double init_time,
+                                                                  const double duration,
+                                                                  const double direction, //0 = the first motion, 1 = CCW, 2 == CW
+                                                                  const double axis)      // 0 = x-axis, 1 = y-axis, 2 = z-axis
 {
   double target_angle = 3.0 * M_PI / 180;
   double ori_change_theta;
@@ -342,15 +310,15 @@ Eigen::Matrix<double, 3, 1> PegInHole::generateSpiralWithRotation(const Eigen::M
 }
 
 Eigen::Matrix<double, 3, 1> PegInHole::generateSpiralWithRotationGainEe(const Eigen::Matrix3d initial_rotation_M,
-                                                                    const Eigen::Matrix3d rotation_M,
-                                                                    const Eigen::Matrix<double, 3, 1> current_angular_velocity,
-                                                                    const double current_time,
-                                                                    const double init_time,
-                                                                    const double duration,
-                                                                    const double direction, //0 = the first motion, 1 = CCW, 2 == CW
-                                                                    const double axis,      // 0 = x-axis, 1 = y-axis, 2 = z-axis
-                                                                    const double kp,
-                                                                    const double kv)
+                                                                        const Eigen::Matrix3d rotation_M,
+                                                                        const Eigen::Matrix<double, 3, 1> current_angular_velocity,
+                                                                        const double current_time,
+                                                                        const double init_time,
+                                                                        const double duration,
+                                                                        const double direction, //0 = the first motion, 1 = CCW, 2 == CW
+                                                                        const double axis,      // 0 = x-axis, 1 = y-axis, 2 = z-axis
+                                                                        const double kp,
+                                                                        const double kv)
 {
   double target_angle = 3.0 * M_PI / 180;
   double ori_change_theta;
@@ -397,14 +365,14 @@ Eigen::Matrix<double, 3, 1> PegInHole::generateSpiralWithRotationGainEe(const Ei
 }
 
 Eigen::Matrix<double, 3, 1> PegInHole::generateSpiralWithRotationEe(const Eigen::Matrix3d initial_rotation_M,
-                                                                const Eigen::Matrix3d rotation_M,
-                                                                const Eigen::Matrix<double, 3, 1> current_angular_velocity,
-                                                                const double current_time,
-                                                                const double init_time,
-                                                                const double duration,
-                                                                const double direction, //0 = the first motion, 1 = CCW, 2 == CW
-                                                                const double axis,
-                                                                const int rand) // 0 = x-axis, 1 = y-axis, 2 = z-axis
+                                                                    const Eigen::Matrix3d rotation_M,
+                                                                    const Eigen::Matrix<double, 3, 1> current_angular_velocity,
+                                                                    const double current_time,
+                                                                    const double init_time,
+                                                                    const double duration,
+                                                                    const double direction, //0 = the first motion, 1 = CCW, 2 == CW
+                                                                    const double axis,
+                                                                    const int rand) // 0 = x-axis, 1 = y-axis, 2 = z-axis
 {
   double target_angle = 1.5 * M_PI / 180;
   double ori_change_theta;
@@ -451,11 +419,11 @@ Eigen::Matrix<double, 3, 1> PegInHole::generateSpiralWithRotationEe(const Eigen:
 }
 
 Eigen::Vector3d PegInHole::keepOrientationPerpenticular(const Eigen::Matrix3d initial_rotation_M,
-                                                    const Eigen::Matrix3d rotation_M,
-                                                    const Eigen::Matrix<double, 6, 1> current_velocity,
-                                                    const double duration,
-                                                    const double current_time,
-                                                    const double init_time)
+                                                        const Eigen::Matrix3d rotation_M,
+                                                        const Eigen::Matrix<double, 6, 1> current_velocity,
+                                                        const double duration,
+                                                        const double current_time,
+                                                        const double init_time)
 {
   Eigen::Matrix3d target_rotation_M;
   Eigen::Vector3d delphi_delta;
@@ -559,11 +527,11 @@ Eigen::Vector3d PegInHole::keepOrientationPerpenticular(const Eigen::Matrix3d in
 }
 
 Eigen::Vector3d PegInHole::keepOrientationPerpenticularOnlyXY(const Eigen::Matrix3d initial_rotation_M,
-                                                          const Eigen::Matrix3d rotation_M,
-                                                          const Eigen::Matrix<double, 6, 1> current_velocity,
-                                                          const double duration,
-                                                          const double current_time,
-                                                          const double init_time)
+                                                              const Eigen::Matrix3d rotation_M,
+                                                              const Eigen::Matrix<double, 6, 1> current_velocity,
+                                                              const double duration,
+                                                              const double current_time,
+                                                              const double init_time)
 {
   Eigen::Matrix3d target_rotation_M;
   Eigen::Vector3d delphi_delta;
@@ -614,11 +582,11 @@ Eigen::Vector3d PegInHole::keepOrientationPerpenticularOnlyXY(const Eigen::Matri
 }
 
 Eigen::Vector3d PegInHole::rotateOrientationPerpenticular(const Eigen::Matrix3d initial_rotation_M,
-                                                      const Eigen::Matrix3d rotation_M,
-                                                      const Eigen::Matrix<double, 6, 1> current_velocity,
-                                                      const double duration,
-                                                      const double current_time,
-                                                      const double init_time)
+                                                          const Eigen::Matrix3d rotation_M,
+                                                          const Eigen::Matrix<double, 6, 1> current_velocity,
+                                                          const double duration,
+                                                          const double current_time,
+                                                          const double init_time)
 {
   Eigen::Matrix3d target_rotation_M;
   Eigen::Vector3d delphi_delta;
@@ -669,10 +637,10 @@ Eigen::Vector3d PegInHole::rotateOrientationPerpenticular(const Eigen::Matrix3d 
 }
 
 Eigen::Vector3d PegInHole::keepCurrentOrientation(const Eigen::Matrix3d initial_rotation_M,
-                                              const Eigen::Matrix3d rotation_M,
-                                              const Eigen::Matrix<double, 6, 1> current_velocity,
-                                              const double kp,
-                                              const double kd)
+                                                  const Eigen::Matrix3d rotation_M,
+                                                  const Eigen::Matrix<double, 6, 1> current_velocity,
+                                                  const double kp,
+                                                  const double kd)
 {
   Eigen::Vector3d delphi_delta;
   Eigen::Vector3d m_star;
@@ -685,13 +653,13 @@ Eigen::Vector3d PegInHole::keepCurrentOrientation(const Eigen::Matrix3d initial_
 }
 
 Eigen::Vector3d PegInHole::rotateWithGlobalAxis(const Eigen::Matrix3d initial_rotation_M,
-                                            const Eigen::Matrix3d rotation_M,
-                                            const Eigen::Matrix<double, 6, 1> current_velocity,
-                                            const double goal,
-                                            const double init_time,
-                                            const double current_time,
-                                            const double end_time,
-                                            const int dir) // 0 = x-axis, 1 = y-axis, 2 = z-axis
+                                                const Eigen::Matrix3d rotation_M,
+                                                const Eigen::Matrix<double, 6, 1> current_velocity,
+                                                const double goal,
+                                                const double init_time,
+                                                const double current_time,
+                                                const double end_time,
+                                                const int dir) // 0 = x-axis, 1 = y-axis, 2 = z-axis
 {
   Eigen::Matrix3d rot;
   Eigen::Matrix3d target_rotation_M;
@@ -740,13 +708,13 @@ Eigen::Vector3d PegInHole::rotateWithGlobalAxis(const Eigen::Matrix3d initial_ro
 }
 
 Eigen::Vector3d PegInHole::rotateWithEeAxis(const Eigen::Matrix3d initial_rotation_M,
-                                        const Eigen::Matrix3d rotation_M,
-                                        const Eigen::Matrix<double, 6, 1> current_velocity,
-                                        const double goal,
-                                        const double init_time,
-                                        const double current_time,
-                                        const double end_time,
-                                        const int dir) // 0 = x-axis, 1 = y-axis, 2 = z-axis
+                                            const Eigen::Matrix3d rotation_M,
+                                            const Eigen::Matrix<double, 6, 1> current_velocity,
+                                            const double goal,
+                                            const double init_time,
+                                            const double current_time,
+                                            const double end_time,
+                                            const int dir) // 0 = x-axis, 1 = y-axis, 2 = z-axis
 {
   Eigen::Matrix3d rot;
   Eigen::Matrix3d target_rotation_M;
@@ -797,8 +765,8 @@ double PegInHole::calculateFriction(const int dir, const Eigen::Vector3d f_measu
 }
 
 Eigen::Vector3d PegInHole::computeNomalVector(const Eigen::Vector3d p1,
-                                          const Eigen::Vector3d p2,
-                                          const Eigen::Vector3d p3)
+                                              const Eigen::Vector3d p2,
+                                              const Eigen::Vector3d p3)
 {
   Eigen::Vector3d r1;
   Eigen::Vector3d r2;
@@ -884,10 +852,10 @@ bool PegInHole::setTilt(const Eigen::Isometry3d T_ea, const double threshold)
 }
 
 Eigen::Vector6d PegInHole::tiltMotion(const Eigen::Isometry3d origin, const Eigen::Isometry3d current,
-                           const Eigen::Vector6d xd, const Eigen::Isometry3d T_ea,
-                           const Eigen::Vector3d tilt_axis, //wrt {A}
-                           const double tilt_angle,
-                           const double t, const double t_0, const double duration)
+                                      const Eigen::Ref<const Eigen::Vector6d>& xd, const Eigen::Isometry3d T_ea,
+                                      const Eigen::Vector3d tilt_axis, //wrt {A}
+                                      const double tilt_angle,
+                                      const double t, const double t_0, const double duration)
 {
   Eigen::Vector3d pos_init;
   Eigen::Matrix3d ori_init;
@@ -924,7 +892,7 @@ Eigen::Vector6d PegInHole::tiltMotion(const Eigen::Isometry3d origin, const Eige
   delphi_delta = -0.5 * dyros_math::getPhi(rotation, desired_rotation);
 
   f_star = K_p * (desired_position - position) + K_v * (-xd.head<3>());
-  m_star = (1.0) * 250.0 * delphi_delta + 2.0 * (-xd.tail<3>());
+  m_star = (1.0) * 250.0 * delphi_delta + 5.0 * (-xd.tail<3>());
 
   f_star_zero << f_star, m_star;
 
@@ -944,12 +912,12 @@ Eigen::Vector6d PegInHole::tiltMotion(const Eigen::Isometry3d origin, const Eige
 // bool::judgeHeavyMass(const double t, const double )
 
 Eigen::Vector3d PegInHole::straightMoveEE(const Eigen::Isometry3d &origin,
-                               const Eigen::Isometry3d &current,
-                               const Eigen::Vector6d &xd,
-                               const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
-                               const double speed,
-                               const double t,
-                               const double t_0)
+                                          const Eigen::Isometry3d &current,
+                                          const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                          const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                          const double speed,
+                                          const double t,
+                                          const double t_0)
 {
   Eigen::Vector3d asm_dir_a;
   Eigen::Matrix3d K_p, K_v;
@@ -965,7 +933,7 @@ Eigen::Vector3d PegInHole::straightMoveEE(const Eigen::Isometry3d &origin,
   asm_dir_a << 0.0, 0.0, 1.0; // always z - axis wrt {A}
 
   K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
-  K_v << 100, 0, 0, 0, 100, 0, 0, 0, 100;
+  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
 
   v_cmd_a = speed * asm_dir_a;
   p_cmd_a = p_init_a + speed * (t - t_0) * asm_dir_a;
@@ -987,12 +955,12 @@ Eigen::Vector3d PegInHole::straightMoveEE(const Eigen::Isometry3d &origin,
   return f_a;
 }
 Eigen::Vector3d PegInHole::threeDofMove(const Eigen::Isometry3d &origin,
-                             const Eigen::Isometry3d &current,
-                             const Eigen::Vector3d target,
-                             const Eigen::Vector6d xd,
-                             const double t,
-                             const double t_0,
-                             const double duration)
+                                        const Eigen::Isometry3d &current,
+                                        const Eigen::Vector3d target,
+                                        const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                        const double t,
+                                        const double t_0,
+                                        const double duration)
 {
   Eigen::Vector3d f_star;
   Eigen::Vector3d desired_position;
@@ -1015,11 +983,32 @@ Eigen::Vector3d PegInHole::threeDofMove(const Eigen::Isometry3d &origin,
   return f_star;
 }
 
+Eigen::Vector6d PegInHole::keepCurrentPose(const Eigen::Isometry3d &origin,
+                                           const Eigen::Isometry3d &current,
+                                           const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                           const double kp,
+                                           const double kv,
+                                           const double kp_o,
+                                           const double kv_o,
+                                           const Eigen::Ref<const Eigen::Matrix6d>& lambda)
+{
+  auto f_star = keepCurrentPosition(origin, current, xd, kp, kv);
+  auto m_star = keepCurrentOrientation(origin, current, xd, kp_o, kv_o);
+
+  Eigen::Vector6d result;
+  // std::cout <<"fstar: " << f_star.transpose()  << std::endl;
+  // std::cout <<"mstar: " << m_star.transpose()  << std::endl;
+  result << f_star, m_star;
+  // std::cout <<"mstar: " << result.transpose() << std::endl;
+  result = lambda * result;
+  // std::cout << "lambda: " << std::endl << lambda << std::endl;
+
+  return result;
+}
 Eigen::Vector3d PegInHole::keepCurrentOrientation(const Eigen::Isometry3d &origin,
-                                       const Eigen::Isometry3d &current,
-                                       const Eigen::Vector6d xd,
-                                       const double kp,
-                                       const double kv)
+                                                  const Eigen::Isometry3d &current,
+                                                  const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                                  const double kp, const double kv)
 {
   Eigen::Vector3d delphi_delta;
   Eigen::Vector3d m_star;
@@ -1030,36 +1019,34 @@ Eigen::Vector3d PegInHole::keepCurrentOrientation(const Eigen::Isometry3d &origi
 
   delphi_delta = -0.5 * dyros_math::getPhi(rotation, init_rot);
 
-  m_star = (1.0) * kp * delphi_delta + kv * (-xd.tail<3>());
+  m_star = kp * delphi_delta + kv * (-xd.tail<3>());
 
   return m_star;
 }
 
 Eigen::Vector3d PegInHole::keepCurrentPosition(const Eigen::Isometry3d &origin,
-                                           const Eigen::Isometry3d &current,
-                                           const Eigen::Vector6d xd,
-                                           const double kp, const double kv)
+                                               const Eigen::Isometry3d &current,
+                                               const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                               const double kp, const double kv)
 {
   Eigen::Vector3d f_star;
-  Eigen::Vector3d init_pos, position;
+
   Eigen::Matrix3d kp_m;
   Eigen::Matrix3d kv_m;
 
   kp_m = Eigen::Matrix3d::Identity() * kp;
   kv_m = Eigen::Matrix3d::Identity() * kv;
 
-  init_pos = origin.translation();
-
-  f_star = kp_m * (init_pos - position) + kv_m * (-xd.head<3>());
+  f_star = kp_m * (origin.translation() - current.translation()) + kv_m * (-xd.head<3>());
 
   return f_star;
 }
 
 Eigen::Vector3d PegInHole::pressEE(const Eigen::Isometry3d &origin,
-                        const Eigen::Isometry3d &current,
-                        const Eigen::Vector6d &xd,
-                        const double force,
-                        const Eigen::Isometry3d &T_ea) //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                   const Eigen::Isometry3d &current,
+                                   const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                   const double force,
+                                   const Eigen::Isometry3d &T_ea) //the direction where a peg is inserted, wrt {E} .i.e., T_ga
 {
   Eigen::Vector3d f_motion, f_asm, f_a; // wrt {A}
 
@@ -1103,15 +1090,15 @@ Eigen::Vector3d PegInHole::pressEE(const Eigen::Isometry3d &origin,
 }
 
 Eigen::Vector3d PegInHole::generateSpiralEE(const Eigen::Isometry3d &origin,
-                                 const Eigen::Isometry3d &current,
-                                 const Eigen::Vector6d &xd,
-                                 const double pitch,
-                                 const double lin_vel,
-                                 const double force,
-                                 const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
-                                 const double t,
-                                 const double t_0,
-                                 const double duration)
+                                            const Eigen::Isometry3d &current,
+                                            const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                            const double pitch,
+                                            const double lin_vel,
+                                            const double force,
+                                            const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                            const double t,
+                                            const double t_0,
+                                            const double duration)
 {
   Eigen::Vector2d start_point, traj;
   Eigen::Vector3d f_a, f_motion, f_asm; //wrt {A}
@@ -1166,13 +1153,13 @@ Eigen::Vector3d PegInHole::generateSpiralEE(const Eigen::Isometry3d &origin,
 }
 
 Eigen::Vector3d PegInHole::rotateWithAseemblyDir(const Eigen::Isometry3d &origin,
-                                      const Eigen::Isometry3d &current,
-                                      const Eigen::Vector6d xd,
-                                      const Eigen::Isometry3d T_ea,
-                                      const double target_angle,
-                                      const double t,
-                                      const double t_0,
-                                      const double duration) //axis_vector wrt EE frame
+                                                 const Eigen::Isometry3d &current,
+                                                 const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                                 const Eigen::Isometry3d T_ea,
+                                                 const double target_angle,
+                                                 const double t,
+                                                 const double t_0,
+                                                 const double duration) //axis_vector wrt EE frame
 {
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d m_a;
@@ -1221,12 +1208,12 @@ Eigen::Vector3d PegInHole::rotateWithAseemblyDir(const Eigen::Isometry3d &origin
 }
 
 Eigen::Vector3d PegInHole::rotateWithMat(const Eigen::Isometry3d &origin,
-                              const Eigen::Isometry3d &current,
-                              const Eigen::Vector6d xd,
-                              const Eigen::Matrix3d target_rot, //wrt {E}
-                              const double t,
-                              const double t_0,
-                              const double duration) //axis_vector wrt EE frame
+                                         const Eigen::Isometry3d &current,
+                                         const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                         const Eigen::Matrix3d target_rot, //wrt {E}
+                                         const double t,
+                                         const double t_0,
+                                         const double duration) //axis_vector wrt EE frame
 {
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d m_star;
@@ -1245,13 +1232,13 @@ Eigen::Vector3d PegInHole::rotateWithMat(const Eigen::Isometry3d &origin,
 }
 
 Eigen::Vector3d PegInHole::generateWiggleMotionEE(const Eigen::Isometry3d &origin,
-                                       const Eigen::Isometry3d &current,
-                                       const Eigen::Isometry3d &T_ea,
-                                       const Eigen::Vector6d xd,
-                                       const double angle,
-                                       const double w, //rad/s
-                                       const double t,
-                                       const double t_0)
+                                                  const Eigen::Isometry3d &current,
+                                                  const Eigen::Isometry3d &T_ea,
+                                                  const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                                  const double angle,
+                                                  const double w, //rad/s
+                                                  const double t,
+                                                  const double t_0)
 {
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d x_axis, y_axis;
@@ -1266,15 +1253,16 @@ Eigen::Vector3d PegInHole::generateWiggleMotionEE(const Eigen::Isometry3d &origi
   y_axis = Eigen::Vector3d::UnitY();
 
   double t_e;
-  double theta;
+  double theta1,theta2;
 
   t_e = t - t_0;
-  theta = angle * sin(w * t_e);
+  theta1 = angle * sin(w * t_e);
+  theta2 = angle * cos(w*t_e);
 
   rot_init = T_wa.linear().transpose() * origin.linear(); //initial {E} wrt {A}
 
-  target_rot_x = dyros_math::angleaxis2rot(x_axis, theta) * rot_init; //wrt {A}
-  target_rot_y = dyros_math::angleaxis2rot(y_axis, theta) * rot_init; //wrt {A}
+  target_rot_x = dyros_math::angleaxis2rot(x_axis, theta1) * rot_init; //wrt {A}
+  target_rot_y = dyros_math::angleaxis2rot(y_axis, theta2) * rot_init; //wrt {A}
   target_rot = target_rot_x * target_rot_y;
 
   rot = T_wa.linear().transpose() * current.linear();
@@ -1303,13 +1291,13 @@ Eigen::Vector3d PegInHole::generateWiggleMotionEE(const Eigen::Isometry3d &origi
 }
 
 Eigen::Vector3d PegInHole::generateTwistSearchMotionEE(const Eigen::Isometry3d &origin,
-                                            const Eigen::Isometry3d &current,
-                                            const Eigen::Isometry3d &T_ea,
-                                            const Eigen::Vector6d xd,
-                                            const double angle,
-                                            const double t,
-                                            const double t_0,
-                                            const double duration)
+                                                       const Eigen::Isometry3d &current,
+                                                       const Eigen::Isometry3d &T_ea,
+                                                       const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                                       const double angle,
+                                                       const double t,
+                                                       const double t_0,
+                                                       const double duration)
 {
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d axis;
@@ -1356,13 +1344,13 @@ Eigen::Vector3d PegInHole::generateTwistSearchMotionEE(const Eigen::Isometry3d &
 }
 
 Eigen::Vector3d PegInHole::generateRotationSearchMotionEE(const Eigen::Isometry3d &origin,
-                                               const Eigen::Isometry3d &current,
-                                               const Eigen::Isometry3d &T_ea,
-                                               const Eigen::Vector6d xd,
-                                               const double angle,
-                                               const double t,
-                                               const double t_0,
-                                               const double duration)
+                                                          const Eigen::Isometry3d &current,
+                                                          const Eigen::Isometry3d &T_ea,
+                                                          const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                                          const double angle,
+                                                          const double t,
+                                                          const double t_0,
+                                                          const double duration)
 {
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d axis;

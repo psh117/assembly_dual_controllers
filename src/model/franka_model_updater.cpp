@@ -1,7 +1,7 @@
 #include <assembly_dual_controllers/utils/model/franka_model_updater.h>
 
 
-const double FrankaModelUpdater::PRINT_RATE = 0.4;
+const double FrankaModelUpdater::PRINT_RATE = 30.0;
 
 FrankaModelUpdater::FrankaModelUpdater() {
   initialize();
@@ -60,9 +60,20 @@ void FrankaModelUpdater::updateModel()
   xd_ = jacobian_ * qd_;
 
   lambda_matrix_ = (jacobian_ * mass_matrix_.inverse() * jacobian_.transpose()).inverse();
+  modified_mass_matrix_ = mass_matrix_;
+  modified_mass_matrix_(4,4) += 0.1;
+  modified_mass_matrix_(5,5) += 0.1;
+  modified_mass_matrix_(6,6) += 0.1;
+  modified_lambda_matrix_ = (jacobian_ * modified_mass_matrix_.inverse() * jacobian_.transpose()).inverse();
   jacobian_bar_ = mass_matrix_.inverse()*jacobian_.transpose()*lambda_matrix_;
   null_projector_ = Eigen::Matrix<double, 7,7>::Identity() - jacobian_.transpose() * jacobian_bar_.transpose();
   f_measured_ = jacobian_bar_.transpose()*(tau_measured_ - gravity_);
+
+  for(int i=0; i<6; i++)
+  {
+    f_measured_filtered_(i) = franka::lowpassFilter(0.001, f_measured_(i), f_measured_filtered_(i), 50.0);
+  }
+
 
   printState();
 }
@@ -110,11 +121,15 @@ void FrankaModelUpdater::printState()
   Eigen::Quaterniond qt_init (initial_transform_.linear());
   Eigen::Quaterniond qt_cur (transform_.linear());
   std::cout << "-----------------------------\n"
-    << "angle error: " << qt_init.angularDistance(qt_cur) << std::endl
-    << "translation error: " << (initial_transform_.translation() - position_).norm() << std::endl
-    << "initial_transform_: \n" << initial_transform_.matrix() << std::endl
-    << "transform_: \n" << transform_.matrix() << std::endl
-    << "qt_init: " << qt_init.coeffs().transpose() << std::endl
-    << "qt_cur: " << qt_cur.coeffs().transpose() << std::endl;
+    << "# name: " << arm_name_ << std::endl
+    << "  - mass: " << std::endl << mass_matrix_ << std::endl
+    << "  - lambda: " << std::endl << lambda_matrix_ << std::endl
+    << "  - mod_lambda: " << std::endl << modified_lambda_matrix_ << std::endl
+    << "  - angle error: " << qt_init.angularDistance(qt_cur) << std::endl
+    << "  - translation error: " << (initial_transform_.translation() - position_).norm() << std::endl
+    << "  - initial_transform_: \n" << initial_transform_.matrix() << std::endl
+    << "  - transform_: \n" << transform_.matrix() << std::endl
+    << "  - quat_init: " << qt_init.coeffs().transpose() << std::endl
+    << "  - quat_cur: " << qt_cur.coeffs().transpose() << std::endl;
   print_count_ = 0;
 }

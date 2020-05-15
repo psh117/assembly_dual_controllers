@@ -155,7 +155,7 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
-
+  
   // std::cout<<"dis: "<<dis<<std::endl;
   // std::cout<<"f_reaction: "<<f_measured_(5)<<std::endl;
   // f_star_zero.setZero();

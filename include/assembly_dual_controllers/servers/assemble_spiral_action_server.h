@@ -40,6 +40,8 @@ class AssembleSpiralActionServer : public ActionServerBase
     double friction_;
     double pressing_force_;
     double spiral_duration_;
+    double range_;
+    double twist_duration_;
 
     Eigen::Vector3d ee_to_assembly_point_;
     Eigen::Quaterniond ee_to_assembly_quat_;
@@ -54,6 +56,8 @@ class AssembleSpiralActionServer : public ActionServerBase
 
     // !!! DO NOT USE RAW POINTER OF FILE !!!
     // FILE *spiral_data;
+
+    std::ofstream save_sprial_data;
     
 public:
   AssembleSpiralActionServer(std::string name, ros::NodeHandle &nh, 

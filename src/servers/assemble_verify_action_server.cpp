@@ -129,6 +129,7 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       else
       {
         std::cout<<"Dual peg in hole is incomplete"<<std::endl;
+        std::cout<<"threshold: "<<threshold_<<std::endl;
         as_.setAborted();
       } 
     }

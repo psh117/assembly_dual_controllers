@@ -5,7 +5,6 @@
 #include <assembly_dual_controllers/utils/dyros_math.h>
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 #include <assembly_dual_controllers/utils/control/criteria.h>
-#include <assembly_dual_controllers/utils/control/criteria_2.h>
 #include <fstream>
 
 using namespace dyros_math;
@@ -14,12 +13,12 @@ using namespace PegInHole;
 
 class AssembleApproachActionServer : public ActionServerBase
 {
-  enum ASSEMBLY_STATE
+  enum ASSEMBLY_STATE : int
   {
-    READY,
-    EXEC,
-    TILT_BACK,
-    IGNORE
+    READY = 0,
+    EXEC = 1,
+    TILT_BACK = 2,
+    IGNORE = 3
   };
   actionlib::SimpleActionServer<assembly_msgs::AssembleApproachAction> as_;
 

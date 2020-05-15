@@ -193,10 +193,11 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
   
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
+  
   // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
 
-  if(state_ == APPROACH) f_star_zero.setZero();
+  // if(state_ == APPROACH) f_star_zero.setZero();
   // f_star_zero.setZero();
 
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;

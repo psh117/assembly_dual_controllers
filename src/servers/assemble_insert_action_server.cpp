@@ -47,7 +47,6 @@ void AssembleInsertActionServer::goalCallback()
   ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
   ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
   ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
-
   
   T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
   T_EA_.translation() = ee_to_assembly_point_;
@@ -125,7 +124,7 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
-
+  
   // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
 

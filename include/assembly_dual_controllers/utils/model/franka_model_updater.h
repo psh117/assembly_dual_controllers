@@ -14,13 +14,16 @@ struct FrankaModelUpdater
 {
   // arm parameters --
   Eigen::Matrix<double, 7, 7> mass_matrix_;
+  Eigen::Matrix<double, 7, 7> modified_mass_matrix_;
   Eigen::Matrix<double, 6, 6> lambda_matrix_;
+  Eigen::Matrix<double, 6, 6> modified_lambda_matrix_;
   Eigen::Matrix<double, 7, 1> coriolis_;
   Eigen::Matrix<double, 7, 1> q_;
   Eigen::Matrix<double, 7, 1> qd_;
   Eigen::Matrix<double, 7, 1> tau_measured_;
   Eigen::Matrix<double, 7, 1> tau_desired_read_;
   Eigen::Matrix<double, 6, 1> f_measured_;
+  Eigen::Matrix<double, 6, 1> f_measured_filtered_;
   Eigen::Matrix<double, 7, 1> gravity_;
   Eigen::Matrix<double, 6, 7> jacobian_;
   Eigen::Matrix<double, 7, 6> jacobian_bar_; ///< dynamically consistent inverse
@@ -63,4 +66,6 @@ struct FrankaModelUpdater
   // ros::Time next_print_time_;
 
   std::array<double, 16> F_T_EE_, EE_T_K_;
+
+  std::string arm_name_;
 };
