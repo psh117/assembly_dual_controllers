@@ -38,6 +38,7 @@ void AssembleInsertActionServer::goalCallback()
   
   duration_ = goal_->duration;
   insertion_force_ = goal_->insertion_force;
+  std::cout<<"insertion_force: "<<insertion_force_<<std::endl;
   wiggle_motion_ = goal_->wiggle_motion;
 
   ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
@@ -58,8 +59,7 @@ void AssembleInsertActionServer::goalCallback()
 
   if(wiggle_motion_) std::cout<<"wiggle motion is activated"<<std::endl;
   else  std::cout<<"wiggle motion is not activated"<<std::endl;
-  std::cout<<"initial_pos at insertion stage: "<< origin_.translation().transpose()<<std::endl;
-
+  
   control_running_ = true;
 }
 
@@ -103,8 +103,7 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   Eigen::Vector3d m_star;
   Eigen::Matrix<double, 6, 1> f_star_zero;
 
-  current_.linear() = rotation;
-  current_.translation() = position;
+  current_ = arm.transform_;
   
   if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_))
   {

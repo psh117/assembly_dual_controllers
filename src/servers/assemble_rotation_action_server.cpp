@@ -106,13 +106,14 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
   Eigen::Vector3d delphi_delta;
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
-  
+  Eigen::Vector6d f_lpf;
   double dis;
   double run_time;  
 
   Eigen::Matrix<double, 6, 1> f_star_zero;
   
   f_measured_ = arm.f_measured_;
+  f_lpf = arm.f_measured_filtered_;
   current_ = arm.transform_;
 
   dis = origin_.translation()(2) - current_.translation()(2);
@@ -125,14 +126,14 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
     std::cout<<"ROTATE TO SEARCH"<<std::endl;
   }
 
-  if(abs(f_measured_(5)) >= f_threshold_)
+  if(abs(f_lpf(5)) >= f_threshold_)
   {
     std::cout<<"HOLE IS DETECTED"<<std::endl;
-    std::cout<<"f_measured_(5): "<<f_measured_(5)<<std::endl;
+    std::cout<<"f_measured_(5): "<<f_lpf(5)<<std::endl;
     setSucceeded();
   }
 
-  if(dis >= 0.005 && abs(f_measured_(5)) < f_threshold_)
+  if(dis >= 0.005 && abs(f_lpf(5)) < f_threshold_)
   { 
     std::cout<<"dis: "<<dis<<std::endl;
     std::cout<<"Deviating"<<std::endl;

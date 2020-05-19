@@ -77,6 +77,8 @@ void AssembleSpiralActionServer::goalCallback()
   save_sprial_data.open("save_sprial_data.txt");
 
   control_running_ = true;
+
+  std::cout<<"pressing_force: "<<pressing_force_<<std::endl;
 }
 
 void AssembleSpiralActionServer::preemptCallback()
@@ -122,9 +124,11 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
-  Eigen::Matrix<double, 6, 1> f_star_zero;
+  Eigen::Vector6d f_star_zero;
+  Eigen::Vector6d f_lpf;
 
   f_measured_ = arm.f_measured_;
+  f_lpf = arm.f_measured_filtered_;
   current_ = arm.transform_;
 
   if (timeOut(time.toSec(), arm.task_start_time_.toSec(), spiral_duration_)) //duration wrong??
@@ -148,7 +152,7 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
     m_star = T_WA_.linear() * m_star;
   }
 
-  if (detectHole(origin_, current_, f_measured_.head<3>(), T_WA_, friction_))
+  if (detectHole(origin_, current_, f_lpf.head<3>(), T_WA_, friction_))
   // if(detectHole(init_pos_(assemble_dir_),position(assemble_dir_),f,depth_,friction_))
   {
     std::cout << "HOLE IS DETECTED" << std::endl;
@@ -165,7 +169,7 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
 
-  save_sprial_data << f_measured_.transpose() << std::endl;
+  save_sprial_data << f_lpf.transpose() << std::endl;
 
   return true;
 }

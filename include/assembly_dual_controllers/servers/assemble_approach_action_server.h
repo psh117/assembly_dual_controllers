@@ -72,6 +72,8 @@ class AssembleApproachActionServer : public ActionServerBase
   // FILE *force_moment_ee;
 
   std::ofstream force_moment;
+  std::ofstream force_moment_lpf;
+
 
 public:
   AssembleApproachActionServer(std::string name, ros::NodeHandle &nh,

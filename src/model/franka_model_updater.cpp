@@ -71,7 +71,7 @@ void FrankaModelUpdater::updateModel()
 
   for(int i=0; i<6; i++)
   {
-    f_measured_filtered_(i) = franka::lowpassFilter(0.001, f_measured_(i), f_measured_filtered_(i), 50.0);
+    f_measured_filtered_(i) = franka::lowpassFilter(0.001, f_measured_(i), f_measured_filtered_(i), 10.0);
   }
 
 

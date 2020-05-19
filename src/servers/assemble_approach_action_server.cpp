@@ -28,8 +28,6 @@ void AssembleApproachActionServer::goalCallback()
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
   f_measured_.setZero();
   desired_xd_.setZero();
-  // desired_x_ = mu_[goal_->arm_name]->position_;
-  // desired_xd_(2) = descent_speed_;
   
   init_pos_ = mu_[goal_->arm_name]->position_;  
   init_rot_ = mu_[goal_->arm_name]->rotation_;
@@ -38,9 +36,8 @@ void AssembleApproachActionServer::goalCallback()
 
   contact_force_ = goal_->contact_force;
   std::cout<<"contact_threshold: "<<contact_force_<<std::endl;
-  // assemble_dir_ = goal_ ->assemble_dir;
-  descent_speed_ = goal_ ->descent_speed;
-  //mode_ = goal_ ->mode;
+  
+  descent_speed_ = goal_ ->descent_speed;  
   time_limit_ = goal_ ->time_limit;
   tilt_angle_ = goal_ ->tilt_angle;
   tilt_duration_ = goal_->tilt_duration;
@@ -61,37 +58,23 @@ void AssembleApproachActionServer::goalCallback()
 
   T_WA_ = origin_*T_EA_;
 
-  // set_tilt_ = PegInHole::setTilt(T_EA_, 0.1);
-  
-  // if(state_ != TILT_BACK && state_ != IGNORE)
-  // {
-  //   if(set_tilt_)
-  //   {
-  //     set_tilt_back_ = true;
-  //     state_ = READY;
-  //     tilt_axis_ = PegInHole::getTiltDirection(T_EA_);
-  //     std::cout<<"with tilt motion"<<std::endl;
-  //   } 
-  //   else
-  //   {
-  //     set_tilt_back_ = false;
-  //     state_ = EXEC;
-  //     std::cout<<"without tilt motion"<<std::endl;
-  //   } 
-  // }
-  
   is_ready_first_ = true;
   is_approach_first_ = true;
   is_tilt_back_first_ = true;
 
-  if(force_moment.is_open())
-    force_moment.close();
+  if(force_moment.is_open())  force_moment.close();
+  if(force_moment_lpf.is_open()) force_moment_lpf.close();
+    
   force_moment.open("fm_approach_data.txt");
+  force_moment_lpf.open("fm_approach_data_lfp.txt");
 
   control_running_ = true;
 
   std::cout<<"set tilt: "<<set_tilt_<<std::endl;
   std::cout<<"state_: "<<state_<<std::endl;
+
+  std::cout<<"T_EA_: \n"<< T_EA_.matrix()<<std::endl;
+  std::cout<<"T_WA_: \n"<< T_WA_.matrix()<<std::endl;
 }
 
 void AssembleApproachActionServer::preemptCallback()
@@ -136,11 +119,12 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
   Eigen::Matrix<double, 6, 1> f_star_zero;
-  
+  Eigen::Vector6d f_lpf;
   f_measured_ = arm.f_measured_;  
+  f_lpf = arm.f_measured_filtered_;
   current_ = arm.transform_;
   
-  Eigen::Vector6d f_lpf = arm.f_measured_filtered_;
+   
 
   switch (state_)
   {
@@ -172,7 +156,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         is_approach_first_ = false;
         std::cout<<"APPROACH"<<std::endl;
       }
-      if(Criteria::checkContact(f_measured_.head<3>(), T_WA_, contact_force_))
+      if(Criteria::checkContact(f_lpf.head<3>(), T_WA_, contact_force_))
       // if(checkContact(f_measured_(assemble_dir_), contact_force_))
       { 
         if(set_tilt_back_) state_ = TILT_BACK;
@@ -192,6 +176,9 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
 
       m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
       // std::cout<<"f_star for approach: "<<f_star.transpose()<<std::endl;
+      force_moment << f_measured_.transpose() << std::endl;
+      force_moment_lpf << f_lpf.transpose() <<std::endl;
+
       break;
 
     case TILT_BACK:
@@ -218,24 +205,19 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
       setSucceeded();
       break;
   }
-
   
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
-  // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
-  // std::cout<<"f_a: "<<(T_WA_.linear().inverse()*(f_measured_.head<3>())).transpose()<<std::endl;
-
+  
   // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
   
-  // // f_star_zero.setZero();  
+  // // // f_star_zero.setZero();  
   // std::cout<<"f_measured: "<<f_measured_.transpose()<<std::endl;
   // std::cout<<"f_filtered: "<<f_lpf.transpose()<<std::endl;
 
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
-
-  force_moment<<f_measured_(0) << "\t" << f_measured_(1)<< "\t" << f_measured_(2)<< "\t"<< arm.f_measured_filtered_(0) << "\t" << arm.f_measured_filtered_(1)<< "\t" << arm.f_measured_filtered_(2)<< "\n";
 
   return true;
 }
