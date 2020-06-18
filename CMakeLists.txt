@@ -76,6 +76,7 @@ add_library(${PROJECT_NAME}
   src/servers/assemble_rotation_action_server.cpp
   src/servers/assemble_triple_recovery_action_server.cpp
   src/servers/assemble_bolt_action_server.cpp
+  src/servers/assemble_dual_spiral_action_server.cpp
   src/servers/task_space_move_action_server.cpp
   src/model/franka_model_updater.cpp
   src/utils/control/peg_in_hole_base.cpp

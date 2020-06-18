@@ -1261,9 +1261,62 @@ Eigen::Vector3d PegInHole::generateWiggleMotionEE(const Eigen::Isometry3d &origi
 
   rot_init = T_wa.linear().transpose() * origin.linear(); //initial {E} wrt {A}
 
-  target_rot_x = dyros_math::angleaxis2rot(x_axis, theta1) * rot_init; //wrt {A}
-  target_rot_y = dyros_math::angleaxis2rot(y_axis, theta2) * rot_init; //wrt {A}
-  target_rot = target_rot_x * target_rot_y;
+  // target_rot_x = dyros_math::angleaxis2rot(x_axis, theta1) * rot_init; //wrt {A}
+  // target_rot_y = dyros_math::angleaxis2rot(y_axis, theta2) * rot_init; //wrt {A}
+  target_rot_x = dyros_math::angleaxis2rot(x_axis, theta1); //wrt {A}
+  target_rot_y = dyros_math::angleaxis2rot(y_axis, theta2); //wrt {A}
+  target_rot = target_rot_x * target_rot_y * rot_init;
+
+  rot = T_wa.linear().transpose() * current.linear();
+
+  v_cur_a = T_wa.linear().transpose() * xd.tail<3>();
+
+  delphi_delta = -0.5 * dyros_math::getPhi(rot, target_rot);
+
+  m_a = (1.0) * 50.0 * delphi_delta + 0.25 * (-v_cur_a);
+
+  Eigen::Vector3d euler_init, euler, euler_goal;
+
+  euler_init = dyros_math::rot2Euler(rot_init);
+  euler = dyros_math::rot2Euler(rot);
+  euler_goal = dyros_math::rot2Euler(target_rot);
+
+  // std::cout<<"-------------------------------------"<<std::endl;
+  // std::cout<<"rot_init: \n"<<rot_init<<std::endl;
+  // std::cout<<"run time: "<<t - t_0<< std::endl;
+  // std::cout<<"euler_init: "<<euler_init.transpose()*180/M_PI<<std::endl;
+  // std::cout<<"euler_goal: "<<euler_goal.transpose()*180/M_PI<<std::endl;
+  // std::cout<<"euler: "<<euler.transpose()*180/M_PI<<std::endl;
+  // std::cout<<"m_a_wiggle: "<<m_a.transpose()<<std::endl;
+
+  return m_a;
+}
+
+Eigen::Vector3d PegInHole::generateYawingMotionEE(const Eigen::Isometry3d &origin,
+                                                  const Eigen::Isometry3d &current,
+                                                  const Eigen::Isometry3d &T_ea,
+                                                  const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                                  const double yawing_angle,
+                                                  const double duration,
+                                                  const double t,
+                                                  const double t_0)
+{
+  Eigen::Isometry3d T_wa;
+  Eigen::Vector3d z_axis;
+  Eigen::Vector3d m_a, delphi_delta;
+  Eigen::Matrix3d rot_init, rot;
+  Eigen::Matrix3d target_rot;
+  Eigen::Vector3d v_cur_a;
+  double theta, t_f;
+  t_f = t_0 + duration;
+
+  T_wa = origin * T_ea;
+  z_axis = Eigen::Vector3d::UnitZ();
+  theta = dyros_math::cubic(t, t_0, t_f, 0.0, yawing_angle, 0., 0.);
+
+  rot_init = T_wa.linear().transpose() * origin.linear(); //initial {E} wrt {A}
+
+  target_rot = dyros_math::angleaxis2rot(z_axis, theta) * rot_init;
 
   rot = T_wa.linear().transpose() * current.linear();
 
@@ -1343,6 +1396,83 @@ Eigen::Vector3d PegInHole::generateTwistSearchMotionEE(const Eigen::Isometry3d &
   return m_a;
 }
 
+// Eigen::Vector3d PegInHole::generateRotationSearchMotionEE(const Eigen::Isometry3d &origin,
+//                                                           const Eigen::Isometry3d &current,
+//                                                           const Eigen::Isometry3d &T_ea,
+//                                                           const Eigen::Ref<const Eigen::Vector6d>& xd,
+//                                                           const double angle,
+//                                                           const double t,
+//                                                           const double t_0,
+//                                                           const double duration)
+// {
+//   Eigen::Isometry3d T_wa;
+//   Eigen::Vector3d axis;
+//   Eigen::Vector3d m_a;
+//   Eigen::Vector3d delphi_delta;
+//   Eigen::Matrix3d rot_init, rot, target_rot;
+//   Eigen::Vector3d v_cur_w, v_cur_a;
+//   double theta;
+
+//   T_wa = origin * T_ea;
+
+//   axis = Eigen::Vector3d::UnitZ();
+
+//   theta = dyros_math::cubic(t, t_0, t_0 + duration, 0.0, angle, 0.0, 0.0);
+
+//   rot_init = T_wa.linear().transpose() * origin.linear();         //initial {E} wrt {A}
+//   target_rot = dyros_math::angleaxis2rot(axis, theta) * rot_init; //wrt {A}
+//   rot = T_wa.linear().transpose() * current.linear();
+
+//   v_cur_a = T_wa.linear().transpose() * xd.tail<3>();
+
+//   delphi_delta = -0.5 * dyros_math::getPhi(rot, target_rot);
+
+//   m_a = (1.0) * 200.0 * delphi_delta + 5.0 * (-v_cur_a);
+
+//   Eigen::Vector3d euler_init, euler, euler_goal;
+
+//   euler_init = dyros_math::rot2Euler(rot_init);
+//   euler = dyros_math::rot2Euler(rot);
+//   euler_goal = dyros_math::rot2Euler(target_rot);
+
+// //=============================================================
+//   // Eigen::Vector3d p_init_a,p_cmd_a,p_cur_a;
+//   // Eigen::Vector3d f_motion, f_asm;
+//   // double dis;
+
+//   // p_init_a = T_ea.inverse().translation(); //{E} wrt {A}
+
+//   // dis = sqrt(pow(p_init_a(0),2) + pow(p_init_a(1),2));
+
+//   // p_cmd_a(0) = dis*sin(theta);
+//   // p_cmd_a(1) = dis*cos(theta);
+//   // p_cmd_a(2) = p_init_a(2);  
+
+//   // p_cur_a = (T_wa.inverse() * current).translation();
+
+//   // // p_cmd_w = T_wa*p_cmd_a;
+
+//   // v_cur_a = T_wa.linear().transpose() * xd.head<3>();
+
+//   // f_motion = K_p * (p_cmd_a - p_cur_a) + K_v * (-v_cur_a); // <fx, fy, fz>
+//   // f_asm << 0.0, 0.0, force;                                //<0, 0, fz>
+
+//   // f_a(0) = f_motion(0);
+//   // f_a(1) = f_motion(1);
+//   // f_a(2) = f_asm(2);
+
+//   // std::cout<<"-------------------------------------"<<std::endl;
+//   // std::cout<<"rot_init: \n"<<rot_init<<std::endl;
+//   // std::cout<<"run time: "<<t - t_0<< std::endl;
+//   // std::cout<<"euler_init: "<<euler_init.transpose()*180/M_PI<<std::endl;
+//   // std::cout<<"euler_goal: "<<euler_goal.transpose()*180/M_PI<<std::endl;
+//   // std::cout<<"euler: "<<euler.transpose()*180/M_PI<<std::endl;
+//   // std::cout<<"m_a: "<<m_a.transpose()<<std::endl;
+
+//   return m_a;
+// }
+
+
 Eigen::Vector3d PegInHole::generateRotationSearchMotionEE(const Eigen::Isometry3d &origin,
                                                           const Eigen::Isometry3d &current,
                                                           const Eigen::Isometry3d &T_ea,
@@ -1353,42 +1483,51 @@ Eigen::Vector3d PegInHole::generateRotationSearchMotionEE(const Eigen::Isometry3
                                                           const double duration)
 {
   Eigen::Isometry3d T_wa;
-  Eigen::Vector3d axis;
-  Eigen::Vector3d m_a;
-  Eigen::Vector3d delphi_delta;
-  Eigen::Matrix3d rot_init, rot, target_rot;
-  Eigen::Vector3d v_cur_w, v_cur_a;
+  Eigen::Vector3d f_a;
+  Eigen::Vector3d p_init_a, p_cmd_a, p_cur_a, v_cur_a;
+  Eigen::Vector3d f_motion, f_asm;
+  Eigen::Matrix3d K_p, K_v;
   double theta;
+  double dis;
+  double force;
+
+  force = 4.0;
+    
+  K_p = Eigen::Matrix3d::Identity() * 5000;
+  K_v = Eigen::Matrix3d::Identity() * 200;
 
   T_wa = origin * T_ea;
 
-  axis = Eigen::Vector3d::UnitZ();
-
   theta = dyros_math::cubic(t, t_0, t_0 + duration, 0.0, angle, 0.0, 0.0);
+  
+  p_init_a = T_ea.inverse().translation(); //{E} wrt {A}
 
-  rot_init = T_wa.linear().transpose() * origin.linear();         //initial {E} wrt {A}
-  target_rot = dyros_math::angleaxis2rot(axis, theta) * rot_init; //wrt {A}
-  rot = T_wa.linear().transpose() * current.linear();
+  dis = sqrt(pow(p_init_a(0),2) + pow(p_init_a(1),2));
 
-  v_cur_a = T_wa.linear().transpose() * xd.tail<3>();
+  // p_cmd_a(0) = dis*sin(theta);
+  // p_cmd_a(1) = dis*cos(theta);
+  // p_cmd_a(2) = p_init_a(2);  
+  p_cmd_a = dyros_math::rotateWithZ(theta)*p_init_a;
+  p_cur_a = (T_wa.inverse() * current).translation();
 
-  delphi_delta = -0.5 * dyros_math::getPhi(rot, target_rot);
+  // p_cmd_w = T_wa*p_cmd_a;
 
-  m_a = (1.0) * 200.0 * delphi_delta + 5.0 * (-v_cur_a);
+  v_cur_a = T_wa.linear().transpose() * xd.head<3>();
 
-  Eigen::Vector3d euler_init, euler, euler_goal;
+  f_motion = K_p * (p_cmd_a - p_cur_a) + K_v * (-v_cur_a); // <fx, fy, fz>
+  f_asm << 0.0, 0.0, force;                                //<0, 0, fz>
 
-  euler_init = dyros_math::rot2Euler(rot_init);
-  euler = dyros_math::rot2Euler(rot);
-  euler_goal = dyros_math::rot2Euler(target_rot);
+  f_a(0) = f_motion(0);
+  f_a(1) = f_motion(1);
+  f_a(2) = f_asm(2);
 
   // std::cout<<"-------------------------------------"<<std::endl;
-  // std::cout<<"rot_init: \n"<<rot_init<<std::endl;
-  // std::cout<<"run time: "<<t - t_0<< std::endl;
-  // std::cout<<"euler_init: "<<euler_init.transpose()*180/M_PI<<std::endl;
-  // std::cout<<"euler_goal: "<<euler_goal.transpose()*180/M_PI<<std::endl;
-  // std::cout<<"euler: "<<euler.transpose()*180/M_PI<<std::endl;
-  // std::cout<<"m_a: "<<m_a.transpose()<<std::endl;
+  // std::cout<<"dis: "<<dis<<std::endl;
+  // std::cout<<"theta: "<<theta<<std::endl;
+  // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
+  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
+  // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
+  // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
 
-  return m_a;
+  return f_a;
 }

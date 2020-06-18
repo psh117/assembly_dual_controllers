@@ -41,6 +41,12 @@ class AssembleInsertActionServer : public ActionServerBase
     double insertion_force_;
     bool wiggle_motion_;
 
+    bool yawing_motion_;
+    double yawing_angle_;
+    double init_yaw_angle_;
+    double yaw_low_limit_ = -2.8973;
+    double yaw_up_limit_ = 2.8973;
+
     double wiggle_angle_;
     double wiggle_angular_vel_;
     

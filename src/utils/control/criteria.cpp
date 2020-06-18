@@ -180,7 +180,7 @@ bool Criteria::timeOut(const double current_time,
 }
 
 bool Criteria::checkForceLimit(const double f,
-                     const double threshold)
+                            const double threshold)
 {
     bool is_done;
 

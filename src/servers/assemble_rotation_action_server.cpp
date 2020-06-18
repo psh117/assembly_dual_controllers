@@ -146,21 +146,21 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
     setAborted();
   } 
 
-
-
-  f_star = PegInHole::pressEE(origin_, current_, xd, pressing_force_, T_EA_);
+  // f_star = PegInHole::pressEE(origin_, current_, xd, pressing_force_, T_EA_);
+  f_star = PegInHole::generateRotationSearchMotionEE(origin_, current_, T_EA_, xd, range_, time.toSec(), arm.task_start_time_.toSec(), duration_); 
   f_star = T_WA_.linear()*f_star;
 
-  m_star = PegInHole::generateRotationSearchMotionEE(origin_, current_, T_EA_, xd, range_, time.toSec(), arm.task_start_time_.toSec(), duration_);   
-  m_star = T_WA_.linear()*m_star;
+  // m_star = PegInHole::generateRotationSearchMotionEE(origin_, current_, T_EA_, xd, range_, time.toSec(), arm.task_start_time_.toSec(), duration_);   
+  m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
+  // m_star = T_WA_.linear()*m_star;
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
   
   // std::cout<<"dis: "<<dis<<std::endl;
   // std::cout<<"f_reaction: "<<f_measured_(5)<<std::endl;
-  // f_star_zero.setZero();
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
+  // f_star_zero.setZero();
 
   arm.setTorque(desired_torque);
   

@@ -154,6 +154,8 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_press_control", node_handle, arms_data_);
   assemble_side_chair_action_server_ = std::make_unique<AssembleSideChairActionServer>
   ("/assembly_dual_controller/assemble_side_chair_control", node_handle, arms_data_);
+  // assemble_dual_spiral_action_server_ = std::make_unique<AssembleDualSpiralActionServer>
+  // ("/assembly_dual_controller/assemble_dual_spiral_control", node_handle, arms_data_);
   assemble_rotation_action_server_ = std::make_unique<AssembleRotationActionServer>
   ("/assembly_dual_controller/assemble_rotation_control", node_handle, arms_data_);
   assemble_triple_recovery_action_server_ = std::make_unique<AssembleTripleRecoveryActionServer>
@@ -215,19 +217,20 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   }
 
 
-  joint_trajectory_action_server_->compute(time);
-  assemble_approach_action_server_->compute(time);
-  assemble_spiral_action_server_->compute(time);
-  assemble_insert_action_server_->compute(time);
-  assemble_verify_action_server_->compute(time);
-  assemble_parallel_action_server_->compute(time);
-  assemble_move_action_server_->compute(time);
-  assemble_press_action_server_->compute(time);
-  assemble_side_chair_action_server_ ->compute(time);
-  assemble_rotation_action_server_->compute(time);
-  assemble_triple_recovery_action_server_->compute(time);
-  assemble_bolt_action_server_->compute(time);
-  task_space_move_action_server_->compute(time);
+  // joint_trajectory_action_server_->compute(time);
+  // assemble_approach_action_server_->compute(time);
+  // assemble_spiral_action_server_->compute(time);
+  // assemble_insert_action_server_->compute(time);
+  // assemble_verify_action_server_->compute(time);
+  // assemble_parallel_action_server_->compute(time);
+  // assemble_move_action_server_->compute(time);
+  // assemble_press_action_server_->compute(time);
+  // assemble_side_chair_action_server_ ->compute(time);
+  // assemble_rotation_action_server_->compute(time);
+  // assemble_triple_recovery_action_server_->compute(time);
+  // // assemble_dual_spiral_action_server_->compute(time);
+  // assemble_bolt_action_server_->compute(time);
+  // task_space_move_action_server_->compute(time);
   idle_control_server_->compute(time);
   
 

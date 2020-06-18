@@ -239,6 +239,16 @@ Eigen::Vector3d generateWiggleMotionEE(const Eigen::Isometry3d &origin,
                                        const double t,
                                        const double t_0);
 
+Eigen::Vector3d generateYawingMotionEE(const Eigen::Isometry3d &origin,
+                                       const Eigen::Isometry3d &current,
+                                       const Eigen::Isometry3d &T_ea,
+                                       const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                       const double yawing_angle,
+                                       const double duration,
+                                       const double t,
+                                       const double t_0);
+
+
 Eigen::Vector3d generateTwistSearchMotionEE(const Eigen::Isometry3d &origin,
                                             const Eigen::Isometry3d &current,
                                             const Eigen::Isometry3d &T_ea,

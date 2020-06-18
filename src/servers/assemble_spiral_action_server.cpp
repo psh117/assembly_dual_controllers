@@ -79,6 +79,7 @@ void AssembleSpiralActionServer::goalCallback()
   control_running_ = true;
 
   std::cout<<"pressing_force: "<<pressing_force_<<std::endl;
+  std::cout<<"spiral pitch : "<<pitch_<<std::endl;
 }
 
 void AssembleSpiralActionServer::preemptCallback()
@@ -142,12 +143,11 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   //signle peg in hole
   if (mode_ == 1)
-    m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200., 5.0);
+    m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 250., 5.0);
 
   //dual peg in hole
   if (mode_ == 2)
   {
-    // m_star = motionForDual(time, rotation, xd.tail<3>());
     m_star = PegInHole::generateTwistSearchMotionEE(origin_, current_, T_EA_, xd, range_, time.toSec(), arm.task_start_time_.toSec(), twist_duration_);
     m_star = T_WA_.linear() * m_star;
   }
@@ -158,10 +158,11 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
     std::cout << "HOLE IS DETECTED" << std::endl;
     setSucceeded();
   }
-
+  // f_star.setZero();
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
 
+  // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
   // std::cout<<"pressing_force: "<<pressing_force_<<std::endl;
   // f_star_zero.setZero();
@@ -171,68 +172,71 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   save_sprial_data << f_lpf.transpose() << std::endl;
 
+  // Eigen::Vector3d euler;
+  // euler = dyros_math::rot2Euler(current_.linear()); 
+  // save_sprial_data << euler.transpose()<<std::endl;
   return true;
 }
 
-Eigen::Vector3d AssembleSpiralActionServer::motionForDual(ros::Time time, Eigen::Matrix3d rot, Eigen::Vector3d angular)
-{
+// Eigen::Vector3d AssembleSpiralActionServer::motionForDual(ros::Time time, Eigen::Matrix3d rot, Eigen::Vector3d angular)
+// {
 
-  Eigen::Vector3d m_star;
+//   Eigen::Vector3d m_star;
 
-  if (ori_change_dir_ == 0)
-  {
-    if (is_first_ == true)
-    {
-      ori_start_time_ = time.toSec();
-      is_first_ = false;
-      // ori_init_ = desired_rotation_M;
-    }
+//   if (ori_change_dir_ == 0)
+//   {
+//     if (is_first_ == true)
+//     {
+//       ori_start_time_ = time.toSec();
+//       is_first_ = false;
+//       // ori_init_ = desired_rotation_M;
+//     }
 
-    m_star = generateSpiralWithRotation(init_rot_, rot, angular, time.toSec(), ori_start_time_, ori_duration_, ori_change_dir_, 2);
+//     m_star = generateSpiralWithRotation(init_rot_, rot, angular, time.toSec(), ori_start_time_, ori_duration_, ori_change_dir_, 2);
 
-    if (time.toSec() > ori_start_time_ + ori_duration_ / 2)
-    {
-      ori_change_dir_ = 1;
-      is_first_ = true;
-    }
-  }
+//     if (time.toSec() > ori_start_time_ + ori_duration_ / 2)
+//     {
+//       ori_change_dir_ = 1;
+//       is_first_ = true;
+//     }
+//   }
 
-  if (ori_change_dir_ == 1)
-  {
-    if (is_first_ == true)
-    {
-      ori_start_time_ = time.toSec();
-      is_first_ = false;
-    }
+//   if (ori_change_dir_ == 1)
+//   {
+//     if (is_first_ == true)
+//     {
+//       ori_start_time_ = time.toSec();
+//       is_first_ = false;
+//     }
 
-    m_star = generateSpiralWithRotation(init_rot_, rot, angular, time.toSec(), ori_start_time_, ori_duration_, ori_change_dir_, 2);
+//     m_star = generateSpiralWithRotation(init_rot_, rot, angular, time.toSec(), ori_start_time_, ori_duration_, ori_change_dir_, 2);
 
-    if (time.toSec() > ori_start_time_ + ori_duration_)
-    {
-      ori_change_dir_ = 2;
-      is_first_ = true;
-    }
-  }
+//     if (time.toSec() > ori_start_time_ + ori_duration_)
+//     {
+//       ori_change_dir_ = 2;
+//       is_first_ = true;
+//     }
+//   }
 
-  if (ori_change_dir_ == 2)
-  {
-    if (is_first_ == true)
-    {
-      ori_start_time_ = time.toSec();
-      is_first_ = false;
-    }
+//   if (ori_change_dir_ == 2)
+//   {
+//     if (is_first_ == true)
+//     {
+//       ori_start_time_ = time.toSec();
+//       is_first_ = false;
+//     }
 
-    m_star = generateSpiralWithRotation(init_rot_, rot, angular, time.toSec(), ori_start_time_, ori_duration_, ori_change_dir_, 2);
+//     m_star = generateSpiralWithRotation(init_rot_, rot, angular, time.toSec(), ori_start_time_, ori_duration_, ori_change_dir_, 2);
 
-    if (time.toSec() > ori_start_time_ + ori_duration_)
-    {
-      ori_change_dir_ = 1;
-      is_first_ = true;
-    }
-  }
+//     if (time.toSec() > ori_start_time_ + ori_duration_)
+//     {
+//       ori_change_dir_ = 1;
+//       is_first_ = true;
+//     }
+//   }
 
-  return m_star;
-}
+//   return m_star;
+// }
 
 void AssembleSpiralActionServer::setSucceeded()
 {

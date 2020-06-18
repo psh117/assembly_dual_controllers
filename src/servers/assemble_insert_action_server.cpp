@@ -40,6 +40,28 @@ void AssembleInsertActionServer::goalCallback()
   insertion_force_ = goal_->insertion_force;
   std::cout<<"insertion_force: "<<insertion_force_<<std::endl;
   wiggle_motion_ = goal_->wiggle_motion;
+  yawing_motion_ = goal_->yawing_motion;
+  yawing_angle_ = goal_->yawing_angle * DEG2RAD; //radian
+  init_yaw_angle_ = mu_[goal_->arm_name]->q_(6,0); //radian
+
+  // std::cout<<"-------------------------------------"<<std::endl;
+  // std::cout<<"init_yaw_angle: "<<init_yaw_angle_<<std::endl;
+  // std::cout<<"init_yaw_goal: "<<yawing_angle_<<std::endl;
+  // std::cout<<"sum: "<<yawing_angle_ + init_yaw_angle_<<std::endl;
+
+  if (yawing_angle_ + init_yaw_angle_ > yaw_up_limit_) 
+  {
+    std::cout<<"\nover joint upper limit: "<<yaw_up_limit_<<std::endl;
+    yawing_angle_ = yaw_up_limit_ - 0.1 - init_yaw_angle_;
+  }
+  else if (yawing_angle_ + init_yaw_angle_ < yaw_low_limit_ )
+  {
+    std::cout<<"\nunder joint lower limit: "<<yaw_low_limit_<<std::endl;
+    yawing_angle_ = yaw_low_limit_ + 0.1 - init_yaw_angle_;
+  }
+  // std::cout<<"\nfinal_yaw_goal: "<<yawing_angle_<<std::endl;
+  // std::cout<<"sum: "<<yawing_angle_ + init_yaw_angle_<<std::endl;
+  // std::cout<<"-------------------------------------"<<std::endl;
 
   ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
   ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
@@ -57,10 +79,14 @@ void AssembleInsertActionServer::goalCallback()
   wiggle_angle_ = 5.0*DEG2RAD;
   wiggle_angular_vel_ = 4*M_PI; // 2pi / s
 
-  if(wiggle_motion_) std::cout<<"wiggle motion is activated"<<std::endl;
-  else  std::cout<<"wiggle motion is not activated"<<std::endl;
+  if(wiggle_motion_ && yawing_motion_) std::cout<<"wiggle & yawing motion is activated"<<std::endl;
+  else if(wiggle_motion_) std::cout<<"wiggle motion is activated"<<std::endl;
+  else if(yawing_motion_) std::cout<<"yawing motion is activated"<<std::endl;
+  else  std::cout<<"no optional motions"<<std::endl;
   
   control_running_ = true;
+
+
 }
 
 void AssembleInsertActionServer::preemptCallback()
@@ -101,6 +127,7 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
+  Eigen::Vector3d m_wig, m_yaw;
   Eigen::Matrix<double, 6, 1> f_star_zero;
 
   current_ = arm.transform_;
@@ -114,11 +141,28 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   f_star = PegInHole::pressEE(origin_, current_, xd, insertion_force_, T_EA_);
   f_star = T_WA_.linear()*f_star;
 
-  if(wiggle_motion_)
+  if(wiggle_motion_ && yawing_motion_)
+  {
+    m_wig = PegInHole::generateWiggleMotionEE(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
+    m_yaw = PegInHole::generateYawingMotionEE(origin_, current_, T_EA_, xd, yawing_angle_, duration_, time.toSec(), arm.task_start_time_.toSec());
+    m_star = m_wig + m_yaw;
+    // std::cout<<"-------------------------------------"<<std::endl;
+    // std::cout<<"m_wig: "<<m_wig.transpose()<<std::endl;
+    // std::cout<<"m_yaw: "<<m_yaw.transpose()<<std::endl;
+    // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
+    m_star = T_WA_.linear()*m_star;
+  }
+  else if(yawing_motion_ )
+  {
+    m_star = PegInHole::generateYawingMotionEE(origin_, current_, T_EA_, xd, yawing_angle_, duration_, time.toSec(), arm.task_start_time_.toSec());
+    m_star = T_WA_.linear()*m_star;
+  }
+  else if(wiggle_motion_)
   {
     m_star = PegInHole::generateWiggleMotionEE(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
     m_star = T_WA_.linear()*m_star;
-  } 
+  }
+
   else  m_star = keepCurrentOrientation(init_rot_, rotation, xd, 200, 5);
 
   f_star_zero.head<3>() = f_star;
