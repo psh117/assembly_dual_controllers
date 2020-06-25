@@ -44,11 +44,12 @@ void AssembleInsertActionServer::goalCallback()
   yawing_angle_ = goal_->yawing_angle * DEG2RAD; //radian
   init_yaw_angle_ = mu_[goal_->arm_name]->q_(6,0); //radian
 
+  std::cout<<goal_->arm_name<<std::endl;
   // std::cout<<"-------------------------------------"<<std::endl;
   // std::cout<<"init_yaw_angle: "<<init_yaw_angle_<<std::endl;
   // std::cout<<"init_yaw_goal: "<<yawing_angle_<<std::endl;
   // std::cout<<"sum: "<<yawing_angle_ + init_yaw_angle_<<std::endl;
-
+  
   if (yawing_angle_ + init_yaw_angle_ > yaw_up_limit_) 
   {
     std::cout<<"\nover joint upper limit: "<<yaw_up_limit_<<std::endl;
@@ -163,7 +164,9 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
     m_star = T_WA_.linear()*m_star;
   }
 
-  else  m_star = keepCurrentOrientation(init_rot_, rotation, xd, 200, 5);
+  // else  m_star = keepCurrentOrientation(init_rot_, rotation, xd, 200, 5);
+
+  else  m_star = keepCurrentOrientation(init_rot_, rotation, xd, 1, 0.01);
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;

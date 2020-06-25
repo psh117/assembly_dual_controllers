@@ -163,6 +163,7 @@ Eigen::Vector3d straightMoveEE(const Eigen::Isometry3d &origin,
                                const Eigen::Isometry3d &current,
                                const Eigen::Ref<const Eigen::Vector6d> &xd,
                                const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                               const Eigen::Isometry3d &T_ad,
                                const double speed,
                                const double t,
                                const double t_0);
@@ -266,5 +267,6 @@ Eigen::Vector3d generateRotationSearchMotionEE(const Eigen::Isometry3d &origin,
                                                const double t,
                                                const double t_0,
                                                const double duration);
+
 
 }; // namespace PegInHole

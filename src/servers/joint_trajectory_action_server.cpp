@@ -211,10 +211,13 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
   if(time.toSec() > (start_time_.toSec() +  total_time.toSec() + 0.5))
   {
     Eigen::Vector7d goal_q;
-    goal_q = Eigen::Vector7d::Map(goal_->trajectory.points.back().positions.data());
+    goal_q = Eigen::Vector7d::Map(goal_->trajectory.points.back().positions.data() + start_index);
     std::cout << "goal_q: " << goal_q.transpose() << std::endl;
     ROS_INFO("joint_trajectory_done %lf %lf", start_time_.toSec(), total_time.toSec() );
-    as_.setSucceeded();
+    if (as_.isActive())
+    {
+      as_.setSucceeded();
+    }
     traj_running_ = false;
     arm.setInitialValues(goal_q);
     arm.idle_controlled_ = true;

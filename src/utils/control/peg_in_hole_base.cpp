@@ -911,49 +911,95 @@ Eigen::Vector6d PegInHole::tiltMotion(const Eigen::Isometry3d origin, const Eige
 
 // bool::judgeHeavyMass(const double t, const double )
 
+// Eigen::Vector3d PegInHole::straightMoveEE(const Eigen::Isometry3d &origin,
+//                                           const Eigen::Isometry3d &current,
+//                                           const Eigen::Ref<const Eigen::Vector6d>& xd,
+//                                           const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+//                                           const Eigen::Isometry3d &T_wd,
+//                                           const double speed,
+//                                           const double t,
+//                                           const double t_0)
+// {
+//   Eigen::Vector3d asm_dir_a;
+//   Eigen::Matrix3d K_p, K_v;
+//   Eigen::Vector3d p_init_a;
+//   Eigen::Vector3d p_cmd_a, p_cur_a, v_cmd_a, v_cur_a;
+//   Eigen::Isometry3d T_wa;
+//   Eigen::Vector3d f_a;
+
+//   T_wa = origin * T_ea; //T_WA
+
+//   p_init_a = T_ea.inverse().translation();
+
+//   asm_dir_a << 0.0, 0.0, 1.0; // always z - axis wrt {A}
+
+//   K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 2500;
+//   K_v << 200, 0, 0, 0, 200, 0, 0, 0, 50;
+
+//   v_cmd_a = speed * asm_dir_a;
+  
+//   p_cmd_a = p_init_a + speed * (t - t_0) * asm_dir_a;
+  
+
+
+//   v_cur_a = T_wa.linear().transpose() * xd.head<3>();
+//   p_cur_a = (T_wa.inverse() * current).translation();
+
+//   f_a = K_p * (p_cmd_a - p_cur_a) + K_v * (v_cmd_a - v_cur_a); // <fx, fy, fz>
+
+//   // std::cout<<"----------------------"<<std::endl;
+//   // std::cout<<"origin: "<<origin.translation().transpose()<<std::endl;
+//   // std::cout<<"current: "<<current.translation().transpose()<<std::endl;
+//   // std::cout<<"run time: "<<t - t_0<<std::endl;
+//   // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
+//   // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
+//   // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
+//   // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
+
+//   return f_a;
+// }
+
+//Edited by KimHC 20200623 - additional movement to XY direction
 Eigen::Vector3d PegInHole::straightMoveEE(const Eigen::Isometry3d &origin,
                                           const Eigen::Isometry3d &current,
                                           const Eigen::Ref<const Eigen::Vector6d>& xd,
                                           const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                          const Eigen::Isometry3d &T_ad,
                                           const double speed,
                                           const double t,
                                           const double t_0)
 {
   Eigen::Vector3d asm_dir_a;
   Eigen::Matrix3d K_p, K_v;
-  Eigen::Vector3d p_init_a;
+  Eigen::Vector3d p_init_a, goal_ad;
   Eigen::Vector3d p_cmd_a, p_cur_a, v_cmd_a, v_cur_a;
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d f_a;
-
-  T_wa = origin * T_ea; //T_WA
-
+  double traj_x, traj_y;
+  T_wa = origin * T_ea;
   p_init_a = T_ea.inverse().translation();
 
-  asm_dir_a << 0.0, 0.0, 1.0; // always z - axis wrt {A}
+  asm_dir_a << 0.0, 0.0, 1.0;
+  goal_ad = T_ad.translation();
 
-  K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
-  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
+  // no changes made starting from here
+  K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 2500;
+  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 50;
 
+  traj_x = dyros_math::cubic(t, t_0, t_0+1.0, 0.0, goal_ad(0), 0.0, 0.0);
+  traj_y = dyros_math::cubic(t, t_0, t_0+1.0, 0.0, goal_ad(1), 0.0, 0.0);
+  
   v_cmd_a = speed * asm_dir_a;
-  p_cmd_a = p_init_a + speed * (t - t_0) * asm_dir_a;
+  p_cmd_a << p_init_a(0)+traj_x, p_init_a(1)+traj_y, p_init_a(2) + speed * (t - t_0) * asm_dir_a(2);
 
   v_cur_a = T_wa.linear().transpose() * xd.head<3>();
   p_cur_a = (T_wa.inverse() * current).translation();
 
   f_a = K_p * (p_cmd_a - p_cur_a) + K_v * (v_cmd_a - v_cur_a); // <fx, fy, fz>
 
-  // std::cout<<"----------------------"<<std::endl;
-  // std::cout<<"origin: "<<origin.translation().transpose()<<std::endl;
-  // std::cout<<"current: "<<current.translation().transpose()<<std::endl;
-  // std::cout<<"run time: "<<t - t_0<<std::endl;
-  // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
-  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
-  // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
-  // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
-
   return f_a;
 }
+
 Eigen::Vector3d PegInHole::threeDofMove(const Eigen::Isometry3d &origin,
                                         const Eigen::Isometry3d &current,
                                         const Eigen::Vector3d target,
@@ -1324,7 +1370,7 @@ Eigen::Vector3d PegInHole::generateYawingMotionEE(const Eigen::Isometry3d &origi
 
   delphi_delta = -0.5 * dyros_math::getPhi(rot, target_rot);
 
-  m_a = (1.0) * 50.0 * delphi_delta + 0.25 * (-v_cur_a);
+  m_a = (1.0) * 250.0 * delphi_delta + 5.0 * (-v_cur_a);
 
   Eigen::Vector3d euler_init, euler, euler_goal;
 
@@ -1531,3 +1577,5 @@ Eigen::Vector3d PegInHole::generateRotationSearchMotionEE(const Eigen::Isometry3
 
   return f_a;
 }
+
+

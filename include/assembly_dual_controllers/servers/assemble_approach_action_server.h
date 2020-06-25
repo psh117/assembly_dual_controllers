@@ -40,10 +40,10 @@ class AssembleApproachActionServer : public ActionServerBase
   Eigen::Isometry3d origin_;
   Eigen::Isometry3d current_;
 
-  Eigen::Vector3d ee_to_assembly_point_;
-  Eigen::Quaterniond ee_to_assembly_quat_;
+  Eigen::Vector3d ee_to_assembly_point_,w_to_target_point_;
+  Eigen::Quaterniond ee_to_assembly_quat_,w_to_target_quat;
 
-  Eigen::Isometry3d T_EA_, T_WA_;
+  Eigen::Isometry3d T_EA_, T_WA_, T_WD_, T_AD_;
 
   Eigen::Vector3d tilt_axis_;
 

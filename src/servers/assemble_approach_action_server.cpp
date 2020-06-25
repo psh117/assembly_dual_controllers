@@ -35,7 +35,6 @@ void AssembleApproachActionServer::goalCallback()
   origin_ = mu_[goal_->arm_name]->transform_;  
 
   contact_force_ = goal_->contact_force;
-  std::cout<<"contact_threshold: "<<contact_force_<<std::endl;
   
   descent_speed_ = goal_ ->descent_speed;  
   time_limit_ = goal_ ->time_limit;
@@ -52,14 +51,23 @@ void AssembleApproachActionServer::goalCallback()
   ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
   ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
-  
+  w_to_target_point_(0) = goal_->w_to_target_point.position.x;
+  w_to_target_point_(1) = goal_->w_to_target_point.position.y;
+  w_to_target_point_(2) = goal_->w_to_target_point.position.z;
+  w_to_target_quat.x() = goal_->w_to_target_point.orientation.x;
+  w_to_target_quat.y() = goal_->w_to_target_point.orientation.y;
+  w_to_target_quat.z() = goal_->w_to_target_point.orientation.z;
+  w_to_target_quat.w() = goal_->w_to_target_point.orientation.w;
+
   T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
   T_EA_.translation() = ee_to_assembly_point_;
+  T_WD_.linear() = w_to_target_quat.toRotationMatrix();
+  T_WD_.translation() = w_to_target_point_;
 
   tilt_axis_ = getTiltDirection(T_EA_);
 
   T_WA_ = origin_*T_EA_;
-
+  T_AD_ = T_WA_.inverse() * T_WD_;
   is_ready_first_ = true;
   is_approach_first_ = true;
   is_tilt_back_first_ = true;
@@ -78,6 +86,9 @@ void AssembleApproachActionServer::goalCallback()
   std::cout<<"T_EA_: \n"<< T_EA_.matrix()<<std::endl;
   std::cout<<"T_WA_: \n"<< T_WA_.matrix()<<std::endl;
   std::cout<<"ASSEMBLY_FRAM_POSITION: "<<T_WA_.translation().transpose()<<std::endl;
+  std::cout<<"contact_threshold: "<<contact_force_<<std::endl;
+  std::cout<<"descent speed: "<< descent_speed_<<std::endl;
+  std::cout<<goal_->arm_name<<std::endl;
 }
 
 void AssembleApproachActionServer::preemptCallback()
@@ -160,14 +171,14 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         is_approach_first_ = false;
         std::cout<<"APPROACH"<<std::endl;
       }
-      
+
       run_time = time.toSec() - approach_star_time_;
 
       if(run_time > 0.05 && Criteria::checkContact(f_lpf.head<3>(), T_WA_, contact_force_))
       { 
         if(set_tilt_back_) state_ = TILT_BACK;
         else state_ = IGNORE;
-        std::cout<<"running time: "<< run_time<<std::endl;
+        // std::cout<<"running time: "<< run_time<<std::endl;
         std::cout<<"CHECK CONTATCT!!!!!"<<std::endl;
         setSucceeded();
       }
@@ -178,7 +189,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         setAborted();
       } 
       
-      f_star = PegInHole::straightMoveEE(origin_, current_, xd, T_EA_, descent_speed_, time.toSec(), approach_star_time_);
+      f_star = PegInHole::straightMoveEE(origin_, current_, xd, T_EA_, T_AD_ ,descent_speed_, time.toSec(), approach_star_time_);
       f_star = T_WA_.linear()*f_star;
 
       m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
@@ -219,7 +230,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
   
-  // // // f_star_zero.setZero();  
+  // f_star_zero.setZero();  
   // std::cout<<"f_measured: "<<f_measured_.transpose()<<std::endl;
   // std::cout<<"f_filtered: "<<f_lpf.transpose()<<std::endl;
 
