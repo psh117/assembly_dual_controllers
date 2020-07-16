@@ -20,3 +20,26 @@ assembly_dual_controller:
             - panda_right_joint5
             - panda_right_joint6
             - panda_right_joint7
+    top:
+        arm_id: panda_top
+        joint_names:
+            - panda_top_joint1
+            - panda_top_joint2
+            - panda_top_joint3
+            - panda_top_joint4
+            - panda_top_joint5
+            - panda_top_joint6
+            - panda_top_joint7
+            
+assembly_single_controller:
+    type: assembly_dual_controllers/AssemblySingleController
+    right:
+        arm_id: panda_right
+        joint_names:
+            - panda_right_joint1
+            - panda_right_joint2
+            - panda_right_joint3
+            - panda_right_joint4
+            - panda_right_joint5
+            - panda_right_joint6
+            - panda_right_joint7

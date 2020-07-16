@@ -1,5 +1,30 @@
 #include <assembly_dual_controllers/utils/control/criteria.h>
 
+bool Criteria::reachGoal3D(const Eigen::Vector3d &p,
+                           const Eigen::Vector3d &q,
+                           const double threshold,
+                           const Eigen::Isometry3d &T_wa)
+{
+    Eigen::Vector3d u,v;
+    double dis;
+    bool result;
+
+    u = T_wa.linear()*p;
+    v = T_wa.linear()*q;
+
+    for(int i = 0; i < 3; i ++)
+    {
+        dis += pow(p(i)-q(i),2);
+    }
+    dis = sqrt(dis);
+
+    if (dis < threshold)
+        result = true;
+    else
+        result = false;
+    return result;
+}
+
 bool Criteria::checkContact(const Eigen::Vector3d &force,
                             const Eigen::Isometry3d &T_wa,
                             const double threshold)
@@ -38,6 +63,29 @@ bool Criteria::detectHole(const Eigen::Isometry3d &origin,
     f = sqrt(pow(f_a(0), 2) + pow(f_a(1), 2)); // reaction force from X-Y plane wrt {A}
 
     if(f >= friction)
+    {
+        result = true;
+        std::cout<<"f_a: "<<f<<std::endl;
+    } 
+    else result = false;
+
+    return result;
+}
+
+bool Criteria::detectObject(const Eigen::Isometry3d &origin,
+                            const Eigen::Isometry3d &current,
+                            const Eigen::Vector3d &force,
+                            const Eigen::Isometry3d &T_wa,
+                            const double blocking_force)
+{
+    bool result;
+    Eigen::Vector3d f_a;
+    double f;
+
+    f_a = T_wa.linear().inverse() * force;
+    f = sqrt(pow(f_a(0), 2) + pow(f_a(1), 2)); // reaction force from X-Y plane wrt {A}
+
+    if(f >= blocking_force)
     {
         result = true;
         std::cout<<"f_a: "<<f<<std::endl;
@@ -192,6 +240,20 @@ bool Criteria::checkForceLimit(const double f,
     return is_done;
 }
 
+bool Criteria::checkForceLimit(const Eigen::Vector3d &force,
+                                 const double threshold)
+{
+    double f;
+    
+    f = sqrt(pow(force(0),2) + pow(force(1),2) + pow(force(2),2));
+    // std::cout<<"current force: "<<force_sqrt_<<std::endl;
+    // std::cout<<"threshold force: "<<threshold<<std::endl;
+    if (f >= threshold)
+        return true;
+    else
+        return false;
+}
+
 bool Criteria::checkMomentLimit(const std::vector<double> m1,
                       const std::vector<double> m2,
                       const std::vector<double> m3,
@@ -249,18 +311,18 @@ bool Criteria::checkMomentLimit(const std::vector<double> m1,
 //     return u;
 // }
 
-bool Criteria::checkDisplacement(const double origin, const double cur_position, const double threshold)
-{
-    bool is_done;
+// bool Criteria::checkDisplacement(const double origin, const double cur_position, const double threshold)
+// {
+//     bool is_done;
 
-    double del;
+//     double del;
 
-    del = abs(cur_position - origin);
+//     del = abs(cur_position - origin);
 
-    if (del < threshold)
-        is_done = true;
-    else
-        is_done = false;
+//     if (del < threshold)
+//         is_done = true;
+//     else
+//         is_done = false;
 
-    return is_done;
-}
+//     return is_done;
+// }

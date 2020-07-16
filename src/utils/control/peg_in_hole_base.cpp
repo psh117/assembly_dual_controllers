@@ -1,184 +1,242 @@
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 
-Eigen::Vector3d PegInHole::straightMove(const Eigen::Vector3d origin,
-                                        const Eigen::Vector3d current_position,
-                                        const Eigen::Matrix<double, 6, 1> current_velocity,
-                                        const int dir,
-                                        const double speed,
-                                        const double current_time,
-                                        const double init_time)
-{
-  // double desent_speed = -0.02; //-0.005; // 5cm/s
+// Eigen::Vector3d PegInHole::straightMove(const Eigen::Vector3d origin,
+//                                         const Eigen::Vector3d current_position,
+//                                         const Eigen::Matrix<double, 6, 1> current_velocity,
+//                                         const int dir,
+//                                         const double speed,
+//                                         const double current_time,
+//                                         const double init_time)
+// {
+//   // double desent_speed = -0.02; //-0.005; // 5cm/s
 
-  Eigen::Vector3d desired_position;
-  Eigen::Vector3d desired_linear_velocity;
-  Eigen::Vector3d f_star;
-  Eigen::Matrix3d K_p;
-  Eigen::Matrix3d K_v;
+//   Eigen::Vector3d desired_position;
+//   Eigen::Vector3d desired_linear_velocity;
+//   Eigen::Vector3d f_star;
+//   Eigen::Matrix3d K_p;
+//   Eigen::Matrix3d K_v;
 
-  K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
-  K_v << 100, 0, 0, 0, 100, 0, 0, 0, 100;
+//   K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
+//   K_v << 100, 0, 0, 0, 100, 0, 0, 0, 100;
 
-  desired_position = origin;
-  desired_position(dir) = origin(dir) + speed * (current_time - init_time);
+//   desired_position = origin;
+//   desired_position(dir) = origin(dir) + speed * (current_time - init_time);
 
-  desired_linear_velocity.setZero();
-  desired_linear_velocity(dir) = speed;
+//   desired_linear_velocity.setZero();
+//   desired_linear_velocity(dir) = speed;
 
-  f_star = K_p * (desired_position - current_position) + K_v * (desired_linear_velocity - current_velocity.head<3>());
+//   f_star = K_p * (desired_position - current_position) + K_v * (desired_linear_velocity - current_velocity.head<3>());
 
-  return f_star;
-}
+//   return f_star;
+// }
 
-Eigen::Vector3d PegInHole::oneDofMove(const Eigen::Vector3d origin,
-                                      const Eigen::Vector3d current_position,
-                                      const double target_position,
-                                      const Eigen::Matrix<double, 6, 1> current_velocity,
-                                      const double current_time,
-                                      const double init_time,
-                                      const double duration,
-                                      const double desired_speed, //only positive value!!!
-                                      const int direction)        // 0 -> x, 1 -> y, 2 -> z //DESIRED DIRECTION!!
-{
-  double speed;
-  Eigen::Vector3d desired_position;
-  Eigen::Vector3d desired_velocity;
-  Eigen::Vector3d f_star;
-  Eigen::Matrix3d K_p;
-  Eigen::Matrix3d K_v;
+// Eigen::Vector3d PegInHole::oneDofMove(const Eigen::Vector3d origin,
+//                                       const Eigen::Vector3d current_position,
+//                                       const double target_position,
+//                                       const Eigen::Matrix<double, 6, 1> current_velocity,
+//                                       const double current_time,
+//                                       const double init_time,
+//                                       const double duration,
+//                                       const double desired_speed, //only positive value!!!
+//                                       const int direction)        // 0 -> x, 1 -> y, 2 -> z //DESIRED DIRECTION!!
+// {
+//   double speed;
+//   Eigen::Vector3d desired_position;
+//   Eigen::Vector3d desired_velocity;
+//   Eigen::Vector3d f_star;
+//   Eigen::Matrix3d K_p;
+//   Eigen::Matrix3d K_v;
 
-  K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
-  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
+//   K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
+//   K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
 
-  if (origin(direction) < target_position)
-    speed = desired_speed;
-  else
-    speed = -desired_speed;
+//   if (origin(direction) < target_position)
+//     speed = desired_speed;
+//   else
+//     speed = -desired_speed;
 
-  if (direction == 0)
-  {
-    desired_position(0) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(0), target_position, 0, 0);
-    desired_position.tail<2>() = origin.tail<2>();
-    desired_velocity << speed, 0, 0;
-  }
-  if (direction == 1.0)
-  {
-    desired_position(0) = origin(0);
-    desired_position(1) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(1), target_position, 0, 0);
-    desired_position(2) = origin(2);
-    desired_velocity << 0, speed, 0;
-  }
-  if (direction == 2.0)
-  {
-    desired_position.head<2>() = origin.head<2>();
-    desired_position(2) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(2), target_position, 0, 0);
-    desired_velocity << 0, 0, speed;
-  }
+//   if (direction == 0)
+//   {
+//     desired_position(0) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(0), target_position, 0, 0);
+//     desired_position.tail<2>() = origin.tail<2>();
+//     desired_velocity << speed, 0, 0;
+//   }
+//   if (direction == 1.0)
+//   {
+//     desired_position(0) = origin(0);
+//     desired_position(1) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(1), target_position, 0, 0);
+//     desired_position(2) = origin(2);
+//     desired_velocity << 0, speed, 0;
+//   }
+//   if (direction == 2.0)
+//   {
+//     desired_position.head<2>() = origin.head<2>();
+//     desired_position(2) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(2), target_position, 0, 0);
+//     desired_velocity << 0, 0, speed;
+//   }
 
-  f_star = K_p * (desired_position - current_position) + K_v * (desired_velocity - current_velocity.head<3>());
+//   f_star = K_p * (desired_position - current_position) + K_v * (desired_velocity - current_velocity.head<3>());
 
-  return f_star;
-}
+//   return f_star;
+// }
 
-Eigen::Vector3d PegInHole::twoDofMove(const Eigen::Vector3d origin,
-                                      const Eigen::Vector3d current_position,
-                                      const Eigen::Vector3d target_position,
-                                      const Eigen::Matrix<double, 6, 1> current_velocity,
-                                      const double current_time,
-                                      const double init_time,
-                                      const double duration,
-                                      const double desired_speed,
-                                      const int direction) // 0 -> x, 1 -> y, 2 -> z //NOT DESIRED DIRECTION!!
-{
-  Eigen::Vector3d speed; // x, y, z
-  Eigen::Vector3d desired_position;
-  Eigen::Vector3d desired_velocity;
-  Eigen::Vector3d f_star;
-  Eigen::Matrix3d K_p;
-  Eigen::Matrix3d K_v;
+// Eigen::Vector3d PegInHole::twoDofMove(const Eigen::Vector3d origin,
+//                                       const Eigen::Vector3d current_position,
+//                                       const Eigen::Vector3d target_position,
+//                                       const Eigen::Matrix<double, 6, 1> current_velocity,
+//                                       const double current_time,
+//                                       const double init_time,
+//                                       const double duration,
+//                                       const double desired_speed,
+//                                       const int direction) // 0 -> x, 1 -> y, 2 -> z //NOT DESIRED DIRECTION!!
+// {
+//   Eigen::Vector3d speed; // x, y, z
+//   Eigen::Vector3d desired_position;
+//   Eigen::Vector3d desired_velocity;
+//   Eigen::Vector3d f_star;
+//   Eigen::Matrix3d K_p;
+//   Eigen::Matrix3d K_v;
 
-  K_p << 5500, 0, 0, 0, 5500, 0, 0, 0, 5500;
-  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
+//   K_p << 5500, 0, 0, 0, 5500, 0, 0, 0, 5500;
+//   K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
 
-  for (size_t i = 0; i < 3; i++)
-  {
-    if (origin(i) < target_position(i))
-      speed(i) = desired_speed;
-    else
-      speed(i) = -desired_speed;
-  }
+//   for (size_t i = 0; i < 3; i++)
+//   {
+//     if (origin(i) < target_position(i))
+//       speed(i) = desired_speed;
+//     else
+//       speed(i) = -desired_speed;
+//   }
 
-  if (direction == 0.0) //NOT WANT TO MOVE ALONG X - AXIS
-  {
-    desired_position(0) = target_position(0);
-    desired_position(1) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(1), target_position(1), 0, 0);
-    desired_position(2) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(2), target_position(2), 0, 0);
-    desired_velocity << 0, speed(1), speed(2);
-  }
-  if (direction == 1.0)
-  {
-    desired_position(0) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(0), target_position(0), 0, 0);
-    desired_position(1) = target_position(1);
-    desired_position(2) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(2), target_position(2), 0, 0);
-    desired_velocity << speed(0), 0, speed(2);
-  }
-  if (direction == 2.0) //NOT WANT TO MOVE ALONG Z - AXIS
-  {
-    desired_position(0) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(0), target_position(0), 0, 0);
-    desired_position(1) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(1), target_position(1), 0, 0);
-    desired_position(2) = target_position(2);
-    desired_velocity << speed(0), speed(1), 0;
-  }
+//   if (direction == 0.0) //NOT WANT TO MOVE ALONG X - AXIS
+//   {
+//     desired_position(0) = target_position(0);
+//     desired_position(1) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(1), target_position(1), 0, 0);
+//     desired_position(2) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(2), target_position(2), 0, 0);
+//     desired_velocity << 0, speed(1), speed(2);
+//   }
+//   if (direction == 1.0)
+//   {
+//     desired_position(0) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(0), target_position(0), 0, 0);
+//     desired_position(1) = target_position(1);
+//     desired_position(2) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(2), target_position(2), 0, 0);
+//     desired_velocity << speed(0), 0, speed(2);
+//   }
+//   if (direction == 2.0) //NOT WANT TO MOVE ALONG Z - AXIS
+//   {
+//     desired_position(0) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(0), target_position(0), 0, 0);
+//     desired_position(1) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(1), target_position(1), 0, 0);
+//     desired_position(2) = target_position(2);
+//     desired_velocity << speed(0), speed(1), 0;
+//   }
 
-  f_star = K_p * (desired_position - current_position) + K_v * (desired_velocity - current_velocity.head<3>());
-  // std::cout<<"-------------------------------------------"<<std::endl;
-  // std::cout<<"target_position : "<<target_position.transpose()<<std::endl;
-  // std::cout<<"current_position : "<<current_position.transpose()<<std::endl;
-  // std::cout<<"desired speed : "<<desired_velocity.transpose()<<std::endl;
-  // std::cout<<"current speed : "<<current_velocity.head<3>().transpose()<<std::endl;
-  // std::cout<<"f_star : "<<f_star.transpose()<<std::endl;
-  return f_star;
-}
+//   f_star = K_p * (desired_position - current_position) + K_v * (desired_velocity - current_velocity.head<3>());
+//   // std::cout<<"-------------------------------------------"<<std::endl;
+//   // std::cout<<"target_position : "<<target_position.transpose()<<std::endl;
+//   // std::cout<<"current_position : "<<current_position.transpose()<<std::endl;
+//   // std::cout<<"desired speed : "<<desired_velocity.transpose()<<std::endl;
+//   // std::cout<<"current speed : "<<current_velocity.head<3>().transpose()<<std::endl;
+//   // std::cout<<"f_star : "<<f_star.transpose()<<std::endl;
+//   return f_star;
+// }
 
-Eigen::Vector3d PegInHole::oneDofMoveEE(const Eigen::Vector3d origin,
-                                        const Eigen::Matrix3d init_rot,
-                                        const Eigen::Vector3d current_position,
-                                        const Eigen::Matrix<double, 6, 1> current_velocity,
-                                        const double current_time,
-                                        const double init_time,
+Eigen::Vector3d PegInHole::oneDofMoveEE(const Eigen::Isometry3d &origin,
+                                        const Eigen::Isometry3d &current,
+                                        const Eigen::Matrix<double, 6, 1> &xd,
+                                        const Eigen::Isometry3d &T_ea,
+                                        const double t,
+                                        const double t_0,
                                         const double duration,
                                         const double target_distance, // + means go forward, - mean go backward
-                                        const int direction)          // 0 -> x_ee, 1 -> y_ee, 2 -> z_ee //DESIRED DIRECTION W.R.T END EFFECTOR!!
+                                        const int direction)         // 0 -> x_ee, 1 -> y_ee, 2 -> z_ee //DESIRED DIRECTION W.R.T ASSEMBLY FRAME
 {
-  Eigen::Vector3d goal_position;
-  Eigen::Vector3d cmd_position;
-  Eigen::Vector3d f_star;
-  Eigen::Matrix3d K_p;
-  Eigen::Matrix3d K_v;
-  double theta; //atfer projection the init_rot onto the global frame, the theta means yaw angle difference.
-
+  Eigen::Matrix3d K_p, K_v;
+  Eigen::Vector3d p_init_a;
+  Eigen::Vector3d p_cmd_a, p_cur_a, v_cur_a;
+  Eigen::Isometry3d T_wa;
+  Eigen::Vector3d f_a;
+  
   K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
   K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
 
-  // start from EE
-  for (int i = 0; i < 3; i++)
+  T_wa = origin * T_ea; //T_WA
+
+  p_init_a = T_ea.inverse().translation();
+
+  for(int i = 0; i < 3; i ++)
   {
-    if (i == direction)
-      goal_position(i) = target_distance;
-    else
-      goal_position(i) = 0.0;
+    if ( i == direction)  p_cmd_a(direction) = dyros_math::cubic(t, t_0, t_0 + duration, 0.0, target_distance, 0.0, 0.0);
+    else p_cmd_a(i) = 0.0;
   }
+  
 
-  goal_position = origin + init_rot * goal_position;
+  p_cmd_a = p_init_a + p_cmd_a;
+  
+  v_cur_a = T_wa.linear().transpose() * xd.head<3>();
+  p_cur_a = (T_wa.inverse() * current).translation();
 
-  for (int i = 0; i < 3; i++)
+  f_a = K_p * (p_cmd_a - p_cur_a) + K_v * (- v_cur_a); // <fx, fy, fz>
+  // std::cout<<"----------------------"<<std::endl;
+  // std::cout<<"duration: "<<duration<<std::endl;
+  // std::cout<<"origin: "<<origin.translation().transpose()<<std::endl;
+  // std::cout<<"current: "<<current.translation().transpose()<<std::endl;
+  // std::cout<<"run time: "<<t - t_0<<std::endl;
+  // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
+  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
+  // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
+  // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
+  return f_a;
+}
+
+Eigen::Vector3d PegInHole::twoDofMoveEE(const Eigen::Isometry3d &origin,
+                                        const Eigen::Isometry3d &current,
+                                        const Eigen::Matrix<double, 6, 1> &xd,
+                                        const Eigen::Isometry3d &T_ea,
+                                        const double t,
+                                        const double t_0,
+                                        const double duration,
+                                        const Eigen::Vector3d &target_position,
+                                        const int direction)          // 0 -> x, 1 -> y, 2 -> z //NOT DESIRED DIRECTION!!
+{
+  Eigen::Matrix3d K_p, K_v;
+  Eigen::Vector3d p_init_a;
+  Eigen::Vector3d p_cmd_a, p_cur_a, v_cur_a;
+  Eigen::Isometry3d T_wa;
+  Eigen::Vector3d f_a;
+  
+  K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
+  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
+
+  T_wa = origin * T_ea; //T_WA
+
+  p_init_a = T_ea.inverse().translation();
+  
+  for(int i = 0; i < 3; i ++)
   {
-    cmd_position(i) = dyros_math::cubic(current_time, init_time, init_time + duration, origin(i), goal_position(i), 0, 0);
+    if ( i == direction)  p_cmd_a(i) = 0.0;
+    else p_cmd_a(i) = dyros_math::cubic(t, t_0, t_0 + duration, 0.0, target_position(i), 0.0, 0.0);
+   
   }
+  
+  p_cmd_a = p_init_a + p_cmd_a;
+  
+  v_cur_a = T_wa.linear().transpose() * xd.head<3>();
+  p_cur_a = (T_wa.inverse() * current).translation();
 
-  f_star = K_p * (cmd_position - current_position) + K_v * (-current_velocity.head<3>());
+  f_a = K_p * (p_cmd_a - p_cur_a) + K_v * (- v_cur_a); // <fx, fy, fz>
 
-  return f_star;
+  // std::cout<<"----------------------"<<std::endl;
+  // std::cout<<"duration: "<<duration<<std::endl;
+  // std::cout<<"origin: "<<origin.translation().transpose()<<std::endl;
+  // std::cout<<"current: "<<current.translation().transpose()<<std::endl;
+  // std::cout<<"target: "<<target_position.transpose()<<std::endl;
+  // std::cout<<"run time: "<<t - t_0<<std::endl;
+  // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
+  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
+  // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
+  // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
+
+  return f_a;
 }
 
 Eigen::Matrix<double, 6, 1> PegInHole::keepCurrentState(const Eigen::Vector3d initial_position,
@@ -810,11 +868,16 @@ Eigen::Vector3d PegInHole::getTiltDirection(const Eigen::Isometry3d T_ea)
   o1 = rot1 * p;
   o2 = rot2 * p;
 
-  if (abs(o1(2)) >= abs(o2(2)))
-    tilt_axis = tilt_axis;
-  else
-    tilt_axis = -tilt_axis;
+  // if (abs(o1(2)) >= abs(o2(2)))
+  //   tilt_axis = tilt_axis;
+  // else
+  //   tilt_axis = -tilt_axis;
 
+  if(o1(2) < 0 ) tilt_axis = tilt_axis;
+  
+  std::cout<<"w.r.t {A}"<<std::endl;
+  std::cout<<"o1: "<<o1.transpose()<<std::endl;
+  std::cout<<"o2: "<<o2.transpose()<<std::endl;
   return tilt_axis;
 }
 
@@ -905,62 +968,105 @@ Eigen::Vector6d PegInHole::tiltMotion(const Eigen::Isometry3d origin, const Eige
   // std::cout<<"pos_init: "<<pos_init.transpose()<<std::endl;
   // std::cout<<"desired_position: "<<desired_position.transpose()<<std::endl;
   // std::cout<<"position: "<<position.transpose()<<std::endl;
+  // std::cout<<"targe_position: "<<target_position.transpose()<<std::endl;
+  // std::cout<<"target rotation: \n"<<target_rotation<<std::endl;
 
   return f_star_zero;
 }
 
 // bool::judgeHeavyMass(const double t, const double )
 
-// Eigen::Vector3d PegInHole::straightMoveEE(const Eigen::Isometry3d &origin,
-//                                           const Eigen::Isometry3d &current,
-//                                           const Eigen::Ref<const Eigen::Vector6d>& xd,
-//                                           const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
-//                                           const Eigen::Isometry3d &T_wd,
-//                                           const double speed,
-//                                           const double t,
-//                                           const double t_0)
-// {
-//   Eigen::Vector3d asm_dir_a;
-//   Eigen::Matrix3d K_p, K_v;
-//   Eigen::Vector3d p_init_a;
-//   Eigen::Vector3d p_cmd_a, p_cur_a, v_cmd_a, v_cur_a;
-//   Eigen::Isometry3d T_wa;
-//   Eigen::Vector3d f_a;
+Eigen::Vector3d PegInHole::straightMotionEE(const Eigen::Isometry3d &origin,
+                                         const Eigen::Isometry3d &current,
+                                         const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                         const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                         const Eigen::Vector3d &target_dir,
+                                         const double speed,
+                                         const double t,
+                                         const double t_0)
+{
+  Eigen::Matrix3d K_p, K_v;
+  Eigen::Vector3d p_init_a;
+  Eigen::Vector3d p_cmd_a, p_cur_a, v_cmd_a, v_cur_a;
+  Eigen::Isometry3d T_wa;
+  Eigen::Vector3d f_a;
 
-//   T_wa = origin * T_ea; //T_WA
+  K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 2500;
+  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
 
-//   p_init_a = T_ea.inverse().translation();
 
-//   asm_dir_a << 0.0, 0.0, 1.0; // always z - axis wrt {A}
+  T_wa = origin * T_ea; //T_WA
 
-//   K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 2500;
-//   K_v << 200, 0, 0, 0, 200, 0, 0, 0, 50;
+  p_init_a = T_ea.inverse().translation();
 
-//   v_cmd_a = speed * asm_dir_a;
+ 
+  v_cmd_a = speed * target_dir;
+  p_cmd_a = p_init_a + speed * (t - t_0) * target_dir;
   
-//   p_cmd_a = p_init_a + speed * (t - t_0) * asm_dir_a;
+  v_cur_a = T_wa.linear().transpose() * xd.head<3>();
+  p_cur_a = (T_wa.inverse() * current).translation();
+
+  f_a = K_p * (p_cmd_a - p_cur_a) + K_v * (v_cmd_a - v_cur_a); // <fx, fy, fz>
+
+  // std::cout<<"----------------------"<<std::endl;
+  // std::cout<<"origin: "<<origin.translation().transpose()<<std::endl;
+  // std::cout<<"current: "<<current.translation().transpose()<<std::endl;
+  // std::cout<<"run time: "<<t - t_0<<std::endl;
+  // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
+  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
+  // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
+  // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
+
+  return f_a;
+}
+
+Eigen::Vector3d PegInHole::approachComponentEE(const Eigen::Isometry3d &origin,
+                                          const Eigen::Isometry3d &current,
+                                          const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                          const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                          const double speed,
+                                          const double t,
+                                          const double t_0)
+{
+  Eigen::Vector3d asm_dir_a;
+  Eigen::Matrix3d K_p, K_v;
+  Eigen::Vector3d p_init_a;
+  Eigen::Vector3d p_cmd_a, p_cur_a, v_cmd_a, v_cur_a;
+  Eigen::Isometry3d T_wa;
+  Eigen::Vector3d f_a;
+
+  T_wa = origin * T_ea; //T_WA
+
+  p_init_a = T_ea.inverse().translation();
+
+  asm_dir_a << 0.0, 0.0, 1.0; // always z - axis wrt {A}
+
+  K_p << 7500, 0, 0, 0, 7500, 0, 0, 0, 7500;
+  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
+
+  v_cmd_a = speed * asm_dir_a;
   
+  p_cmd_a = p_init_a + speed * (t - t_0) * asm_dir_a;
+  
+  v_cur_a = T_wa.linear().transpose() * xd.head<3>();
+  p_cur_a = (T_wa.inverse() * current).translation();
 
+  f_a = K_p * (p_cmd_a - p_cur_a) + K_v * (v_cmd_a - v_cur_a); // <fx, fy, fz>
 
-//   v_cur_a = T_wa.linear().transpose() * xd.head<3>();
-//   p_cur_a = (T_wa.inverse() * current).translation();
+  // std::cout<<"----------------------"<<std::endl;
+  // std::cout<<"origin: "<<origin.translation().transpose()<<std::endl;
+  // std::cout<<"current: "<<current.translation().transpose()<<std::endl;
+  // std::cout<<"run time: "<<t - t_0<<std::endl;
+  // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
+  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
+  // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
+  // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
 
-//   f_a = K_p * (p_cmd_a - p_cur_a) + K_v * (v_cmd_a - v_cur_a); // <fx, fy, fz>
-
-//   // std::cout<<"----------------------"<<std::endl;
-//   // std::cout<<"origin: "<<origin.translation().transpose()<<std::endl;
-//   // std::cout<<"current: "<<current.translation().transpose()<<std::endl;
-//   // std::cout<<"run time: "<<t - t_0<<std::endl;
-//   // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
-//   // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
-//   // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
-//   // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
-
-//   return f_a;
-// }
+  return f_a;
+}
 
 //Edited by KimHC 20200623 - additional movement to XY direction
-Eigen::Vector3d PegInHole::straightMoveEE(const Eigen::Isometry3d &origin,
+Eigen::Vector3d PegInHole::pinMoveEE(const Eigen::Isometry3d &origin,
                                           const Eigen::Isometry3d &current,
                                           const Eigen::Ref<const Eigen::Vector6d>& xd,
                                           const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
@@ -972,7 +1078,7 @@ Eigen::Vector3d PegInHole::straightMoveEE(const Eigen::Isometry3d &origin,
   Eigen::Vector3d asm_dir_a;
   Eigen::Matrix3d K_p, K_v;
   Eigen::Vector3d p_init_a, goal_ad;
-  Eigen::Vector3d p_cmd_a, p_cur_a, v_cmd_a, v_cur_a;
+  Eigen::Vector3d p_cmd_a, p_cur_a, v_cmd_a, v_cur_a,p_cmd_a_test;
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d f_a;
   double traj_x, traj_y;
@@ -990,19 +1096,62 @@ Eigen::Vector3d PegInHole::straightMoveEE(const Eigen::Isometry3d &origin,
   traj_y = dyros_math::cubic(t, t_0, t_0+1.0, 0.0, goal_ad(1), 0.0, 0.0);
   
   v_cmd_a = speed * asm_dir_a;
-  p_cmd_a << p_init_a(0)+traj_x, p_init_a(1)+traj_y, p_init_a(2) + speed * (t - t_0) * asm_dir_a(2);
+  p_cmd_a_test << p_init_a(0)+traj_x, p_init_a(1)+traj_y, p_init_a(2) + speed * (t - t_0) * asm_dir_a(2);
+
+  p_cmd_a = p_init_a + speed * (t - t_0) * asm_dir_a;
 
   v_cur_a = T_wa.linear().transpose() * xd.head<3>();
   p_cur_a = (T_wa.inverse() * current).translation();
 
-  f_a = K_p * (p_cmd_a - p_cur_a) + K_v * (v_cmd_a - v_cur_a); // <fx, fy, fz>
+  // f_a = K_p * (p_cmd_a - p_cur_a) + K_v * (v_cmd_a - v_cur_a); // <fx, fy, fz>
+  f_a = K_p * (p_cmd_a_test - p_cur_a) + K_v * (v_cmd_a - v_cur_a); // <fx, fy, fz>
+
+  // std::cout<<"----------------------"<<std::endl;
+  // std::cout<<"run time: "<<t - t_0<<std::endl;
+  // std::cout<<"goal_ad: "<<goal_ad.transpose()<<std::endl;
+  // std::cout<<"p_cmd_a_test: "<<p_cmd_a_test.transpose()<<std::endl;
+  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
+  // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
+
+  return f_a;
+}
+
+Eigen::Vector3d PegInHole::threeDofMoveEE(const Eigen::Isometry3d &origin,
+                                          const Eigen::Isometry3d &current,
+                                          const Eigen::Vector3d &target,
+                                          const Eigen::Ref<const Eigen::Vector6d>& xd,
+                                          const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                          const double t,
+                                          const double t_0,
+                                          const double duration)
+{
+  Eigen::Vector3d asm_dir_a;
+  Eigen::Matrix3d K_p, K_v;
+  Eigen::Vector3d p_init_a;
+  Eigen::Vector3d p_cmd_a, p_cur_a, v_cur_a;
+  Eigen::Isometry3d T_wa;
+  Eigen::Vector3d f_a;
+
+  K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 2500;
+  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 50;
+
+  T_wa = origin * T_ea;
+  p_init_a = T_ea.inverse().translation();
+
+  for(int i = 0; i < 3; i++) p_cmd_a(i) = dyros_math::cubic(t, t_0, t_0+duration, 0.0, target(i), 0.0, 0.0);
+  p_cmd_a = p_init_a + p_cmd_a;
+
+  v_cur_a = T_wa.linear().transpose() * xd.head<3>();
+  p_cur_a = (T_wa.inverse() * current).translation();
+
+  f_a = K_p * (p_cmd_a - p_cur_a) + K_v * ( - v_cur_a); // <fx, fy, fz>
 
   return f_a;
 }
 
 Eigen::Vector3d PegInHole::threeDofMove(const Eigen::Isometry3d &origin,
                                         const Eigen::Isometry3d &current,
-                                        const Eigen::Vector3d target,
+                                        const Eigen::Vector3d &target,
                                         const Eigen::Ref<const Eigen::Vector6d>& xd,
                                         const double t,
                                         const double t_0,
@@ -1158,7 +1307,7 @@ Eigen::Vector3d PegInHole::generateSpiralEE(const Eigen::Isometry3d &origin,
 
   K_p = Eigen::Matrix3d::Identity() * 5000;
   K_v = Eigen::Matrix3d::Identity() * 200;
-  asm_dir = T_ea.linear().col(2);
+  asm_dir = T_ea.linear().col(2); //w.r.t {E}
 
   start_point.setZero();
 
@@ -1168,12 +1317,12 @@ Eigen::Vector3d PegInHole::generateSpiralEE(const Eigen::Isometry3d &origin,
 
   p_init_a = T_ea.inverse().translation();
 
-  p_cmd_a << traj(0), traj(1), 0.0;
+  p_cmd_a << traj(0), traj(1), 0.0; //w.r.t {A}
   p_cmd_a = p_init_a + p_cmd_a;
 
-  p_cur_w = (current * T_ea).translation() - T_wa.translation(); // T_we * T_ea - p_wa
+  // p_cur_w = (current * T_ea).translation() - T_wa.translation(); // T_we * T_ea - p_wa
   // p_cur_a = T_wa.linear().transpose() * p_cur_w;
-  p_cur_a = (T_wa.inverse() * current).translation();
+  p_cur_a = (T_wa.inverse() * current).translation(); // {E} w.r.t {A}
 
   // p_cmd_w = T_wa*p_cmd_a;
 
@@ -1256,12 +1405,11 @@ Eigen::Vector3d PegInHole::rotateWithAseemblyDir(const Eigen::Isometry3d &origin
 Eigen::Vector3d PegInHole::rotateWithMat(const Eigen::Isometry3d &origin,
                                          const Eigen::Isometry3d &current,
                                          const Eigen::Ref<const Eigen::Vector6d>& xd,
-                                         const Eigen::Matrix3d target_rot, //wrt {E}
+                                         const Eigen::Matrix3d target_rot, //R_we
                                          const double t,
                                          const double t_0,
                                          const double duration) //axis_vector wrt EE frame
 {
-  Eigen::Isometry3d T_wa;
   Eigen::Vector3d m_star;
   Eigen::Vector3d delphi_delta;
   Eigen::Matrix3d rot_init, rot, desired_rot;
@@ -1270,9 +1418,9 @@ Eigen::Vector3d PegInHole::rotateWithMat(const Eigen::Isometry3d &origin,
   desired_rot = dyros_math::rotationCubic(t, t_0, t_0 + duration, rot_init, target_rot);
   rot = current.linear();
 
-  delphi_delta = -0.5 * dyros_math::getPhi(rot, desired_rot);
+  delphi_delta = -0.5 * dyros_math::getPhi(rot, desired_rot); 
 
-  m_star = (1.0) * 200.0 * delphi_delta + 5.0 * (-xd.tail<3>());
+  m_star = (1.0) * 300.0 * delphi_delta + 5.0 * (-xd.tail<3>());
 
   return m_star;
 }
@@ -1578,4 +1726,24 @@ Eigen::Vector3d PegInHole::generateRotationSearchMotionEE(const Eigen::Isometry3
   return f_a;
 }
 
+Eigen::Vector3d PegInHole::getNormalForce(const Eigen::Vector3d &normal_vector, const double force)
+{
+  Eigen::Vector3d f;
 
+  f = force*normal_vector;
+  return f;
+}
+
+void PegInHole::getCompensationWrench(Eigen::Vector6d &accumulated_wrench, const Eigen::Vector6d &measured_wrench, const int num_start, const int num, const int num_max)
+{
+  for(int i = 0 ; i < 6; i ++)
+  {
+    accumulated_wrench(i) += measured_wrench(i);
+  }
+
+  if(num >= num_max-1)
+  {
+    accumulated_wrench = accumulated_wrench/(num_max - num_start-1);
+  } 
+
+}

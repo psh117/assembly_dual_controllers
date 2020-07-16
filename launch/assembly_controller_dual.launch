@@ -1,0 +1,40 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <arg name="robot" default="$(find assembly_env_description)/robots/assembly_env_dual.urdf.xacro" />
+  <arg name="robot_id" default="panda_triple" />
+  <!-- <arg name="robot_left_ip" default="172.16.2.2" />
+  <arg name="robot_right_ip" default="172.16.4.4" />
+  <arg name="robot_top_ip" default="172.16.0.3" /> -->
+  <!-- <arg name="panda_left/robot_ip" default="172.16.2.2" /> -->
+  <!-- <arg name="panda_right/robot_ip" default="172.16.4.4" /> -->
+  <!-- <arg name="panda_top/robot_ip" default="172.16.0.3" /> -->
+  <!-- <arg name="robot_ips" default="{panda_left/robot_ip, panda_right/robot_ip,  panda_top/robot_ip}" /> -->
+  <arg name="robot_ips" default="{panda_right/robot_ip: 172.16.4.4,  panda_top/robot_ip: 172.16.0.3}" />
+  <!-- <arg name="robot_ips" default="{panda_left/robot_ip: 172.16.2.2, panda_right/robot_ip: 172.16.4.4,  panda_top/robot_ip: 172.16.0.3}" /> -->
+  <arg name="rviz" default="false" />
+  <arg name="rqt" default="false" />
+
+  <arg name="hw_config_file" default="$(find assembly_dual_controllers)/config/franka_combined_control_node_dual.yaml"/>
+  <arg name="controllers_file" default="$(find assembly_dual_controllers)/config/default_combined_controllers_dual.yaml" />
+
+  <!-- <arg name="controllers_to_start" default="panda_left_state_controller panda_right_state_controller panda_top_state_controller"/> -->
+  <arg name="controllers_to_start" default="panda_right_state_controller panda_top_state_controller"/>
+  <!-- <arg name="joint_states_source_list" default="[panda_left_state_controller/joint_states, panda_right_state_controller/joint_states, panda_top_state_controller/joint_states, panda_left/franka_gripper/joint_states, panda_right/franka_gripper/joint_states, panda_top/franka_gripper/joint_states]"/> -->
+  <arg name="joint_states_source_list" default="[panda_right_state_controller/joint_states, panda_top_state_controller/joint_states, panda_left/franka_gripper/joint_states, panda_right/franka_gripper/joint_states, panda_top/franka_gripper/joint_states]"/>
+
+  <include file="$(find franka_control)/launch/franka_combined_control.launch" >
+    <arg name="robot" value="$(arg robot)" />
+    <arg name="robot_id" value="$(arg robot_id)" />
+    <arg name="robot_ips" value="$(arg robot_ips)" />
+    <arg name="hw_config_file" value="$(arg hw_config_file)" />
+    <arg name="controllers_file" value="$(arg controllers_file)" />
+    <arg name="controllers_to_start" value="$(arg controllers_to_start)" />
+    <arg name="joint_states_source_list" value="$(arg joint_states_source_list)" />
+  </include>
+
+  <group ns="$(arg robot_id)">
+    <rosparam command="load" file="$(find assembly_dual_controllers)/config/assembly_dual_controllers_dual.yaml" />
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"  args="assembly_dual_controller"/>
+  </group>
+</launch>

@@ -30,6 +30,9 @@ class AssembleSpiralActionServer : public ActionServerBase
     Eigen::Vector3d init_pos_;
     Eigen::Isometry3d origin_;
     Eigen::Isometry3d current_;
+    
+    Eigen::Vector3d force_compensation_;
+    Eigen::Vector3d moment_compensation_;
 
     // parameters from .action file ---
     double lin_vel_;

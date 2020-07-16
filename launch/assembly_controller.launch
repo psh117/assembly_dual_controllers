@@ -18,5 +18,6 @@
   <group ns="$(arg robot_id)">
     <rosparam command="load" file="$(find assembly_dual_controllers)/config/assembly_dual_controllers.yaml" />
     <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"  args="assembly_dual_controller"/>
+
   </group>
 </launch>

@@ -1,5 +1,4 @@
-#ifndef CRITERIA_H
-#define CRITERIA_H
+#pragma once
 
 #include <iostream>
 #include <Eigen/Dense>
@@ -24,6 +23,12 @@ bool detectHole(const Eigen::Isometry3d &origin,
                 const Eigen::Vector3d &force,
                 const Eigen::Isometry3d &T_wa,
                 const double friction);
+
+bool detectObject(const Eigen::Isometry3d &origin,
+                  const Eigen::Isometry3d &current,
+                  const Eigen::Vector3d &force,
+                  const Eigen::Isometry3d &T_wa,
+                  const double blocking_force);
 
 bool checkContact(const double current_force,
                   const double threshold);
@@ -50,6 +55,9 @@ bool timeOut(const double current_time,
 
 bool checkForceLimit(const double f, const double threshold);
 
+bool checkForceLimit(const Eigen::Vector3d &force,
+                                 const double threshold);
+
 bool checkMomentLimit(const std::vector<double> m1,
                       const std::vector<double> m2,
                       const std::vector<double> m3,
@@ -62,6 +70,10 @@ bool checkDisplacement(const Eigen::Isometry3d &origin,
                        const Eigen::Isometry3d &current,
                        const Eigen::Isometry3d &T_wa,
                        const double depth);
-}; 
 
-#endif // CRITERIA_H
+bool reachGoal3D(const Eigen::Vector3d &p,
+                 const Eigen::Vector3d &q,
+                 const double threshold,
+                 const Eigen::Isometry3d &T_wa = Eigen::Isometry3d::Identity());
+
+}; 

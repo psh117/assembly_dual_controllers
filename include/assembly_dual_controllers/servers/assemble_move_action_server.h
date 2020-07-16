@@ -12,6 +12,14 @@ using namespace PegInHole;
 
 class AssembleMoveActionServer : public ActionServerBase
 {
+  enum STATE : int
+  {
+    LIFT_UP,
+    MOVE,
+    ROTATE,
+    COMPLETE
+  };
+
     actionlib::SimpleActionServer<assembly_msgs::AssembleMoveAction> as_;
 
     assembly_msgs::AssembleMoveFeedback feedback_;
@@ -24,23 +32,34 @@ class AssembleMoveActionServer : public ActionServerBase
     Eigen::Matrix<double, 6, 1> f_measured_;
     Eigen::Matrix<double, 6, 1> desired_xd_;
         
-    Eigen::Matrix<double, 3, 3> init_rot_;
-    Eigen::Vector3d origin_;
-
-    Eigen::Vector3d target_;
+    Eigen::Isometry3d origin_, current_, target_;
+    Eigen::Isometry3d T_EA_, T_WA_;
+    Eigen::Vector3d target_pos_, ee_to_assembly_point_;
+    Eigen::Quaterniond target_quat_, ee_to_assembly_quat_;
+  
     int type_;
     int dir_;
     int option_;
     double target_distance_;
 
-    bool is_first_;
+    bool is_mode_changed_;
+    STATE state_;
     double duration_;
+    double lift_up_distance_;
+    double move_distance_;
+    double speed_;
+    int litf_dir_;
+
 
 public:
   AssembleMoveActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);
 
   bool compute(ros::Time time) override;
+
+private:
+  void setSucceeded();
+  void setAborted();
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
   //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
 

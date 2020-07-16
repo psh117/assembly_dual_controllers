@@ -11,14 +11,6 @@
 
 namespace PegInHole
 {
-Eigen::Vector3d straightMove(const Eigen::Vector3d origin,
-                             const Eigen::Vector3d current_position,
-                             const Eigen::Matrix<double, 6, 1> current_velocity,
-                             const int dir,
-                             const double speed,
-                             const double current_time,
-                             const double init_time);
-
 Eigen::Vector3d oneDofMove(const Eigen::Vector3d origin,
                            const Eigen::Vector3d current_position,
                            const double target_position,
@@ -39,15 +31,25 @@ Eigen::Vector3d twoDofMove(const Eigen::Vector3d origin,
                            const double desired_speed,
                            const int direction); // 0 -> x, 1 -> y, 2 -> z //NOT DESIRED DIRECTION!!
 
-Eigen::Vector3d oneDofMoveEE(const Eigen::Vector3d origin,
-                             const Eigen::Matrix3d init_rot,
-                             const Eigen::Vector3d current_position,
-                             const Eigen::Matrix<double, 6, 1> current_velocity,
-                             const double current_time,
-                             const double init_time,
+Eigen::Vector3d oneDofMoveEE(const Eigen::Isometry3d &origin,
+                             const Eigen::Isometry3d &current,
+                             const Eigen::Matrix<double, 6, 1> &xd,
+                             const Eigen::Isometry3d &T_ea,
+                             const double t,
+                             const double t_0,
                              const double duration,
                              const double target_distance, // + means go forward, - mean go backward
                              const int direction);         // 0 -> x_ee, 1 -> y_ee, 2 -> z_ee //DESIRED DIRECTION W.R.T END EFFECTOR!!
+
+Eigen::Vector3d twoDofMoveEE(const Eigen::Isometry3d &origin,
+                                        const Eigen::Isometry3d &current,
+                                        const Eigen::Matrix<double, 6, 1> &xd,
+                                        const Eigen::Isometry3d &T_ea,
+                                        const double t,
+                                        const double t_0,
+                                        const double duration,
+                                        const Eigen::Vector3d &target_position,
+                                        const int direction);
 
 Eigen::Matrix<double, 6, 1> keepCurrentState(const Eigen::Vector3d initial_position,
                                              const Eigen::Matrix3d initial_rotation,
@@ -116,6 +118,8 @@ Eigen::Vector3d rotateOrientationPerpenticular(const Eigen::Matrix3d initial_rot
                                                const double duration,
                                                const double current_time,
                                                const double init_time);
+Eigen::Vector3d getNormalForce(const Eigen::Vector3d &normal_vector,
+                               const double force);
 
 // deprecated
 Eigen::Vector3d keepCurrentOrientation(const Eigen::Matrix3d initial_rotation_M,
@@ -159,22 +163,48 @@ Eigen::Vector6d tiltMotion(const Eigen::Isometry3d origin, const Eigen::Isometry
                            const double t, const double t_0, const double duration);
 // bool::judgeHeavyMass(const double t, const double )
 
-Eigen::Vector3d straightMoveEE(const Eigen::Isometry3d &origin,
+Eigen::Vector3d pinMoveEE(const Eigen::Isometry3d &origin,
+                          const Eigen::Isometry3d &current,
+                          const Eigen::Ref<const Eigen::Vector6d> &xd,
+                          const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                          const Eigen::Isometry3d &T_ad,
+                          const double speed,
+                          const double t,
+                          const double t_0);
+
+Eigen::Vector3d straightMotionEE(const Eigen::Isometry3d &origin,
+                              const Eigen::Isometry3d &current,
+                              const Eigen::Ref<const Eigen::Vector6d> &xd,
+                              const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                              const Eigen::Vector3d &target_dir,
+                              const double speed,
+                              const double t,
+                              const double t_0);
+
+Eigen::Vector3d approachComponentEE(const Eigen::Isometry3d &origin,
                                const Eigen::Isometry3d &current,
                                const Eigen::Ref<const Eigen::Vector6d> &xd,
                                const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
-                               const Eigen::Isometry3d &T_ad,
                                const double speed,
                                const double t,
                                const double t_0);
 
-Eigen::Vector3d threeDofMove(const Eigen::Isometry3d &origin,
+Eigen::Vector3d threeDofMoveEE(const Eigen::Isometry3d &origin,
                              const Eigen::Isometry3d &current,
-                             const Eigen::Vector3d target,
+                             const Eigen::Vector3d &target,
                              const Eigen::Ref<const Eigen::Vector6d> &xd,
+                             const Eigen::Isometry3d &T_ea,
                              const double t,
                              const double t_0,
                              const double duration);
+
+Eigen::Vector3d threeDofMove(const Eigen::Isometry3d &origin,
+                               const Eigen::Isometry3d &current,
+                               const Eigen::Vector3d &target,
+                               const Eigen::Ref<const Eigen::Vector6d> &xd,
+                               const double t,
+                               const double t_0,
+                               const double duration);
 
 Eigen::Vector6d keepCurrentPose(const Eigen::Isometry3d &origin,
                                 const Eigen::Isometry3d &current,
@@ -222,7 +252,7 @@ Eigen::Vector3d rotateWithAseemblyDir(const Eigen::Isometry3d &origin,
                                       const double t,
                                       const double t_0,
                                       const double duration);
-
+                                      
 Eigen::Vector3d rotateWithMat(const Eigen::Isometry3d &origin,
                               const Eigen::Isometry3d &current,
                               const Eigen::Ref<const Eigen::Vector6d> &xd,
@@ -268,5 +298,10 @@ Eigen::Vector3d generateRotationSearchMotionEE(const Eigen::Isometry3d &origin,
                                                const double t_0,
                                                const double duration);
 
+void getCompensationWrench(Eigen::Vector6d &accumulated_wrench,
+                           const Eigen::Vector6d &measured_wrench,
+                           const int num_start,
+                           const int num,
+                           const int num_max);
 
 }; // namespace PegInHole

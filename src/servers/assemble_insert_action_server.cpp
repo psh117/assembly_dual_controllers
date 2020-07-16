@@ -71,7 +71,6 @@ void AssembleInsertActionServer::goalCallback()
   ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
   ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
   ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
-  
   T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
   T_EA_.translation() = ee_to_assembly_point_;
  
@@ -125,7 +124,7 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   auto & tau_measured = arm.tau_measured_;
   auto & gravity = arm.gravity_;
   auto & xd = arm.xd_; //velocity
-  
+
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
   Eigen::Vector3d m_wig, m_yaw;

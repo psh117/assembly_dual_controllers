@@ -27,7 +27,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(Eigen3 REQUIRED)
-find_package(Franka 0.5.0 REQUIRED)
+# find_package(Franka 0.5.0 REQUIRED)
 find_package(Boost REQUIRED system filesystem date_time thread)
 
 catkin_package(
@@ -60,9 +60,7 @@ include_directories(
   ${Franka_INCLUDE_DIRS}
 )
 
-add_library(${PROJECT_NAME}
-  src/assembly_dual_controller.cpp
-  #src/assemble_peginhole_action_server.cpp
+add_library(assembly_controller_common_lib
   src/servers/joint_trajectory_action_server.cpp
   src/servers/assemble_approach_action_server.cpp
   src/servers/assemble_insert_action_server.cpp
@@ -77,12 +75,17 @@ add_library(${PROJECT_NAME}
   src/servers/assemble_triple_recovery_action_server.cpp
   src/servers/assemble_bolt_action_server.cpp
   src/servers/assemble_dual_spiral_action_server.cpp
+  src/servers/assemble_dual_approach_action_server.cpp
   src/servers/task_space_move_action_server.cpp
   src/model/franka_model_updater.cpp
   src/utils/control/peg_in_hole_base.cpp
   src/utils/control/criteria.cpp
   src/utils/dyros_math.cpp
-  #src/single_peginhole_action_server.cpp
+)
+
+add_library(${PROJECT_NAME}
+  src/assembly_single_controller.cpp
+  src/assembly_dual_controller.cpp
  )
 
 
@@ -94,10 +97,17 @@ add_dependencies(${PROJECT_NAME}
   ${PROJECT_NAME}_gencfg
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
+target_link_libraries(assembly_controller_common_lib PUBLIC
   ${Franka_LIBRARIES}
   ${catkin_LIBRARIES}
 )
+
+target_link_libraries(${PROJECT_NAME} PUBLIC
+  ${Franka_LIBRARIES}
+  ${catkin_LIBRARIES}
+  assembly_controller_common_lib
+)
+
 
 
 

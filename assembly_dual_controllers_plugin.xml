@@ -4,6 +4,11 @@
       A controller that executes a short motion based on joint velocities to demonstrate correct usage
     </description>
   </class>
+  <class name="assembly_dual_controllers/AssemblySingleController" type="assembly_dual_controllers::AssemblySingleController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      A controller that executes a short motion based on joint velocities to demonstrate correct usage
+    </description>
+  </class>
 </library>
 
 

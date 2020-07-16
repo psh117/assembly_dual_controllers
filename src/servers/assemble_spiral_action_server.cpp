@@ -56,17 +56,29 @@ void AssembleSpiralActionServer::goalCallback()
   ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
   ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
   ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  force_compensation_(0) = goal_->compensation.force.x; //w.r.t {A}
+  force_compensation_(1) = goal_->compensation.force.y;
+  force_compensation_(2) = goal_->compensation.force.z;
+  moment_compensation_(0) = goal_->compensation.torque.x;
+  moment_compensation_(1) = goal_->compensation.torque.y;
+  moment_compensation_(2) = goal_->compensation.torque.z;
+
+
+  std::cout<<"force_compensation_:\n"<<force_compensation_.transpose()<<std::endl;
+  std::cout<<"moment_compensation_:\n"<<moment_compensation_.transpose()<<std::endl;
 
   T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
   T_EA_.translation() = ee_to_assembly_point_;
 
   T_WA_ = origin_ * T_EA_;
 
-  ori_change_dir_ = 0;
+  // ori_change_dir_ = 0;
   is_first_ = true;
-  ori_duration_ = 0.5; //1.0
+  // ori_duration_ = 0.5; //1.0
 
   std::cout << "sprial origin: " << init_pos_.transpose() << std::endl;
+  std::cout << "mode_ : " << mode_ << std::endl;
+  
   if (mode_ == 1)
     std::cout << "Single peg in hole" << std::endl;
   if (mode_ == 2)
@@ -138,12 +150,18 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
     setAborted();
   }
 
+
+
   f_star = PegInHole::generateSpiralEE(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_EA_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
-  f_star = T_WA_.linear() * f_star;
+  f_star = T_WA_.linear() * (f_star + force_compensation_);
 
   //signle peg in hole
   if (mode_ == 1)
-    m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 250., 5.0);
+  {
+    m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 300., 5.0);
+    m_star = m_star + T_WA_.linear()*moment_compensation_;
+  }
+    
 
   //dual peg in hole
   if (mode_ == 2)

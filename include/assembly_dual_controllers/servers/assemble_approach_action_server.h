@@ -5,6 +5,9 @@
 #include <assembly_dual_controllers/utils/dyros_math.h>
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 #include <assembly_dual_controllers/utils/control/criteria.h>
+#include <geometry_msgs/Wrench.h>
+#include <geometry_msgs/Vector3.h>
+
 #include <fstream>
 
 using namespace dyros_math;
@@ -40,8 +43,8 @@ class AssembleApproachActionServer : public ActionServerBase
   Eigen::Isometry3d origin_;
   Eigen::Isometry3d current_;
 
-  Eigen::Vector3d ee_to_assembly_point_,w_to_target_point_;
-  Eigen::Quaterniond ee_to_assembly_quat_,w_to_target_quat;
+  Eigen::Vector3d ee_to_assembly_point_,w_to_d_point_;
+  Eigen::Quaterniond ee_to_assembly_quat_,w_to_d_quat;
 
   Eigen::Isometry3d T_EA_, T_WA_, T_WD_, T_AD_;
 
@@ -51,13 +54,13 @@ class AssembleApproachActionServer : public ActionServerBase
 
   double descent_speed_;
   double contact_force_;
-  int assemble_dir_;
-  int mode_;
+  // int assemble_dir_;
   double time_limit_;
   bool set_tilt_;
   bool set_tilt_back_;
   double tilt_angle_;
   double tilt_duration_;
+  double tilt_back_threshold_;
 
   double tilt_start_time_;
   double approach_star_time_;
@@ -67,6 +70,11 @@ class AssembleApproachActionServer : public ActionServerBase
   bool is_ready_first_;
   bool is_approach_first_;
   bool is_tilt_back_first_;
+
+  int count_;
+  Eigen::Vector6d accumulated_wrench_;
+  geometry_msgs::Wrench wrench_rtn_;
+
 
   // !!! DO NOT USE RAW POINTER OF FILE !!!
   // FILE *force_moment_ee;
