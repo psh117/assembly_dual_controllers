@@ -18,7 +18,6 @@
 #include <Eigen/Dense>
 
 #include <assembly_dual_controllers/utils/model/franka_model_updater.h>
-#include <assembly_dual_controllers/utils/timer/suhan_benchmark.h>
 #include <assembly_dual_controllers/servers/joint_trajectory_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_approach_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_insert_action_server.h>
@@ -50,7 +49,7 @@ namespace assembly_dual_controllers {
 typedef Eigen::Matrix<double, 7, 1> Vector7d;
 typedef Eigen::Matrix<double, 6, 1> Vector6d;
 
-class AssemblyDualController : public controller_interface::MultiInterfaceController<
+class AssemblyTripleController : public controller_interface::MultiInterfaceController<
                                    franka_hw::FrankaModelInterface,
                                    hardware_interface::EffortJointInterface,
                                    franka_hw::FrankaStateInterface> {
@@ -83,7 +82,7 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   std::map<std::string, std::shared_ptr<FrankaModelUpdater> >  arms_data_; ///< Holds all relevant data for both arms.
   std::string left_arm_id_;   ///< Name of the left arm, retreived from the parameter server.
   std::string right_arm_id_;  ///< Name of the right arm, retreived from the parameter server.
-  // std::string top_arm_id_;  ///< Name of the top arm, retreived from the parameter server.
+  std::string top_arm_id_;  ///< Name of the top arm, retreived from the parameter server.
   
   ///< Transformation between base frames of the robots.
   Eigen::Isometry3d Ol_T_Or_;  // NOLINT (readability-identifier-naming)
@@ -105,8 +104,7 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   std::ofstream debug_file_tq{"iamdebugt.txt"};
   std::ofstream debug_file_3{"iamdebug.txt"};
 
-  SuhanBenchmark sb_;
-  std::ofstream debug_file_td_{"time_debug.txt"};
+  std::ofstream debug_file_td{"time_debug.txt"};
 
   /**
    * Saturates torque commands to ensure feasibility.

@@ -35,6 +35,10 @@ catkin build franka_ros -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=~/libfranka
 source devel/setup.sh
 ```
 
+## Franka Settings
+Set the end-effector translation to 0
+![setting_image](./img/ee_transform_setting.png)
+
 ## Installation
 
 ```sh

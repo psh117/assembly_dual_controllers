@@ -61,7 +61,8 @@ class AssembleProbeEdgeActionServer : public ActionServerBase
 
   Eigen::Vector2d detect_object_;
   Eigen::Vector2d search_dir_;
-  Eigen::Vector3d search_origin_; //the origin of spiral search
+  Eigen::Vector2d object_location_;
+  Eigen::Vector3d spiral_origin_; //the origin of spiral search
   Eigen::Vector3d probe_origine_;
   Eigen::Vector5d probing_sequence_;
 
@@ -84,7 +85,7 @@ private:
   void setAborted();
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
   void generateProbingSequence(const Eigen::Vector2d approach_dir);
-  Eigen::Vector2d setSearchDirection(const Eigen::Vector3d &search_origin, const Eigen::Vector3d &position);
+  Eigen::Vector2d setSearchDirection(const Eigen::Vector3d &spiral_origin, const Eigen::Vector3d &start_point);
   Eigen::Vector2d updateNormalVector(PROBE_DIRECTION probing_direction);
   Eigen::Vector3d generateNormalForce(const Eigen::Vector2d &normal_vector, const double f);
   Eigen::VEctor3d generateProbingForce(const Vector3d &origin,

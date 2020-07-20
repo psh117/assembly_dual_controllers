@@ -1,4 +1,4 @@
-#include <assembly_dual_controllers/assembly_dual_controller.h>
+#include <assembly_dual_controllers/assembly_triple_controller.h>
 
 #include <cmath>
 #include <memory>
@@ -11,7 +11,7 @@
 
 namespace assembly_dual_controllers {
 
-bool AssemblyDualController::initArm(
+bool AssemblyTripleController::initArm(
     hardware_interface::RobotHW* robot_hw,
     const std::string& arm_id,
     const std::vector<std::string>& joint_names) {
@@ -19,7 +19,7 @@ bool AssemblyDualController::initArm(
   auto* model_interface = robot_hw->get<franka_hw::FrankaModelInterface>();
   if (model_interface == nullptr) {
     ROS_ERROR_STREAM(
-        "AssemblyDualController: Error getting model interface from hardware");
+        "AssemblyTripleController: Error getting model interface from hardware");
     return false;
   }
   try {
@@ -27,7 +27,7 @@ bool AssemblyDualController::initArm(
         model_interface->getHandle(arm_id + "_model"));
   } catch (hardware_interface::HardwareInterfaceException& ex) {
     ROS_ERROR_STREAM(
-        "AssemblyDualController: Exception getting model handle from "
+        "AssemblyTripleController: Exception getting model handle from "
         "interface: "
         << ex.what());
     return false;
@@ -36,7 +36,7 @@ bool AssemblyDualController::initArm(
   auto* state_interface = robot_hw->get<franka_hw::FrankaStateInterface>();
   if (state_interface == nullptr) {
     ROS_ERROR_STREAM(
-        "AssemblyDualController: Error getting state interface from hardware");
+        "AssemblyTripleController: Error getting state interface from hardware");
     return false;
   }
   try {
@@ -44,7 +44,7 @@ bool AssemblyDualController::initArm(
         state_interface->getHandle(arm_id + "_robot"));
   } catch (hardware_interface::HardwareInterfaceException& ex) {
     ROS_ERROR_STREAM(
-        "AssemblyDualController: Exception getting state handle from "
+        "AssemblyTripleController: Exception getting state handle from "
         "interface: "
         << ex.what());
     return false;
@@ -53,7 +53,7 @@ bool AssemblyDualController::initArm(
   auto* effort_joint_interface = robot_hw->get<hardware_interface::EffortJointInterface>();
   if (effort_joint_interface == nullptr) {
     ROS_ERROR_STREAM(
-        "AssemblyDualController: Error getting effort joint interface from "
+        "AssemblyTripleController: Error getting effort joint interface from "
         "hardware");
     return false;
   }
@@ -62,7 +62,7 @@ bool AssemblyDualController::initArm(
       arm_data->joint_handles_.push_back(effort_joint_interface->getHandle(joint_names[i]));
     } catch (const hardware_interface::HardwareInterfaceException& ex) {
       ROS_ERROR_STREAM(
-          "AssemblyDualController: Exception getting joint handles: "
+          "AssemblyTripleController: Exception getting joint handles: "
           << ex.what());
       return false;
     }
@@ -73,18 +73,18 @@ bool AssemblyDualController::initArm(
   return true;
 }
 
-bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
+bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
                                   ros::NodeHandle& node_handle) {
 
   if (!node_handle.getParam("left/arm_id", left_arm_id_)) {
     ROS_ERROR_STREAM(
-        "AssemblyDualController: Could not read parameter left_arm_id_");
+        "AssemblyTripleController: Could not read parameter left_arm_id_");
     return false;
   }
   std::vector<std::string> left_joint_names;
   if (!node_handle.getParam("left/joint_names", left_joint_names) || left_joint_names.size() != 7) {
     ROS_ERROR(
-        "AssemblyDualController: Invalid or no left_joint_names parameters "
+        "AssemblyTripleController: Invalid or no left_joint_names parameters "
         "provided, "
         "aborting controller init!");
     return false;
@@ -92,7 +92,7 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
 
   if (!node_handle.getParam("right/arm_id", right_arm_id_)) {
     ROS_ERROR_STREAM(
-        "AssemblyDualController: Could not read parameter right_arm_id_");
+        "AssemblyTripleController: Could not read parameter right_arm_id_");
     return false;
   }
 
@@ -100,7 +100,23 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   if (!node_handle.getParam("right/joint_names", right_joint_names) ||
       right_joint_names.size() != 7) {
     ROS_ERROR(
-        "AssemblyDualController: Invalid or no right_joint_names parameters "
+        "AssemblyTripleController: Invalid or no right_joint_names parameters "
+        "provided, "
+        "aborting controller init!");
+    return false;
+  }
+
+  if (!node_handle.getParam("top/arm_id", top_arm_id_)) {
+    ROS_ERROR_STREAM(
+        "AssemblyTripleController: Could not read parameter top_arm_id_");
+    return false;
+  }
+
+  std::vector<std::string> top_joint_names;
+  if (!node_handle.getParam("top/joint_names", top_joint_names) ||
+      top_joint_names.size() != 7) {
+    ROS_ERROR(
+        "AssemblyTripleController: Invalid or no top_joint_names parameters "
         "provided, "
         "aborting controller init!");
     return false;
@@ -110,27 +126,28 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   
   bool left_success = initArm(robot_hw, left_arm_id_, left_joint_names);
   bool right_success = initArm(robot_hw, right_arm_id_, right_joint_names);
+  bool top_success = initArm(robot_hw, top_arm_id_, top_joint_names);
 
   // Get the transformation from right_O_frame to left_O_frame
-  // tf::StampedTransform transform;
-  // tf::TransformListener listener;
-  // try {
-  //   if (listener.waitForTransform(left_arm_id_ + "_link0", right_arm_id_ + "_link0", 
-  //                                 ros::Time(0), ros::Duration(4.0))) {
-  //     listener.lookupTransform(left_arm_id_ + "_link0", right_arm_id_ + "_link0",
-  //                                 ros::Time(0), transform);
-  //   } else {
-  //     ROS_ERROR(
-  //         "AssemblyDualController: Failed to read transform from %s to %s. "
-  //         "Aborting init!",
-  //         (right_arm_id_ + "_link0").c_str(), (left_arm_id_ + "_link0").c_str());
-  //     return false;
-  //   }
-  // } catch (tf::TransformException& ex) {
-  //   ROS_ERROR("AssemblyDualController: %s", ex.what());
-  //   return false;
-  // }
-  // tf::transformTFToEigen(transform, Ol_T_Or_);  // NOLINT (readability-identifier-naming)
+  tf::StampedTransform transform;
+  tf::TransformListener listener;
+  try {
+    if (listener.waitForTransform(left_arm_id_ + "_link0", right_arm_id_ + "_link0", 
+                                  ros::Time(0), ros::Duration(4.0))) {
+      listener.lookupTransform(left_arm_id_ + "_link0", right_arm_id_ + "_link0",
+                                  ros::Time(0), transform);
+    } else {
+      ROS_ERROR(
+          "AssemblyTripleController: Failed to read transform from %s to %s. "
+          "Aborting init!",
+          (right_arm_id_ + "_link0").c_str(), (left_arm_id_ + "_link0").c_str());
+      return false;
+    }
+  } catch (tf::TransformException& ex) {
+    ROS_ERROR("AssemblyTripleController: %s", ex.what());
+    return false;
+  }
+  tf::transformTFToEigen(transform, Ol_T_Or_);  // NOLINT (readability-identifier-naming)
 
 
   idle_control_server_ = std::make_unique<IdleControlServer>
@@ -169,11 +186,11 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
 
-  return left_success && right_success;
+  return left_success && right_success && top_success;
 }
 
 
-void AssemblyDualController::startingArm(FrankaModelUpdater& arm_data) {
+void AssemblyTripleController::startingArm(FrankaModelUpdater& arm_data) {
   // compute initial velocity with jacobian and set x_attractor and q_d_nullspace
   // to initial configuration
   franka::RobotState initial_state = arm_data.state_handle_->getRobotState();
@@ -185,11 +202,9 @@ void AssemblyDualController::startingArm(FrankaModelUpdater& arm_data) {
   Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_initial(initial_state.dq.data());
   Eigen::Map<Eigen::Matrix<double, 7, 1>> q_initial(initial_state.q.data());
   Eigen::Isometry3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
-  sb_.reset();
-  // debug_file_td_ << "update\tmodel\tcompute" << std::endl;
 }
 
-void AssemblyDualController::starting(const ros::Time& time) {
+void AssemblyTripleController::starting(const ros::Time& time) {
   for (auto& arm_data : arms_data_) {
     startingArm(*arm_data.second);
   }
@@ -212,56 +227,31 @@ void AssemblyDualController::starting(const ros::Time& time) {
   start_time_ = ros::Time::now();
 }
 
-void AssemblyDualController::update(const ros::Time& time, const ros::Duration& period) {
+void AssemblyTripleController::update(const ros::Time& time, const ros::Duration& period) {
 
   // std::cout << period.toSec() << std::endl;
-  double t[30];
-  t[0] = sb_.elapsedAndReset();
   for (auto& arm : arms_data_) {
     arm.second->updateModel();
     arm.second->target_updated_ = false;
   }
-  t[1] = sb_.elapsedAndReset();
 
-  int ctr_index = 2;
+
   joint_trajectory_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_approach_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_spiral_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_insert_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_verify_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_parallel_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_move_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_press_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_side_chair_action_server_ ->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_rotation_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_triple_recovery_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_dual_spiral_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_dual_approach_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_bolt_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   task_space_move_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   idle_control_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-
-  for(int i=0; i<ctr_index; ++i)
-  {
-    debug_file_td_ << t[i] << '\t';
-  }
-  debug_file_td_ << std::endl;
   
 
   // Eigen::Matrix<double, 7, 1> tau_cmd;  
@@ -275,7 +265,7 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
 ///////////////////////////////////////////////
 }
 
-Eigen::Matrix<double, 7, 1> AssemblyDualController::saturateTorqueRate(
+Eigen::Matrix<double, 7, 1> AssemblyTripleController::saturateTorqueRate(
     const FrankaModelUpdater& arm_data,
     const Eigen::Matrix<double, 7, 1>& tau_d_calculated,
     const Eigen::Matrix<double, 7, 1>& tau_J_d) {  // NOLINT (readability-identifier-naming)
@@ -289,7 +279,7 @@ Eigen::Matrix<double, 7, 1> AssemblyDualController::saturateTorqueRate(
 }
 
 /*
-void AssemblyDualController::updateArm(FrankaModelUpdater& arm_data) {
+void AssemblyTripleController::updateArm(FrankaModelUpdater& arm_data) {
   // get state variables
   arm_data.updateModel();
 
@@ -307,5 +297,5 @@ void AssemblyDualController::updateArm(FrankaModelUpdater& arm_data) {
 
 }  // namespace assembly_dual_controllers
 
-PLUGINLIB_EXPORT_CLASS(assembly_dual_controllers::AssemblyDualController,
+PLUGINLIB_EXPORT_CLASS(assembly_dual_controllers::AssemblyTripleController,
                        controller_interface::ControllerBase)

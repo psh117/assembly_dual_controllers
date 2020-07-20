@@ -3,6 +3,7 @@ project(assembly_dual_controllers)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_BUILD_TYPE RELEASE)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -76,6 +77,7 @@ add_library(assembly_controller_common_lib
   src/servers/assemble_bolt_action_server.cpp
   src/servers/assemble_dual_spiral_action_server.cpp
   src/servers/assemble_dual_approach_action_server.cpp
+  src/servers/assemble_probe_edge_action_server.cpp
   src/servers/task_space_move_action_server.cpp
   src/model/franka_model_updater.cpp
   src/utils/control/peg_in_hole_base.cpp
@@ -86,6 +88,7 @@ add_library(assembly_controller_common_lib
 add_library(${PROJECT_NAME}
   src/assembly_single_controller.cpp
   src/assembly_dual_controller.cpp
+  src/assembly_triple_controller.cpp
  )
 
 
