@@ -78,6 +78,7 @@ add_library(assembly_controller_common_lib
   src/servers/assemble_dual_spiral_action_server.cpp
   src/servers/assemble_dual_approach_action_server.cpp
   src/servers/assemble_probe_edge_action_server.cpp
+#  src/servers/assemble_dual_side_chair_recovery_action_server.cpp
   src/servers/task_space_move_action_server.cpp
   src/model/franka_model_updater.cpp
   src/utils/control/peg_in_hole_base.cpp

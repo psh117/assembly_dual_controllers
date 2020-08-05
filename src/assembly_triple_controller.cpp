@@ -183,6 +183,8 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_bolt_control", node_handle, arms_data_);
   task_space_move_action_server_ = std::make_unique<TaskSpaceMoveActionServer>
   ("/assembly_dual_controller/task_space_move", node_handle, arms_data_);
+  assemble_probe_edge_action_server_ = std::make_unique<AssembleProbeEdgeActionServer>
+  ("/assembly_dual_controller/assemble_probe_edge_control", node_handle, arms_data_);
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
 
@@ -252,6 +254,7 @@ void AssemblyTripleController::update(const ros::Time& time, const ros::Duration
   assemble_bolt_action_server_->compute(time);
   task_space_move_action_server_->compute(time);
   idle_control_server_->compute(time);
+  assemble_probe_edge_action_server_->compute(time);
   
 
   // Eigen::Matrix<double, 7, 1> tau_cmd;  

@@ -14,7 +14,6 @@ class AssembleTripleRecoveryActionServer : public ActionServerBase
 {
     enum ASSEMBLY_STATE
     {
-      ESCAPE,
       MOVE,
       APPROACH
     };
@@ -28,15 +27,7 @@ class AssembleTripleRecoveryActionServer : public ActionServerBase
     void goalCallback() override;
     void preemptCallback() override;
 
-    Eigen::Matrix<double, 6, 1> f_measured_;
-    Eigen::Matrix<double, 6, 1> desired_xd_;
-
-    Eigen::Vector3d init_pos_;    
-    Eigen::Matrix3d init_rot_;
-
-    Eigen::Isometry3d origin_;
-    Eigen::Isometry3d current_;
-    Eigen::Isometry3d target_;
+    Eigen::Isometry3d origin_, current_, target_;
     Eigen::Isometry3d T_EA_, T_WA_;
 
     Eigen::Vector3d ee_to_assembly_point_;
@@ -44,10 +35,11 @@ class AssembleTripleRecoveryActionServer : public ActionServerBase
 
     Eigen::Vector3d target_pose_position_;
     Eigen::Quaterniond target_pose_quat_;
+    Eigen::Vector6d accumulated_wrench_;
 
-    double recover_angle_; //5*M_PI/180
+    double tilt_back_threshold_;
+    double recovery_angle_;
     double duration_;
-    
     
     ASSEMBLY_STATE state_;
 
@@ -56,7 +48,7 @@ class AssembleTripleRecoveryActionServer : public ActionServerBase
     bool is_approach_first_;
 
     Eigen::Vector3d tilt_axis_;
-
+    int count_;
 
 public:
   AssembleTripleRecoveryActionServer(std::string name, ros::NodeHandle &nh, 

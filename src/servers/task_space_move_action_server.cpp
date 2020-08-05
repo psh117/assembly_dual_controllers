@@ -1,5 +1,7 @@
 #include <assembly_dual_controllers/servers/task_space_move_action_server.h>
 
+#define EYE(X) Eigen::Matrix<double, X, X>::Identity()
+
 TaskSpaceMoveActionServer::TaskSpaceMoveActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu)
 : ActionServerBase(name,nh,mu),
@@ -8,6 +10,12 @@ as_(nh,name,false)
   as_.registerGoalCallback(boost::bind(&TaskSpaceMoveActionServer::goalCallback, this));
   as_.registerPreemptCallback(boost::bind(&TaskSpaceMoveActionServer::preemptCallback, this));
   as_.start();
+  
+  
+  _task1.resize(2,dof);
+  _task2.resize(6,dof);
+
+
 }
 
 void TaskSpaceMoveActionServer::goalCallback()
@@ -122,13 +130,78 @@ bool TaskSpaceMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &a
 
   // std::cout << "f_star: " << f_star.transpose() << std::endl
   //           << "m_star: " << m_star.transpose() << std::endl;
-  
+
   Eigen::Vector6d fm_star;
   fm_star << f_star, m_star;
 
   desired_torque = arm.jacobian_.transpose() * arm.modified_lambda_matrix_ * fm_star;
 
-  if(time.toSec() > (start_time_.toSec() +  goal_->execution_time + 0.5))
+  ////////////////////////////////// Task Transition /////////////////////////////////////////
+  Eigen::MatrixXd A_inv_ = arm.modified_mass_matrix_.inverse();
+
+  _task1.J.setZero();
+  _task1.J(0, 0) = 1.0;
+  _task1.J(1, 1) = 1.0;
+  _task1.JT = _task1.J.transpose();
+
+  _task1.lambda_inv = _task1.J * A_inv_ * _task1.JT;
+  _task1.lambda = _task1.lambda_inv.inverse();
+
+  _task1.J_barT = _task1.lambda * _task1.J * A_inv_;
+  _task1.J_bar = _task1.J_barT.transpose();
+
+  _task1.NT = EYE(dof) - _task1.JT * _task1.J_barT;
+  _task1.N = _task1.NT.transpose();
+
+  
+  _task1.setActive2(-166.0/180.0*M_PI, 166.0/180.0*M_PI, arm.q_(0), true);
+  _task1.setPotential_3(-166.0/180.0*M_PI, 166.0/180.0*M_PI, arm.q_(0), arm.qd_(0), true);
+
+  _task1.setActive2(-101.0/180.0*M_PI, 101.0/180.0*M_PI, arm.q_(1), false);
+  _task1.setPotential_3(-101.0/180.0*M_PI, 101.0/180.0*M_PI, arm.q_(1), arm.qd_(1), false);
+
+  _task1.h = std::max(_task1.h1, _task1.h2);
+  if (_task1.h > 0)
+  {
+    // std::cout << "Joint limit task" << std::endl;
+  }
+
+  _task2.J = arm.jacobian_;
+  _task2.JT = _task2.J.transpose();
+  _task2.lambda_inv = _task2.J * A_inv_ * _task2.JT;
+  _task2.lambda = _task2.lambda_inv.inverse();
+  //_limit_task.h = 0.0;
+  _task2.f.head(3) = f_star;
+  _task2.f.tail(3) = m_star;
+
+  //std::cout <<  _task1.fi.transpose() << std::endl;
+
+  _task1.fi = _task1.h * _task1.f +
+              (1.0 - _task1.h) * _task1.J * A_inv_ *
+                  (_task2.JT * _task2.lambda * _task2.f);
+  //_task1.fi = _task1.h * _task1.f;
+  //std::cout <<  _task1.fi.transpose() << std::endl;
+
+  _task2.fi = _task2.f;
+
+  _task1.T = _task1.JT * _task1.lambda * _task1.fi;
+
+  Eigen::Matrix6d lambda_12;
+  Eigen::Matrix6d lambda_12_inv;
+
+  lambda_12_inv = _task2.J * _task1.N * A_inv_ * _task1.NT * _task2.JT + 0.001*EYE(6);
+  lambda_12 = lambda_12_inv.inverse();
+
+  desired_torque = _task1.T  + _task1.NT * (_task2.JT * lambda_12 * _task2.fi);
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  //std::cout << "desired_torque" <<arm.q_(0)/M_PI*180.0 << std::endl;
+
+  // std::cout<<"desried_torque: "<< desired_torque.transpose() <<std::endl;
+
+  //desired_torque.setZero();
+
+  if(time.toSec() > (start_time_.toSec() +  goal_->execution_time + 0.8))
   {
     ROS_INFO("[TaskSpaceMoveActionServer::goalCallback] arriving to the goal");
     std::cout << "position error: " << (target_pose_.translation() -  arm.position_).transpose() << std::endl;

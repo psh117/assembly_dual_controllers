@@ -38,4 +38,13 @@
     <rosparam command="load" file="$(find assembly_dual_controllers)/config/assembly_dual_controllers_dual.yaml" />
     <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"  args="assembly_dual_controller"/>
   </group>
+
+  <include file="$(find franka_gripper)/launch/franka_gripper.launch">
+    <arg name="robot_ip" value="172.16.2.2" />
+    <arg name="arm_id" value="panda_left" />
+    <arg name="node_name" value="panda_left_gripper" />
+  </include>
+
+  <param name="robot_description" command="$(find xacro)/xacro.py '$(find assembly_env_description)/robots/assembly_env.urdf.xacro'" />
+  <include file="$(find assembly_moveit_config)/launch/planning_context.launch"/>
 </launch>

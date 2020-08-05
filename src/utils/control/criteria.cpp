@@ -1,5 +1,29 @@
 #include <assembly_dual_controllers/utils/control/criteria.h>
+bool Criteria::reachGoal2D(const Eigen::Vector3d &p,
+                           const Eigen::Vector3d &q,
+                           const double threshold,
+                           const Eigen::Isometry3d &T_wa)
+{
+    //ignore the last component(insertion direction) of the vectors!! only 2d!
+    Eigen::Vector3d u,v;
+    double dis;
+    bool result;
 
+    u = T_wa.linear()*p;
+    v = T_wa.linear()*q;
+
+    for(int i = 0; i < 2; i ++)
+    {
+        dis += pow(p(i)-q(i),2);
+    }
+    dis = sqrt(dis);
+
+    if (dis < threshold)
+        result = true;
+    else
+        result = false;
+    return result;
+}
 bool Criteria::reachGoal3D(const Eigen::Vector3d &p,
                            const Eigen::Vector3d &q,
                            const double threshold,
@@ -35,7 +59,7 @@ bool Criteria::checkContact(const Eigen::Vector3d &force,
     double contact_force;
 
     f_a = T_wa.linear().inverse() * force;
-    contact_force = f_a(2); // z- axis is always assembly direction wrt {A}
+    contact_force = abs(f_a(2)); // z- axis is always assembly direction wrt {A}
 
     if (contact_force >= threshold)
     {
@@ -85,11 +109,7 @@ bool Criteria::detectObject(const Eigen::Isometry3d &origin,
     f_a = T_wa.linear().inverse() * force;
     f = sqrt(pow(f_a(0), 2) + pow(f_a(1), 2)); // reaction force from X-Y plane wrt {A}
 
-    if(f >= blocking_force)
-    {
-        result = true;
-        std::cout<<"f_a: "<<f<<std::endl;
-    } 
+    if(f >= blocking_force)  result = true;
     else result = false;
 
     return result;

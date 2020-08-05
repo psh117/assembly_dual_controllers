@@ -227,11 +227,7 @@ Eigen::Vector3d keepCurrentOrientation(const Eigen::Isometry3d &origin,
                                        const double kp = 200,
                                        const double kv = 5);
 
-Eigen::Vector3d pressEE(const Eigen::Isometry3d &origin,
-                        const Eigen::Isometry3d &current,
-                        const Eigen::Ref<const Eigen::Vector6d> &xd,
-                        const double force,
-                        const Eigen::Isometry3d &T_ea); //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+Eigen::Vector3d pressEE(const double force);                        
 
 Eigen::Vector3d generateSpiralEE(const Eigen::Isometry3d &origin,
                                  const Eigen::Isometry3d &current,
@@ -296,7 +292,8 @@ Eigen::Vector3d generateRotationSearchMotionEE(const Eigen::Isometry3d &origin,
                                                const double angle,
                                                const double t,
                                                const double t_0,
-                                               const double duration);
+                                               const double duration,
+                                               const double pressing_force);
 
 void getCompensationWrench(Eigen::Vector6d &accumulated_wrench,
                            const Eigen::Vector6d &measured_wrench,

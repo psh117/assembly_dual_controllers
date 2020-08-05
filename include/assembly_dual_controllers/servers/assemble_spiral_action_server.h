@@ -22,11 +22,7 @@ class AssembleSpiralActionServer : public ActionServerBase
     void preemptCallback() override;
 
     Eigen::Matrix<double, 6, 1> f_measured_;
-    Eigen::Matrix<double, 6, 1> desired_xd_;
-    Eigen::Vector3d desired_x_;
-    Eigen::Matrix<double, 7, 6> j_inverse_;
-    
-    Eigen::Matrix<double, 3, 3> init_rot_;
+  
     Eigen::Vector3d init_pos_;
     Eigen::Isometry3d origin_;
     Eigen::Isometry3d current_;
@@ -61,6 +57,7 @@ class AssembleSpiralActionServer : public ActionServerBase
     // FILE *spiral_data;
 
     std::ofstream save_sprial_data;
+    std::ofstream force_spiral_cmd; 
     
 public:
   AssembleSpiralActionServer(std::string name, ros::NodeHandle &nh, 
@@ -74,5 +71,4 @@ public:
 private:
   void setSucceeded();
   void setAborted();
-
 };

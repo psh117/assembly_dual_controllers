@@ -26,29 +26,74 @@ void AssembleVerifyActionServer::goalCallback()
   }
 
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
-  mu_[goal_->arm_name]->task_end_time_ = ros::Time(mu_[goal_->arm_name]->task_start_time_.toSec() + 2.0);
-
-  f_measured_.setZero();
-  desired_xd_.setZero();
-
-  origin_ = mu_[goal_->arm_name]->position_;  
-  init_rot_ = mu_[goal_->arm_name]->rotation_;
   
+  origin_ = mu_[goal_->arm_name]->transform_;  
+
+  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+
+  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
+  T_EA_.translation() = ee_to_assembly_point_;
+  
+  T_WA_ = origin_*T_EA_;
+  std::cout<<"T_WA_: \n"<<T_WA_.matrix()<<std::endl;
+  
+  if(verify_pr_data.is_open())  verify_pr_data.close();
+  if(verify_ft_data.is_open()) verify_ft_data.close();
+    
+  verify_pr_data.open("verify_pr_data.txt");
+  verify_ft_data.open("verify_ft_data.txt");
+
+  control_running_ = true;
+
+  spiral_origin_(0) = goal_->spiral_origin.position.x;
+  spiral_origin_(1) = goal_->spiral_origin.position.y;
+  spiral_origin_(2) = goal_->spiral_origin.position.z;
+
+  Eigen::Vector3d verify_origin;
+  verify_origin = origin_.translation() + origin_.linear()*T_EA_.translation();
+  
+  search_dir_ = setSearchDirection(spiral_origin_, verify_origin, T_WA_);
+  
+  is_mode_changed_ = true;
+  search_index_ = 0;
+  detect_object_.setZero();
+  f_init_.setZero();
+  cnt_ = 0;
+  state_ = STATE::READY;
+  //--------------------------------
   threshold_ = goal_ ->threshold;
-  range_ = goal_ ->range*M_PI/180;
+  search_range_ = goal_->search_range;
+  search_duration_ = goal_->search_duration;
+  angle_range_ = goal_ ->angle_range*M_PI/180;
   mode_ = goal_ ->mode;
   swing_dir_ = goal_ ->swing_dir;
 
+  std::cout<<"T_EA_: \n"<<T_EA_.matrix()<<std::endl;
+  std::cout << "spiral_origin: " << spiral_origin_.transpose() << std::endl;
+  std::cout << "verify_origin: " << T_WA_.translation().transpose() << std::endl;
+  std::cout << "search dir: " << search_dir_.transpose() << std::endl;
+  std::cout<<"detection threshold: "<<threshold_<<std::endl;
+  std::cout<<"threshold from the goal: "<<goal_->threshold<<std::endl;
 }
 
 void AssembleVerifyActionServer::preemptCallback()
 {
   ROS_INFO("[%s] Preempted", action_name_.c_str());
   as_.setPreempted();
+  control_running_ = false;
 }
 
 bool AssembleVerifyActionServer::compute(ros::Time time)
 {
+  if (!control_running_)
+    return false;
+
   if (!as_.isActive())
       return false; 
   
@@ -61,7 +106,6 @@ bool AssembleVerifyActionServer::compute(ros::Time time)
 
   return false;
 }
-
 
 bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm)
 {
@@ -76,80 +120,147 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   auto & gravity = arm.gravity_;
   auto & xd = arm.xd_; //velocity
   
-  Eigen::Vector3d f_star;
-  Eigen::Vector3d m_star;
-  Eigen::Matrix<double, 6, 1> f_star_zero;
-  Eigen::Matrix<double, 6, 6> lambda;
-  Eigen::Matrix<double, 7, 6> J_bar;
-  Eigen::Vector3d f_ee;
-  Eigen::Vector3d m_ee;
-  bool is_done = false;
+  Eigen::Vector3d f_star, m_star;
+  Eigen::Vector6d f_star_zero, f_lpf;
+  double run_time;
 
-  lambda = (jacobian*mass.inverse()*jacobian.transpose()).inverse();
-  J_bar = mass.inverse()*jacobian.transpose()*lambda;
-  f_measured_ = J_bar.transpose()*(tau_measured - gravity);
-  
-  //base on end-effector's frame
-  f_ee = rotation.transpose()*f_measured_.head<3>();
-  m_ee = rotation.transpose()*f_measured_.tail<3>();
+  f_lpf = arm.f_measured_filtered_;
+  current_ = arm.transform_;
+  run_time = time.toSec() - arm.task_start_time_.toSec();
 
-  if(time.toSec() < arm.task_end_time_.toSec())
-  { 
-    f_star.setZero();
-    f_star(2) = -0.0;
-    m_star = rotateWithGlobalAxis(init_rot_, rotation, xd, range_, arm.task_start_time_.toSec(), time.toSec() ,arm.task_end_time_.toSec(), swing_dir_);
-    saveMoment(m_ee);
-   
-  }
-  else
+  if(is_mode_changed_)
   {
-    if(mode_ == 1)
+    arm.task_start_time_ = time;
+    origin_ = arm.transform_;
+    is_mode_changed_ = false;
+        
+    target_.setZero();
+    if(state_ == FORWARD)
     {
-      is_done = checkMomentLimit(mx_, my_, mz_, swing_dir_, threshold_);
-      if(is_done == true)
-      {
-        std::cout<<"Single peg in hole is complete"<<std::endl;
-        as_.setSucceeded();
-      } 
-      else
-      {
-        std::cout<<"Single peg in hole is incomplete"<<std::endl;
-        as_.setAborted();
-      } 
+      target_(search_index_) = search_dir_(search_index_) * search_range_; //EX [0.1, 0], update the search direction
+      std::cout<<"FORWARD"<<std::endl;
+    } 
+    else if(state_ == BACKWARD)
+    {
+      target_(search_index_) = search_dir_(search_index_) * (-search_range_);
+      std::cout<<"BACKWARD"<<std::endl;
+    } 
+  }
+
+  switch (state_)
+  {
+  case READY:
+    for(int i = 0; i ++; i < 3) f_init_(i) += f_lpf(i);
+    cnt_++;
+    
+    if(run_time > 0.1)
+    {
+      is_mode_changed_ = true;
+      state_ = FORWARD;
+      f_init_ = f_init_/cnt_;
+      std::cout<<"initially measured force: "<< f_init_.transpose()<<std::endl;
+    }
+    f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 3000, 100);
+    break;
+  case FORWARD:
+    if (run_time > 0.5 && detectObject(origin_, current_, f_lpf.head<3>(), T_WA_, threshold_))
+    {
+      is_mode_changed_ = true;
+      detect_object_(search_index_) = 1; //there exist object
+      search_index_++;
+      state_ = FORWARD;
+      std::cout<<"running time: "<<run_time<<std::endl;
+    }
+    if (timeOut(time.toSec(), arm.task_start_time_.toSec(), search_duration_))
+    {
+      is_mode_changed_ = true;
+      detect_object_(search_index_) = 0; //no object
+      state_ = BACKWARD;
     }
 
-    if(mode_ == 2)
+    f_star = PegInHole::threeDofMoveEE(origin_, current_, target_, xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), search_duration_);
+    break;
+
+  case BACKWARD:
+    if (timeOut(time.toSec(), arm.task_start_time_.toSec(), search_duration_ + 0.01))
     {
-      is_done = checkMomentLimit(mx_, my_, mz_, swing_dir_, threshold_);
-      if(is_done == true)
-      {
-        std::cout<<"Dual peg in hole is complete"<<std::endl;
-        as_.setSucceeded();
-      } 
-      else
-      {
-        std::cout<<"Dual peg in hole is incomplete"<<std::endl;
-        std::cout<<"threshold: "<<threshold_<<std::endl;
-        as_.setAborted();
-      } 
+      is_mode_changed_ = true;
+      search_index_++;
+      state_ = FORWARD;
     }
     
+    f_star = PegInHole::threeDofMoveEE(origin_, current_, target_, xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), search_duration_);
+    break;
   }
+
+  if (search_index_ == 2) // finish searches along x and y direction
+  {
+    int sum = 0;
+    sum = detect_object_(0) + detect_object_(1); //detect_objed_ = [0, 1], [1, 0], [1, 1]
+    result_.object_location.data.push_back(detect_object_(0) * search_dir_(0));
+    result_.object_location.data.push_back(detect_object_(1) * search_dir_(1));
+    std::cout << "detect_result: " << detect_object_.transpose() << std::endl;
+    if (sum == 2)
+    {
+      setSucceeded();
+      std::cout << "DETECT HOLE!!" << std::endl;
+    }
+    else
+    {
+      setAborted();
+      std::cout << "FAIL" << std::endl;
+    }
+  }
+
+  f_star = T_WA_.linear() * f_star;
+  m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
 
-  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
+  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
+
+  verify_pr_data << current_.translation().transpose() << std::endl;
+  verify_ft_data << f_lpf.transpose() << std::endl;
+
 
   return true;
 }
 
-void AssembleVerifyActionServer::saveMoment(const Eigen::Vector3d m)
+void AssembleVerifyActionServer::setSucceeded()
 {
-    mx_.push_back(m(0));
-    my_.push_back(m(1));
-    mz_.push_back(m(2));
+  result_.is_completed = true;
+  as_.setSucceeded(result_);
+  control_running_ = false;
+}
+void AssembleVerifyActionServer::setAborted()
+{
+  result_.is_completed = false;
+  as_.setAborted(result_);
+  control_running_ = false;
+}
 
-    // fprintf(save_data_fm, "%lf\t %lf\t %lf\t\n", mx_.back(), my_.back(), mz_.back() );
+Eigen::Vector2d AssembleVerifyActionServer::setSearchDirection(const Eigen::Vector3d &spiral_origin, //w.r.t robot
+                                                               const Eigen::Vector3d &start_point,     //w.r.t robot
+                                                               const Eigen::Isometry3d &T_wa)
+{
+  Eigen::Vector2d search_dir; //w.r.t {A} frame  
+  Eigen::Vector3d p_w, p_a;
+  
+  p_w = spiral_origin - start_point;
+  p_w(2) = 0.0;
+  
+  p_a = T_wa.linear().inverse()*p_w;
+
+  for(int i = 0; i < 2; i ++)
+  {
+    if(p_a(i) > 0) search_dir(i) = 1.0;
+    else search_dir(i) = -1.0;
+  }
+  
+  std::cout<<"R_wa: \n"<<T_wa.linear().inverse()<<std::endl;
+  std::cout<<"p_w: "<<p_w.transpose()<<std::endl;
+  std::cout<<"p_a: "<<p_a.transpose()<<std::endl;
+  return search_dir;
 }

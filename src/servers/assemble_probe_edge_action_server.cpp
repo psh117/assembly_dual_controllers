@@ -29,8 +29,12 @@ void AssembleProbeEdgeActionServer::goalCallback()
   
   origin_ = mu_[goal_->arm_name]->transform_;  
 
-  contact_force_ = goal_->contact_force;
-    
+  contact_force_ = goal_-> contact_force;
+  attraction_force_ = goal_-> attraction_force;
+  object_location_(0) = goal_-> object_location.data[0];
+  object_location_(1) = goal_-> object_location.data[1];
+  probing_speed_ = goal_->probing_speed;
+
   ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
   ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
   ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
@@ -39,30 +43,40 @@ void AssembleProbeEdgeActionServer::goalCallback()
   ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
   ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
-  spiral_origin_(0) = goal_->spiral_origin.x;
-  spiral_origin_(1) = goal_->spiral_origin.y;
-  spiral_origin_(2) = goal_->spiral_origin.z;
-
   T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
   T_EA_.translation() = ee_to_assembly_point_;
   
   T_WA_ = origin_*T_EA_;
   
-  if(probe_ft_data.is_open())  probe_ft_data.close();
+  if(probe_ft_data.is_open())     probe_ft_data.close();
   if(probe_ft_data_lpf.is_open()) probe_ft_data_lpf.close();
+  if(probe_pr_data.is_open())     probe_pr_data.close();
+  if(probe_ft_cmd_data.is_open()) probe_ft_cmd_data.close();
     
   probe_ft_data.open("probe_ft_data.txt");
   probe_ft_data_lpf.open("probe_ft_data_lpf.txt");
+  probe_pr_data.open("probe_pr_data.txt");
+  probe_ft_cmd_data.open("probe_ft_cmd_data.txt");
+
+  state_ = PROBE_STATE::READY;
+  is_mode_changed_ = true;
+  probe_index_ = 0;
+  dir_index_ = 0;
+  last_probe_index_ = 4;
+  probe_origin_ = origin_.translation();
+
+  generateProbingSequence(object_location_);
+
+  f_star_lpf_.setZero();
+  f_star_lpf_prev_.setZero();
 
   control_running_ = true;
-
-  state_ =(int)PROBE_STATE::SEARCH_OBJECT;
-  search_dir_ = setSearchDirection(spiral_origin_, origin_.translation());
-  is_mode_changed_ = true;
-  search_index_ = 0;
-  probe_index_ = 0;
-  last_probe_index_ = 4;
-  blocking_force_ = 12.0;
+  
+  std::cout<<"PROBING START"<<std::endl;
+  std::cout<<"object_location: "<<object_location_.transpose()<<std::endl;
+  std::cout<<"contact force: "<< contact_force_<<std::endl;
+  std::cout<<"attaction force: "<<attraction_force_<<std::endl;
+  std::cout<<"probing_speed: "<<probing_speed_<<std::endl;
 }
 
 void AssembleProbeEdgeActionServer::preemptCallback()
@@ -105,155 +119,109 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
   auto & xd = arm.xd_;
   
   Eigen::Vector3d f_star, m_star;
-  Eigen::Vector3d f_att, f_prob;
-  Eigen::Vector6d f_star_zero;
+  Eigen::Vector3d f_att, f_prob, f_contact;
   Eigen::Vector6d f_lpf;
-  double search_range;
-  double search_duration;
+  Eigen::Vector3d obj_dir;
+  double run_time;
+  double speed;
+  int dir;
 
   f_lpf = arm.f_measured_filtered_;
+  f_contact = arm.f_contact_.head<3>();
+  
   current_ = arm.transform_;
-  search_range = 0.05;
-  search_duration = 0.5;
-
+  
   if(is_mode_changed_)
   {
     arm.task_start_time_ = time;
     origin_ = arm.transform_;
-    is_mode_changed_ = false
-    std::cout<<state_.c_str()<<std::endl;
+    is_mode_changed_ = false;
   }
 
+  run_time = time.toSec() - arm.task_start_time_.toSec();
+  
   switch (state_)
   {
-    case SEARCH_OBJECT:
-      Eigen::Vector3d target;
-      target.setZero();
-      target(search_index_) = search_dir_(search_index_)*search_range;
-      target = origin_+target;
+    case READY:
+      obj_dir.setZero();
+      obj_dir.head<2>() = object_location_;
 
-      if(detectObject(origin_, current_, f_lpf.head<3>(), T_WA_, 15.0))
+      f_star = PegInHole::straightMotionEE(origin_, current_, xd, T_EA_, obj_dir, 0.01, time.toSec(), arm.task_start_time_.toSec());
+      f_star = T_WA_.linear() * f_star;
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 400, 5);
+
+      if(Criteria::detectObject(origin_, current_, f_lpf.head<3>(), T_WA_, contact_force_)) //when lost contact
       {
+        std::cout << "READY TO PROBE" << std::endl;
+        state_ = PROBE_ON_THE_EDGE;
         is_mode_changed_ = true;
-        state_ = BACK_TO_ORIGIN;
-        detect_object_(search_index_) = 1; //there exist object 
       }
 
-      if(timeOut(time.toSec(), arm.task_start_time_.toSec(), search_duration))
-      {
-        is_mode_changed_ = true;
-        state_ = BACK_TO_ORIGIN;
-        detect_object_(search_index_) = 0; //no object
-      }
-
-      f_star = PegInHole::threeDofMove(origin_, current_, target, xd, time.toSec(), arm.task_end_time_, search_duration);    
-      f_star = T_WA_.linear()*f_star;
-      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
-      break;
-
-    case BACK_TO_ORIGIN:
-      Eigen::Vector3d target;
-      target.setZero();
-      target(search_index_) = -search_dir_(search_index_)*range;
-      target = origin_+target;
-
-      if (timeOut(time.toSec(), arm.task_start_time_.toSec(), search_duration + 0.01))
-      {
-        state_ = SEARCH_OBJECT;
-        is_mode_changed_ = true;
-        search_index_ ++;
-      }
-
-      if(search_index_ == 2)
-      {
-        int sum = 0;
-        sum = detect_object_(0) + detect_object_(1); //detect_objed_ = [0, 0] , [0, 1], [1, 0], [1, 1]
-        if(sum == 2) state_ = DETECT_HOLE;
-        else if(sum == 1) state_ = PROBE_ON_THE_EDGE;
-        else state_ = FAIL;
-        probe_origine_ = current_.translation();
-
-        for(int i = 0; i < 2; i++) object_location_(i) = detect_object_(i)*search_dir_(i);
-        generateProbingSequence(object_location_);
-      }
-
-      f_star = PegInHole::threeDofMove(origin_, current_, target, xd, time.toSec(), arm.task_end_time_, search_duration);    
-      f_star = T_WA_.linear()*f_star;
-      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
       break;
 
     case PROBE_ON_THE_EDGE:
-      double contact_loss = 11.995; //9.995;
-      double speed;
-      int dir;
-
       dir = probing_sequence_(dir_index_);
-      speed = 0.1;
-
-      f_att = generateNormalForce(updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)), 10.0);      
-      f_prob = generateProbingForce(origin_, current_, xd, T_EA_, probe_dir, speed, time.toSec(), arm.task_start_time_.toSec());
-
+      speed = probing_speed_;
+      
+      f_att = generateNormalForce(updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)), attraction_force_);      
+      f_prob = generateProbingForce(origin_, current_, xd, T_EA_, dir, speed, time.toSec(), arm.task_start_time_.toSec());
       f_star = f_att + f_prob;
       f_star = T_WA_.linear() * f_star;
-      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 400, 5);
 
-      if(!Criteria::detectObject(origin_, current_, f_lpf.head<3>(), T_WA_, contact_loss)) //when lost contact
+      if(run_time > 0.5 && !Criteria::detectObject(origin_, current_, f_lpf.head<3>(), T_WA_, contact_force_)) //when lost contact
       {
         std::cout << "LOST CONTACT" << std::endl;
         state_ = LOST_CONTACT;
         is_mode_changed_ = true;
       }
 
-      if (dir_index_ == last_probe_index_ && Criteria::reachGoal3D(probe_origine_, current_.translation(), 0.002, T_WA_))
+      if (dir_index_ == last_probe_index_ && Criteria::reachGoal3D(probe_origin_, current_.translation(), 0.002, T_WA_))
       {
-        control_mode_ = COMPLETE;
+        state_ = COMPLETE;
         is_mode_changed_ = true;
         std::cout << "Probing is done" << std::endl;
       }
       // std::cout<<"---------------------"<<std::endl;
-      // std::cout<<"normal vector: "<< FailRecovery::updateNormalVector((FailRecovery::Direction)probing_sequence_(dir_index_)).transpose()<<std::endl;
+      // std::cout<<"normal vector: "<< updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)).transpose()<<std::endl;
       // std::cout<<"f_att: "<<f_att.transpose()<<std::endl;
       // std::cout<<"f_prob: "<<f_prob.transpose()<<std::endl;
       // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
       // std::cout<<"dir_index: "<<dir_index_<<std::endl;
-
+      // std::cout<<"probing_sequence_: "<<probing_sequence_(dir_index_)<<std::endl;
+      // std::cout<<"f_contact: "<<f_contact.transpose()<<std::endl;
+      probe_ft_data_lpf << f_lpf.transpose() << std::endl;
+      probe_pr_data << (current_ * T_EA_).translation().transpose() << std::endl;
+      probe_ft_cmd_data << f_contact.transpose() << std::endl;
       break;
 
     case LOST_CONTACT:
-      double contact_threshold = 12.0;
-      double speed;
-      int dir;
-
       dir = probing_sequence_(dir_index_);
-      speed = -0.1;
+      speed = -probing_speed_;
      
-      origin_.translation()(2) = probe_origine_(2);     
+      origin_.translation()(2) = probe_origin_(2);     
 
-      f_att = generateNormalForce(updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)), 20.0);
-      f_prob = generateProbingForce(origin_, current_, xd, T_EA_, probe_dir, speed, time.toSec(), arm.task_start_time_.toSec());
-
+      f_att = generateNormalForce(updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)), attraction_force_/2);
+      f_prob = generateProbingForce(origin_, current_, xd, T_EA_, dir, speed, time.toSec(), arm.task_start_time_.toSec());
       f_prob.head<2>() = 0.1 * f_prob.head<2>();
       f_star = f_att + f_prob;
-      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
+      f_star = T_WA_.linear() * f_star;
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 400, 5);
 
-      if(Criteria::detectObject(origin_, current_, f_lpf.head<3>(), T_WA_, contact_threshold)) //when lost contact
+      if(run_time > 0.5 && Criteria::detectObject(origin_, current_, f_lpf.head<3>(), T_WA_, contact_force_)) //when lost contact
       {
-        control_mode_ = "probing_edge";
+        state_ = PROBE_ON_THE_EDGE;
         std::cout << "Contact!!" << std::endl;
-        std::cout << contact << std::endl;
         is_mode_changed_ = true;
         dir_index_++;
         if (dir_index_ >= probing_sequence_.rows())
           dir_index_ = probing_sequence_.rows();      
       }
       // std::cout<<"---------------------"<<std::endl;
+      // std::cout<<"normal vector: "<< updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)).transpose()<<std::endl;
       // std::cout<<"f_att: "<<f_att.transpose()<<std::endl;
       // std::cout<<"f_prob: "<<f_prob.transpose()<<std::endl;
       // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
-      // std::cout<<"contact: "<< contact<<std::endl;
-      // std::cout<<"obj_center: "<<obj_info_.head<2>().transpose()<<std::endl;
-      // std::cout<<"current_pose: "<<arm_state_[active_arm_].xp.transpose()<<std::endl;
-      // std::cout<<"probe direction: "<<dir<<std::endl;
       // std::cout<<"dir_index: "<<dir_index_<<std::endl;
       break;
 
@@ -265,23 +233,19 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
       std::cout<<"FINISHED PROBING EDGES"<<std::endl;
       setSucceeded();
       break;
-      
-    case DETECT_HOLE:
-      std::cout<<"PEG IN INSERTED INTO THE HOLE"<<std::endl;
-      setSucceeded();
   }
   
-  f_star_zero.head<3>() = f_star;
-  f_star_zero.tail<3>() = m_star;
+  f_star_zero_.head<3>() = f_star;
+  f_star_zero_.tail<3>() = m_star;
   
   // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
   
-  // f_star_zero.setZero();  
+  // if(state_ > PROBE_ON_THE_EDGE) f_star_zero_.setZero();  
   // std::cout<<"f_measured: "<<f_measured_.transpose()<<std::endl;
   // std::cout<<"f_filtered: "<<f_lpf.transpose()<<std::endl;
-
-  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
+  
+  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero_;
   arm.setTorque(desired_torque);
 
   return true;
@@ -296,25 +260,6 @@ void AssembleProbeEdgeActionServer::setAborted()
 {
   as_.setAborted();
   control_running_ = false;
-}
-
-Eigen::Vector2d AssembleProbeEdgeActionServer::setSearchDirection(const Eigen::Vector3d &spiral_origin, //w.r.t robot
-                                                                  const Eigen::Vector3d &start_point) //w.r.t robot                                                                  
-{
-  Eigen::Vector2d search_dir; //w.r.t {A} frame
-  double del_x, del_y, del_z;
-
-  del_x = (spiral_origin(0) - start_point(0)) > 0;
-  del_y = (spiral_origin(1) - start_point(1)) > 0;
-  // del_z = (spiral_origin(2) - start_point(2)) > 0;
-
-  if(del_x > 0) search_dir(0) = 1;
-  else search_dir(0) = -1;
-
-  if(del_y > 0) search_dir(1) = 1;
-  else search_dir(1) = -1;
-
-  return search_dir;
 }
 
 void AssembleProbeEdgeActionServer::generateProbingSequence(const Eigen::Vector2d &object_location)
@@ -337,7 +282,7 @@ Eigen::Vector2d AssembleProbeEdgeActionServer::updateNormalVector(PROBE_DIRECTIO
 }
 
 Eigen::Vector3d AssembleProbeEdgeActionServer::generateNormalForce(const Eigen::Vector2d &normal_vector,
-                                                            const double force)
+                                                                   const double force)
 {
   Eigen::Vector3d normal_force, v;
   v << normal_vector, 0.0;
@@ -349,7 +294,7 @@ Eigen::Vector3d AssembleProbeEdgeActionServer::generateProbingForce(const Eigen:
                                                                     const Eigen::Isometry3d &current,
                                                                     const Eigen::Ref<const Eigen::Vector6d> &xd,
                                                                     const Eigen::Isometry3d &T_ea,
-                                                                    PROBE_DIRECTION probing_dir,
+                                                                    const int probing_dir,
                                                                     const double probing_speed, //set positive
                                                                     const double t,
                                                                     const double t_0)
@@ -358,14 +303,20 @@ Eigen::Vector3d AssembleProbeEdgeActionServer::generateProbingForce(const Eigen:
   double speed;
   int dir;
 
-  if (probing_dir == PROBE_DIRECTION::DOWN || probing_dir == PROBE_DIRECTION::RIGHT)  speed = -probing_speed;
-  else                                                                    speed = probing_speed;
+  if (probing_dir == PROBE_DIRECTION::DOWN || probing_dir == PROBE_DIRECTION::RIGHT)
+    speed = -probing_speed;
+  else
+    speed = probing_speed;
 
-  if (probing_dir == PROBE_DIRECTION::LEFT || probing_dir == PROBE_DIRECTION::RIGHT) target_dir << 0, 1, 0; // move long y-axis
-  else if (probing_dir == PROBE_DIRECTION::UP || probing_dir == PROBE_DIRECTION::DOWN) target_dir << 1, 0, 0; //move long x-axis
+  if (probing_dir == PROBE_DIRECTION::LEFT || probing_dir == PROBE_DIRECTION::RIGHT)
+    target_dir << 0, 1, 0; // move long y-axis
+  else if (probing_dir == PROBE_DIRECTION::UP || probing_dir == PROBE_DIRECTION::DOWN)
+    target_dir << 1, 0, 0; //move long x-axis
 
   f_star = PegInHole::straightMotionEE(origin, current, xd, T_ea, target_dir, speed, t, t_0);
-  f_star = K_p * (x_d - current) + K_v * (-current_velocity);
+  
+  // for(int i = 0; i < 2; i++) f_star(i) = target_dir(i)*f_star(i);
+  
   return f_star; //w.r.t Assembly frame s.t., f_a
 }
   

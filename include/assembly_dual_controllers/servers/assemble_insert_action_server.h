@@ -61,4 +61,5 @@ public:
   private:
     void setSucceeded();
     void setAborted();
+    void savePosture();
 };

@@ -42,11 +42,7 @@ void AssembleSpiralActionServer::goalCallback()
   mu_[goal_->arm_name]->task_end_time_ = ros::Time(mu_[goal_->arm_name]->task_start_time_.toSec() + spiral_duration_);
 
   f_measured_.setZero();
-  desired_xd_.setZero();
-
-  init_pos_ = mu_[goal_->arm_name]->position_;
-  init_rot_ = mu_[goal_->arm_name]->rotation_;
-
+  
   origin_ = mu_[goal_->arm_name]->transform_;
 
   ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
@@ -56,13 +52,13 @@ void AssembleSpiralActionServer::goalCallback()
   ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
   ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
   ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  
   force_compensation_(0) = goal_->compensation.force.x; //w.r.t {A}
   force_compensation_(1) = goal_->compensation.force.y;
   force_compensation_(2) = goal_->compensation.force.z;
   moment_compensation_(0) = goal_->compensation.torque.x;
   moment_compensation_(1) = goal_->compensation.torque.y;
   moment_compensation_(2) = goal_->compensation.torque.z;
-
 
   std::cout<<"force_compensation_:\n"<<force_compensation_.transpose()<<std::endl;
   std::cout<<"moment_compensation_:\n"<<moment_compensation_.transpose()<<std::endl;
@@ -71,12 +67,18 @@ void AssembleSpiralActionServer::goalCallback()
   T_EA_.translation() = ee_to_assembly_point_;
 
   T_WA_ = origin_ * T_EA_;
+  
+  result_.spiral_origin.position.x = T_WA_.translation()(0);
+  result_.spiral_origin.position.y = T_WA_.translation()(1);
+  result_.spiral_origin.position.z = T_WA_.translation()(2);
+  Eigen::Quaterniond temp(T_WA_.linear());
+  result_.spiral_origin.orientation.x = temp.x();
+  result_.spiral_origin.orientation.y = temp.y();
+  result_.spiral_origin.orientation.z = temp.z();
+  result_.spiral_origin.orientation.w = temp.w();
 
-  // ori_change_dir_ = 0;
   is_first_ = true;
-  // ori_duration_ = 0.5; //1.0
 
-  std::cout << "sprial origin: " << init_pos_.transpose() << std::endl;
   std::cout << "mode_ : " << mode_ << std::endl;
   
   if (mode_ == 1)
@@ -84,9 +86,11 @@ void AssembleSpiralActionServer::goalCallback()
   if (mode_ == 2)
     std::cout << "dual peg in hole" << std::endl;
 
-  if (save_sprial_data.is_open())
-    save_sprial_data.close();
+  if (save_sprial_data.is_open())    save_sprial_data.close();
+  if(force_spiral_cmd.is_open())  force_spiral_cmd.close();
+
   save_sprial_data.open("save_sprial_data.txt");
+  force_spiral_cmd.open("force_spiral_cmd.txt");
 
   control_running_ = true;
 
@@ -150,10 +154,9 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
     setAborted();
   }
 
-
-
   f_star = PegInHole::generateSpiralEE(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_EA_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
-  f_star = T_WA_.linear() * (f_star + force_compensation_);
+  // f_star = T_WA_.linear() * (f_star + force_compensation_);
+  f_star = T_WA_.linear()*f_star;
 
   //signle peg in hole
   if (mode_ == 1)
@@ -162,7 +165,6 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
     m_star = m_star + T_WA_.linear()*moment_compensation_;
   }
     
-
   //dual peg in hole
   if (mode_ == 2)
   {
@@ -258,11 +260,14 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
 void AssembleSpiralActionServer::setSucceeded()
 {
-  as_.setSucceeded();
+  //result_.is_completed = true;
+  as_.setSucceeded(result_);
   control_running_ = false;
 }
 void AssembleSpiralActionServer::setAborted()
 {
-  as_.setAborted();
+  // result_.is_completed = true;
+  as_.setAborted(result_);
   control_running_ = false;
 }
+

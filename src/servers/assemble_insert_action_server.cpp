@@ -71,6 +71,7 @@ void AssembleInsertActionServer::goalCallback()
   ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
   ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
   ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+
   T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
   T_EA_.translation() = ee_to_assembly_point_;
  
@@ -135,10 +136,14 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_))
   {
     std::cout<<"INSERTION IS DONE"<<std::endl;
+    savePosture();
     setSucceeded();
   }
 
-  f_star = PegInHole::pressEE(origin_, current_, xd, insertion_force_, T_EA_);
+  Eigen::Vector3d m_press;
+  f_star = PegInHole::pressEE(insertion_force_); //w.r.t {A}
+  m_press = T_EA_.translation().cross(f_star); //w.r.t {A}
+
   f_star = T_WA_.linear()*f_star;
 
   if(wiggle_motion_ && yawing_motion_)
@@ -167,6 +172,8 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   else  m_star = keepCurrentOrientation(init_rot_, rotation, xd, 1, 0.01);
 
+  m_star = m_star + current_.linear()*m_press;
+
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
   
@@ -182,11 +189,25 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
 void AssembleInsertActionServer::setSucceeded()
 {
-  as_.setSucceeded();
+  as_.setSucceeded(result_);
   control_running_ = false;
 }
 void AssembleInsertActionServer::setAborted()
 {
-  as_.setAborted();
+  as_.setAborted(result_);
   control_running_ = false;
+}
+
+void AssembleInsertActionServer::savePosture()
+{
+  current_;
+  
+  result_.end_pose.position.x = current_.translation()(0);
+  result_.end_pose.position.y = current_.translation()(1);
+  result_.end_pose.position.z = current_.translation()(2);
+  Eigen::Quaterniond temp(current_.linear());
+  result_.end_pose.orientation.x = temp.x();
+  result_.end_pose.orientation.y = temp.y();
+  result_.end_pose.orientation.z = temp.z();
+  result_.end_pose.orientation.w = temp.w();
 }

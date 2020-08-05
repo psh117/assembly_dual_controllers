@@ -76,4 +76,8 @@ bool reachGoal3D(const Eigen::Vector3d &p,
                  const double threshold,
                  const Eigen::Isometry3d &T_wa = Eigen::Isometry3d::Identity());
 
+bool reachGoal2D(const Eigen::Vector3d &p,
+                           const Eigen::Vector3d &q,
+                           const double threshold,
+                           const Eigen::Isometry3d &T_wa = Eigen::Isometry3d::Identity());
 }; 

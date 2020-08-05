@@ -22,8 +22,11 @@ struct FrankaModelUpdater
   Eigen::Matrix<double, 7, 1> qd_;
   Eigen::Matrix<double, 7, 1> tau_measured_;
   Eigen::Matrix<double, 7, 1> tau_desired_read_;
+  Eigen::Matrix<double, 7, 1> tau_contact_;
+  Eigen::Matrix<double, 7, 1> tau_contact_filtered_;
   Eigen::Matrix<double, 6, 1> f_measured_;
   Eigen::Matrix<double, 6, 1> f_measured_filtered_;
+  Eigen::Matrix<double, 6, 1> f_contact_;
   Eigen::Matrix<double, 7, 1> gravity_;
   Eigen::Matrix<double, 6, 7> jacobian_;
   Eigen::Matrix<double, 7, 6> jacobian_bar_; ///< dynamically consistent inverse

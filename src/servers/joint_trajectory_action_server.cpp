@@ -202,10 +202,10 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
   feedback_.header.seq=feedback_header_stamp_;
   feedback_header_stamp_++;
   
-  std::cout << "s_idx : "  << start_index << std::endl;
-  std::cout << "q : " << arm.q_.transpose() << std::endl;
-  std::cout << "qd: " << q_desired.transpose() << std::endl;
-  std::cout << "dt: " << desired_torque.transpose() << std::endl;
+  // std::cout << "s_idx : "  << start_index << std::endl;
+  // std::cout << "q : " << arm.q_.transpose() << std::endl;
+  // std::cout << "qd: " << q_desired.transpose() << std::endl;
+  // std::cout << "dt: " << desired_torque.transpose() << std::endl;
   
   // as_.publishFeedback(feedback_);
 

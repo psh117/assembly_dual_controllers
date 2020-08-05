@@ -33,20 +33,14 @@ class AssembleApproachActionServer : public ActionServerBase
   void preemptCallback() override;
 
   Eigen::Matrix<double, 6, 1> f_measured_;
-  Eigen::Matrix<double, 6, 1> desired_xd_;
-  Eigen::Vector3d desired_x_;
-  Eigen::Matrix<double, 7, 6> j_inverse_;
-
-  Eigen::Vector3d init_pos_;
-  Eigen::Matrix3d init_rot_;
 
   Eigen::Isometry3d origin_;
   Eigen::Isometry3d current_;
 
-  Eigen::Vector3d ee_to_assembly_point_,w_to_d_point_;
-  Eigen::Quaterniond ee_to_assembly_quat_,w_to_d_quat;
+  Eigen::Vector3d ee_to_assembly_point_;
+  Eigen::Quaterniond ee_to_assembly_quat_;
 
-  Eigen::Isometry3d T_EA_, T_WA_, T_WD_, T_AD_;
+  Eigen::Isometry3d T_EA_, T_WA_;
 
   Eigen::Vector3d tilt_axis_;
 
@@ -73,6 +67,7 @@ class AssembleApproachActionServer : public ActionServerBase
 
   int count_;
   Eigen::Vector6d accumulated_wrench_;
+  Eigen::Vector6d accumulated_wrench_a_;
   geometry_msgs::Wrench wrench_rtn_;
 
 
@@ -81,6 +76,8 @@ class AssembleApproachActionServer : public ActionServerBase
 
   std::ofstream force_moment;
   std::ofstream force_moment_lpf;
+  std::ofstream contact_force;
+
 
 
 public:

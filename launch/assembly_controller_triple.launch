@@ -34,4 +34,8 @@
     <rosparam command="load" file="$(find assembly_dual_controllers)/config/assembly_dual_controllers.yaml" />
     <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"  args="assembly_dual_controller"/>
   </group>
+
+  <param name="robot_description" command="$(find xacro)/xacro.py '$(find assembly_env_description)/robots/assembly_env.urdf.xacro'" />
+  <include file="$(find assembly_moveit_config)/launch/planning_context.launch"/>
+  
 </launch>

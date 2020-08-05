@@ -18,34 +18,55 @@ class AssembleVerifyActionServer : public ActionServerBase
     assembly_msgs::AssembleVerifyCompletionResult result_;
     assembly_msgs::AssembleVerifyCompletionGoalConstPtr goal_;
 
+    enum STATE
+    {
+      READY,
+      FORWARD,
+      BACKWARD
+    };
+
     void goalCallback() override;
     void preemptCallback() override;
 
-    Eigen::Matrix<double, 6, 1> f_measured_;
-    Eigen::Matrix<double, 6, 1> desired_xd_;
-        
-    Eigen::Matrix<double, 3, 3> init_rot_;
-    Eigen::Vector3d origin_;
+    Eigen::Isometry3d origin_, current_;
+    Eigen::Isometry3d T_EA_, T_WA_;
+    
+    Eigen::Vector3d ee_to_assembly_point_;
+    Eigen::Quaterniond ee_to_assembly_quat_;
+    Eigen::Vector3d spiral_origin_;
+    
+    bool is_mode_changed_;
+    int search_index_;
+    int cnt_;
+    
+    Eigen::Vector3d target_;    
+    Eigen::Vector2d search_dir_;
+    Eigen::Vector2d detect_object_;
+    Eigen::Vector3d f_init_;
 
-    std::vector<double> mx_;
-    std::vector<double> my_;
-    std::vector<double> mz_;
-
+    STATE state_;
+    
+    //--------------------------------------    
     double threshold_; //0.8
-    double range_; //5*M_PI/180
+    double search_range_;
+    double search_duration_;
+    double angle_range_; //5*M_PI/180
     int mode_;
     int swing_dir_;
 
     // !!! DO NOT USE RAW POINTER OF FILE !!!
     // FILE *save_data_fm;
+    std::ofstream verify_pr_data;
+    std::ofstream verify_ft_data;
 
 public:
   AssembleVerifyActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);
-
   bool compute(ros::Time time) override;
-  bool computeArm(ros::Time time, FrankaModelUpdater &arm);
-  //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
+  Eigen::Vector2d setSearchDirection(const Eigen::Vector3d &spiral_origin, const Eigen::Vector3d &start_point, const Eigen::Isometry3d &T_WA);
 
-  void saveMoment(const Eigen::Vector3d m);
+private:
+  bool computeArm(ros::Time time, FrankaModelUpdater &arm);
+  void setSucceeded();
+  void setAborted();
 };

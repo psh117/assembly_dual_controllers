@@ -27,13 +27,8 @@ void AssembleApproachActionServer::goalCallback()
 
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
   f_measured_.setZero();
-  desired_xd_.setZero();
   
-  init_pos_ = mu_[goal_->arm_name]->position_;  
-  init_rot_ = mu_[goal_->arm_name]->rotation_;
-
   origin_ = mu_[goal_->arm_name]->transform_;  
-
   contact_force_ = goal_->contact_force;
   
   descent_speed_ = goal_ ->descent_speed;  
@@ -43,9 +38,6 @@ void AssembleApproachActionServer::goalCallback()
   state_ = (ASSEMBLY_STATE)goal_->state;
   set_tilt_ = goal_->set_tilt;
 
-  std::cout<<"tilt_angle: "<<tilt_angle_<<std::endl;
-  std::cout<<"tilt_duration: "<<tilt_duration_<<std::endl;
-
   ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
   ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
   ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
@@ -54,25 +46,14 @@ void AssembleApproachActionServer::goalCallback()
   ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
   ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
-  w_to_d_point_(0) = goal_->w_to_d.position.x;
-  w_to_d_point_(1) = goal_->w_to_d.position.y;
-  w_to_d_point_(2) = goal_->w_to_d.position.z;
-  w_to_d_quat.x() = goal_->w_to_d.orientation.x;
-  w_to_d_quat.y() = goal_->w_to_d.orientation.y;
-  w_to_d_quat.z() = goal_->w_to_d.orientation.z;
-  w_to_d_quat.w() = goal_->w_to_d.orientation.w;
   tilt_back_threshold_ = goal_ -> tilt_back_threshold;
-
+  //TODO : delete T_WD_, T_AD_
   T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
   T_EA_.translation() = ee_to_assembly_point_;
-  T_WD_.linear() = w_to_d_quat.toRotationMatrix();
-  T_WD_.translation() = w_to_d_point_;
 
   tilt_axis_ = getTiltDirection(T_EA_);
 
   T_WA_ = origin_*T_EA_;
-  T_AD_ = T_WA_.inverse() * T_WD_;
-
 
   is_ready_first_ = true;
   is_approach_first_ = true;
@@ -80,24 +61,27 @@ void AssembleApproachActionServer::goalCallback()
 
   if(force_moment.is_open())  force_moment.close();
   if(force_moment_lpf.is_open()) force_moment_lpf.close();
-    
+  if(contact_force.is_open()) contact_force.close();
+
   force_moment.open("fm_approach_data.txt");
   force_moment_lpf.open("fm_approach_data_lfp.txt");
+  contact_force.open("contact_force.txt");
 
   control_running_ = true;
 
+  std::cout<<"APPROACH START"<<std::endl;
   std::cout<<"set tilt: "<<set_tilt_<<std::endl;
-  std::cout<<"state_: "<<state_<<std::endl;
-
-  std::cout<<"T_EA_: \n"<< T_EA_.matrix()<<std::endl;
-  std::cout<<"T_WA_: \n"<< T_WA_.matrix()<<std::endl;
-  std::cout<<"T_WD: \n"<<T_WD_.matrix()<<std::endl;
-  std::cout<<"T_AD_: \n"<< T_AD_.matrix()<<std::endl;
-  std::cout<<"ASSEMBLY_FRAM_POSITION: "<<T_WA_.translation().transpose()<<std::endl;
-  std::cout<<"contact_threshold: "<<contact_force_<<std::endl;
-  std::cout<<"tilt_back_threshold: "<<tilt_back_threshold_<<std::endl;
-  std::cout<<"descent speed: "<< descent_speed_<<std::endl;
-  std::cout<<goal_->arm_name<<std::endl;
+  // std::cout<<"state_: "<<state_<<std::endl;
+  std::cout<<"tilt_angle: "<<tilt_angle_<<std::endl;
+  // std::cout<<"tilt_duration: "<<tilt_duration_<<std::endl;
+  // std::cout<<"T_EA_: \n"<< T_EA_.matrix()<<std::endl;
+  // std::cout<<"T_WA_: \n"<< T_WA_.matrix()<<std::endl;
+  // std::cout<<"init_rot: \n"<< origin_.linear()<<std::endl;
+  // std::cout<<"ASSEMBLY_FRAM_POSITION: "<<T_WA_.translation().transpose()<<std::endl;
+  // std::cout<<"contact_threshold: "<<contact_force_<<std::endl;
+  // std::cout<<"tilt_back_threshold: "<<tilt_back_threshold_<<std::endl;
+  // std::cout<<"descent speed: "<< descent_speed_<<std::endl;
+  // std::cout<<goal_->arm_name<<std::endl;
 
   accumulated_wrench_.setZero();
   count_ = 0;
@@ -161,15 +145,15 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
     if(count_ >= cnt_max)
     {
       count_ = cnt_max;
-      accumulated_wrench_.head<3>() = T_WA_.linear().inverse() * accumulated_wrench_.head<3>();
-      accumulated_wrench_.tail<3>() = T_WA_.linear().inverse() * accumulated_wrench_.tail<3>();
+      accumulated_wrench_a_.head<3>() = T_WA_.linear().inverse() * accumulated_wrench_.head<3>();
+      accumulated_wrench_a_.tail<3>() = T_WA_.linear().inverse() * accumulated_wrench_.tail<3>();
       std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
-      wrench_rtn_.force.x = accumulated_wrench_(0);
-      wrench_rtn_.force.y = accumulated_wrench_(1);
-      wrench_rtn_.force.z = accumulated_wrench_(2);
-      wrench_rtn_.torque.x = accumulated_wrench_(3);
-      wrench_rtn_.torque.y = accumulated_wrench_(4);
-      wrench_rtn_.torque.z = accumulated_wrench_(5);
+      wrench_rtn_.force.x = accumulated_wrench_a_(0);
+      wrench_rtn_.force.y = accumulated_wrench_a_(1);
+      wrench_rtn_.force.z = accumulated_wrench_a_(2);
+      wrench_rtn_.torque.x = accumulated_wrench_a_(3);
+      wrench_rtn_.torque.y = accumulated_wrench_a_(4);
+      wrench_rtn_.torque.z = accumulated_wrench_a_(5);
       result_.compensation = wrench_rtn_;
     } 
   }
@@ -210,7 +194,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
 
       run_time = time.toSec() - approach_star_time_;
 
-      if (run_time > 0.5 && Criteria::checkContact(f_lpf.head<3>(), T_WA_, contact_force_))
+      if (run_time > 0.5 && Criteria::checkContact(f_lpf.head<3>() - accumulated_wrench_.head<3>(), T_WA_, contact_force_))
       {
         if (set_tilt_back_)
           state_ = TILT_BACK;
@@ -230,7 +214,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
       f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_EA_, descent_speed_, time.toSec(), approach_star_time_);
       f_star = T_WA_.linear() * f_star;
 
-      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 400, 5);
 
       force_moment << f_measured_.transpose() << std::endl;
       force_moment_lpf << f_lpf.transpose() << std::endl;
@@ -239,13 +223,17 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
 
     case TILT_BACK:
 
-      f_contact = T_WA_.linear().inverse()*f_lpf.head<3>() - accumulated_wrench_.head<3>();
+      // f_contact = T_WA_.linear().inverse()*f_lpf.head<3>() + accumulated_wrench_.head<3>();
+
       if (is_tilt_back_first_)
       {
         tilt_start_time_ = time.toSec();
+        origin_ = arm.transform_;
         is_tilt_back_first_ = false;
         std::cout << "TILT BACK" << std::endl;
       }
+
+      run_time = time.toSec() - tilt_start_time_;
 
       if (timeOut(time.toSec(), tilt_start_time_, tilt_duration_))
       {
@@ -253,10 +241,12 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         setSucceeded();
       }
 
-      if (Criteria::checkForceLimit(f_contact, tilt_back_threshold_))
+
+      // if (run_time > 0.5 && Criteria::checkForceLimit(f_contact, tilt_back_threshold_))
+      if (run_time > 0.5 && Criteria::checkContact(f_lpf.head<3>() - accumulated_wrench_.head<3>(), T_WA_, tilt_back_threshold_))
       {
         std::cout << "TILT BACK REACHED FORCE LIMIT" << std::endl;
-        std::cout<<"f_contact: "<<f_contact.transpose()<<std::endl;
+        std::cout<<"tilt_back_threshold_: "<<tilt_back_threshold_<<std::endl;
         setSucceeded();
       }
 
@@ -264,11 +254,14 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
       m_star = PegInHole::tiltMotion(origin_, current_, xd, T_EA_, tilt_axis_, -tilt_angle_, time.toSec(), tilt_start_time_, tilt_duration_).tail<3>();
       force_moment << f_measured_.transpose() << std::endl;
       force_moment_lpf << f_lpf.transpose() << std::endl;
+      contact_force << f_contact.transpose()<<std::endl;
 
       break;
 
     case IGNORE:
       std::cout << "move to the next step" << std::endl;
+      f_star = PegInHole::keepCurrentPosition(origin_, current_, xd);
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd);
       setSucceeded();
       break;
     }

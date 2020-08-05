@@ -936,8 +936,8 @@ Eigen::Vector6d PegInHole::tiltMotion(const Eigen::Isometry3d origin, const Eige
   p_e = T_ea.linear() * p_a + T_ea.translation();
   R_e = dyros_math::angleaxis2rot(T_ea.linear() * tilt_axis, tilt_angle);
 
-  K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
-  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
+  K_p << 3000, 0, 0, 0, 3000, 0, 0, 0, 3000;
+  K_v << 100, 0, 0, 0, 100, 0, 0, 0, 100;
 
   pos_init = origin.translation();
   position = current.translation();
@@ -991,7 +991,7 @@ Eigen::Vector3d PegInHole::straightMotionEE(const Eigen::Isometry3d &origin,
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d f_a;
 
-  K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 2500;
+  K_p << 7000, 0, 0, 0, 7000, 0, 0, 0, 7000;
   K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
 
 
@@ -1041,8 +1041,8 @@ Eigen::Vector3d PegInHole::approachComponentEE(const Eigen::Isometry3d &origin,
 
   asm_dir_a << 0.0, 0.0, 1.0; // always z - axis wrt {A}
 
-  K_p << 7500, 0, 0, 0, 7500, 0, 0, 0, 7500;
-  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
+  K_p << 6500, 0, 0, 0, 6500, 0, 0, 0, 6500;
+  K_v << 100, 0, 0, 0, 100, 0, 0, 0, 100;
 
   v_cmd_a = speed * asm_dir_a;
   
@@ -1132,8 +1132,8 @@ Eigen::Vector3d PegInHole::threeDofMoveEE(const Eigen::Isometry3d &origin,
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d f_a;
 
-  K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 2500;
-  K_v << 200, 0, 0, 0, 200, 0, 0, 0, 50;
+  K_p << 3000, 0, 0, 0, 3000, 0, 0, 0, 3000;
+  K_v << 100, 0, 0, 0, 100, 0, 0, 0, 100;
 
   T_wa = origin * T_ea;
   p_init_a = T_ea.inverse().translation();
@@ -1237,49 +1237,13 @@ Eigen::Vector3d PegInHole::keepCurrentPosition(const Eigen::Isometry3d &origin,
   return f_star;
 }
 
-Eigen::Vector3d PegInHole::pressEE(const Eigen::Isometry3d &origin,
-                                   const Eigen::Isometry3d &current,
-                                   const Eigen::Ref<const Eigen::Vector6d>& xd,
-                                   const double force,
-                                   const Eigen::Isometry3d &T_ea) //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+Eigen::Vector3d PegInHole::pressEE(const double force)
+                                   
 {
-  Eigen::Vector3d f_motion, f_asm, f_a; // wrt {A}
+  Eigen::Vector3d asm_dir, f_a;
 
-  Eigen::Vector3d p_cmd_a, p_cur_a, p_cur_w, p_cmd_w;
-  Eigen::Vector3d v_cur_a;
-
-  Eigen::Matrix3d K_p, K_v;
-  Eigen::Isometry3d T_wa;
-  Eigen::Vector3d asm_dir;
-
-  K_p = Eigen::Matrix3d::Identity() * 5000;
-  K_v = Eigen::Matrix3d::Identity() * 200;
-  asm_dir = T_ea.linear().col(2);
-
-  T_wa = origin * T_ea; //T_WA
-
-  p_cmd_a.setZero();
-
-  p_cmd_a = T_ea.inverse().translation();
-
-  // p_cur_w = (current * T_ea).translation() - T_wa.translation(); // T_we * T_ea - p_wa
-  // p_cur_a = T_wa.linear().transpose() * p_cur_w;
-
-  p_cur_a = (T_wa.inverse() * current).translation();
-
-  v_cur_a = T_wa.linear().transpose() * xd.head<3>();
-
-  f_motion = K_p * (p_cmd_a - p_cur_a) + K_v * (-v_cur_a); // <fx, fy, fz>
-  f_asm << 0.0, 0.0, force;                                //<0, 0, fz>
-
-  f_a(0) = f_motion(0);
-  f_a(1) = f_motion(1);
-  f_a(2) = f_asm(2);
-
-  // std::cout<<"--------------------------"<<std::endl;
-  // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
-  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
-  // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
+  asm_dir = Eigen::Vector3d::UnitZ();
+  f_a = asm_dir*force;
 
   return f_a;
 }
@@ -1305,8 +1269,8 @@ Eigen::Vector3d PegInHole::generateSpiralEE(const Eigen::Isometry3d &origin,
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d asm_dir;
 
-  K_p = Eigen::Matrix3d::Identity() * 5000;
-  K_v = Eigen::Matrix3d::Identity() * 200;
+  K_p = Eigen::Matrix3d::Identity() * 3000;
+  K_v = Eigen::Matrix3d::Identity() * 100;
   asm_dir = T_ea.linear().col(2); //w.r.t {E}
 
   start_point.setZero();
@@ -1435,23 +1399,24 @@ Eigen::Vector3d PegInHole::generateWiggleMotionEE(const Eigen::Isometry3d &origi
                                                   const double t_0)
 {
   Eigen::Isometry3d T_wa;
-  Eigen::Vector3d x_axis, y_axis;
+  Eigen::Vector3d x_axis, y_axis,z_axis;
   Eigen::Vector3d m_a, delphi_delta;
   Eigen::Matrix3d rot_init, rot;
-  Eigen::Matrix3d target_rot, target_rot_x, target_rot_y;
+  Eigen::Matrix3d target_rot, target_rot_x, target_rot_y, target_rot_z;
   Eigen::Vector3d v_cur_w, v_cur_a;
 
   T_wa = origin * T_ea;
 
   x_axis = Eigen::Vector3d::UnitX();
   y_axis = Eigen::Vector3d::UnitY();
+  z_axis = Eigen::Vector3d::UnitZ();
 
   double t_e;
   double theta1,theta2;
 
   t_e = t - t_0;
   theta1 = angle * sin(w * t_e);
-  theta2 = angle * cos(w*t_e);
+  theta2 = angle * cos(w * t_e);
 
   rot_init = T_wa.linear().transpose() * origin.linear(); //initial {E} wrt {A}
 
@@ -1459,7 +1424,8 @@ Eigen::Vector3d PegInHole::generateWiggleMotionEE(const Eigen::Isometry3d &origi
   // target_rot_y = dyros_math::angleaxis2rot(y_axis, theta2) * rot_init; //wrt {A}
   target_rot_x = dyros_math::angleaxis2rot(x_axis, theta1); //wrt {A}
   target_rot_y = dyros_math::angleaxis2rot(y_axis, theta2); //wrt {A}
-  target_rot = target_rot_x * target_rot_y * rot_init;
+  target_rot_z = dyros_math::angleaxis2rot(z_axis, theta1); //wrt {A}
+  target_rot = target_rot_x * target_rot_y * target_rot_z*rot_init;
 
   rot = T_wa.linear().transpose() * current.linear();
 
@@ -1467,7 +1433,7 @@ Eigen::Vector3d PegInHole::generateWiggleMotionEE(const Eigen::Isometry3d &origi
 
   delphi_delta = -0.5 * dyros_math::getPhi(rot, target_rot);
 
-  m_a = (1.0) * 50.0 * delphi_delta + 0.25 * (-v_cur_a);
+  m_a = (1.0) * 20.0 * delphi_delta + 0.01 * (-v_cur_a);
 
   Eigen::Vector3d euler_init, euler, euler_goal;
 
@@ -1674,7 +1640,8 @@ Eigen::Vector3d PegInHole::generateRotationSearchMotionEE(const Eigen::Isometry3
                                                           const double angle,
                                                           const double t,
                                                           const double t_0,
-                                                          const double duration)
+                                                          const double duration,
+                                                          const double pressing_force)
 {
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d f_a;
@@ -1685,7 +1652,7 @@ Eigen::Vector3d PegInHole::generateRotationSearchMotionEE(const Eigen::Isometry3
   double dis;
   double force;
 
-  force = 4.0;
+  force = pressing_force;
     
   K_p = Eigen::Matrix3d::Identity() * 5000;
   K_v = Eigen::Matrix3d::Identity() * 200;
@@ -1698,10 +1665,12 @@ Eigen::Vector3d PegInHole::generateRotationSearchMotionEE(const Eigen::Isometry3
 
   dis = sqrt(pow(p_init_a(0),2) + pow(p_init_a(1),2));
 
-  // p_cmd_a(0) = dis*sin(theta);
-  // p_cmd_a(1) = dis*cos(theta);
-  // p_cmd_a(2) = p_init_a(2);  
-  p_cmd_a = dyros_math::rotateWithZ(theta)*p_init_a;
+  p_cmd_a(0) = dis*sin(theta);
+  p_cmd_a(1) = dis*cos(theta);
+  p_cmd_a(2) = p_init_a(2);  
+  // p_cmd_a = dyros_math::rotateWithZ(theta)*p_init_a;
+
+  // p_cmd_a = p_init_a + p_cmd_a;
   p_cur_a = (T_wa.inverse() * current).translation();
 
   // p_cmd_w = T_wa*p_cmd_a;

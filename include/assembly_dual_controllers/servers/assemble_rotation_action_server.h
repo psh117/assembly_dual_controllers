@@ -22,18 +22,17 @@ class AssembleRotationActionServer : public ActionServerBase
     void preemptCallback() override;
 
     Eigen::Matrix<double, 6, 1> f_measured_;
-    Eigen::Matrix<double, 6, 1> desired_xd_;
-        
-    Eigen::Vector3d init_pos_;
-    Eigen::Matrix3d init_rot_;
-
+    
     Eigen::Isometry3d origin_;
     Eigen::Isometry3d current_;
 
     Eigen::Vector3d ee_to_assembly_point_;
     Eigen::Quaterniond ee_to_assembly_quat_;
 
-    Eigen::Isometry3d T_EA_, T_WA_;
+    Eigen::Vector3d ee_to_pivot_point_;
+    Eigen::Quaterniond ee_to_pivot_quat_;
+
+    Eigen::Isometry3d T_EA_, T_WA_, T_EP_, T_WP_;
 
     double f_threshold_;
     double range_; //5*M_PI/180
@@ -45,6 +44,7 @@ class AssembleRotationActionServer : public ActionServerBase
     double duration_;
 
     std::ofstream fm_rotation_search;
+    std::ofstream fm_rotation_search_lpf;
     std::ofstream pr_rotation_search;
 
 public:

@@ -66,9 +66,19 @@ void AssembleDualSpiralActionServer::goalCallback()
   save_sprial_data.open("save_sprial_data.txt");
 
   control_running_ = true;
+  
+  result_.spiral_origin.position.x = T_WA_.translation()(0);
+  result_.spiral_origin.position.y = T_WA_.translation()(1);
+  result_.spiral_origin.position.z = T_WA_.translation()(2);
+  Eigen::Quaterniond temp(T_WA_.linear());
+  result_.spiral_origin.orientation.x = temp.x();
+  result_.spiral_origin.orientation.y = temp.y();
+  result_.spiral_origin.orientation.z = temp.z();
+  result_.spiral_origin.orientation.w = temp.w();
 
   std::cout<<"pressing_force: "<<pressing_force_<<std::endl;
   std::cout<<"spiral pitch : "<<pitch_<<std::endl;
+  std::cout<<"save the spiral origin: \n"<<result_.spiral_origin<<std::endl;
 }
 
 void AssembleDualSpiralActionServer::preemptCallback()
@@ -179,29 +189,17 @@ bool AssembleDualSpiralActionServer::computeAssistArm(ros::Time time, FrankaMode
 
   f_star = PegInHole::keepCurrentPosition(assist_arm_origin_, assist_arm_current_, xd, 5000, 100);
   m_star = PegInHole::keepCurrentOrientation(assist_arm_origin_, assist_arm_current_, xd, 200, 5);
-  // std::cout<<"origin: "<<assist_arm_origin_.translation().transpose()<<std::endl;
-  // std::cout<<"current: "<<assist_arm_current_.translation().transpose()<<std::endl;
-  // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
-  // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
+
   T_AA = assist_arm_current_.inverse()*T_WA_;
-  
-  // for(int i = 0; i < 2; i ++)
-  // {
-  //   for(int j = 0; j < 3; j++)
-  //   {
-  //     reaction_force(i) += T_AA.linear()(i,j)*f_lpf(j); // inner product
-  //   }
-  // }
   
   reaction_force = assist_arm_current_.linear().inverse()*f_lpf.head<3>();
 
-  // std::cout<<"reaction force: "<<reaction_force.transpose()<<std::endl;
   reaction_force_sum = sqrt(pow(reaction_force(0),2) + pow(reaction_force(1),2));
   if(time.toSec() > arm.task_start_time_.toSec() + 5.0)
   {
     if(checkForceLimit(reaction_force_sum, friction_))
     {
-      as_.setSucceeded();
+      setSucceeded();
       std::cout<<"HOLE IS DETECTED!"<<std::endl;
       std::cout<<"reaction_force: "<<reaction_force.transpose()<<std::endl;  
     }
@@ -222,11 +220,13 @@ bool AssembleDualSpiralActionServer::computeAssistArm(ros::Time time, FrankaMode
 
 void AssembleDualSpiralActionServer::setSucceeded()
 {
-  as_.setSucceeded();
+  result_.is_completed = true;
+  as_.setSucceeded(result_);
   control_running_ = false;
 }
 void AssembleDualSpiralActionServer::setAborted()
 {
-  as_.setAborted();
+  // result_.is_completed = true;
+  as_.setAborted(result_);
   control_running_ = false;
 }

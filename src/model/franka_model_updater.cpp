@@ -50,6 +50,7 @@ void FrankaModelUpdater::updateModel()
   jacobian_ = Eigen::Map<Eigen::Matrix<double, 6, 7>>(jacobian_array.data());
   tau_measured_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(robot_state.tau_J.data());
   tau_desired_read_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(robot_state.tau_J_d.data());
+  tau_contact_ = tau_measured_ - tau_desired_read_;
   gravity_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(gravity_array.data());
 
   transform_ = Eigen::Matrix4d::Map(model_handle_->getPose(franka::Frame::kEndEffector).data());
@@ -71,9 +72,15 @@ void FrankaModelUpdater::updateModel()
 
   for(int i=0; i<6; i++)
   {
-    f_measured_filtered_(i) = franka::lowpassFilter(0.001, f_measured_(i), f_measured_filtered_(i), 10.0);
+    f_measured_filtered_(i) = franka::lowpassFilter(0.001, f_measured_(i), f_measured_filtered_(i), 1.0);
   }
 
+  for(int i = 0; i < 7; i++)
+  {
+    tau_contact_filtered_(i) = franka::lowpassFilter(0.001, tau_contact_(i), tau_contact_filtered_(i), 1.0);
+  }
+
+  f_contact_ = jacobian_bar_.transpose()*(tau_contact_filtered_ - gravity_);
 
   printState();
 }
