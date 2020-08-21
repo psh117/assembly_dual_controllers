@@ -24,7 +24,7 @@ class AssembleTripleMoveActionServer : public ActionServerBase
   Eigen::Matrix<double, 6, 1> f_measured_;
 
   Eigen::Isometry3d left_arm_origin_, right_arm_origin_, top_arm_origin_;
-  Eigen::Vector3d target_pos;
+  Eigen::Vector3d left_target, right_target, top_target;
 
   double time_limit_;
   double duration_;
@@ -38,7 +38,7 @@ public:
                                  std::map<std::string, std::shared_ptr<FrankaModelUpdater>> &mu);
 
   bool compute(ros::Time time) override;
-  bool computeArm(ros::Time time, FrankaModelUpdater &arm, Eigen::Isometry3d origin);
+  bool computeArm(ros::Time time, FrankaModelUpdater &arm, Eigen::Isometry3d origin, Eigen::Vector3d target_pos);
 
 private:
   void setSucceeded();

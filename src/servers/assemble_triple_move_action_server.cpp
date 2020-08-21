@@ -15,7 +15,7 @@ void AssembleTripleMoveActionServer::goalCallback()
   feedback_header_stamp_ = 0;
   goal_ = as_.acceptNewGoal();
 
-  if (mu_.find("panda_left") != mu_.end() && mu_.find("panda_top") != mu_.end() && mu_.find("panada_right") != mu_.end())
+  if (mu_.find("panda_left") != mu_.end() && mu_.find("panda_right") != mu_.end())
   {
     ROS_INFO("AssembleDualApproachAction goal has been received.");
   }
@@ -27,19 +27,26 @@ void AssembleTripleMoveActionServer::goalCallback()
 
   left_arm_origin_ = mu_["panda_left"]->transform_;
   right_arm_origin_ = mu_["panda_right"]->transform_;
-  top_arm_origin_ = mu_["panda_top"]->transform_;
+  // top_arm_origin_ = mu_["panda_top"]->transform_;
 
   mu_["panda_left"]->task_start_time_ = ros::Time::now();
   mu_["panda_right"]->task_start_time_ = ros::Time::now();
-  mu_["panda_top"]->task_start_time_ = ros::Time::now();
+  // mu_["panda_top"]->task_start_time_ = ros::Time::now();
   f_measured_.setZero();
 
   duration_ = goal_->duration;
 
+  left_target = left_arm_origin_.translation();
+  right_target = right_arm_origin_.translation();
+  // top_target = top_arm_origin_.translation();
 
-  target_pos[0] = goal_->target_position.position.x;
-  target_pos[1] = goal_->target_position.position.y;
-  target_pos[2] = goal_->target_position.position.z;
+  left_target[2] += goal_->target_position.position.z;
+  right_target[2] += goal_->target_position.position.z;
+  // top_target[2] += goal_->target_position.position.z;
+  // target_pos[0] = goal_->target_position.position.x;
+  // target_pos[1] = goal_->target_position.position.y;
+  // target_pos[2] = goal_->target_position.position.z;
+  
   first_ = true;
 
   control_running_ = true;
@@ -66,11 +73,11 @@ bool AssembleTripleMoveActionServer::compute(ros::Time time)
   if (!as_.isActive())
     return false;
 
-  if (mu_.find("panda_left") != mu_.end() && mu_.find("panda_top") != mu_.end() && mu_.find("panada_right") != mu_.end())
+  if (mu_.find("panda_left") != mu_.end() && mu_.find("panda_right") != mu_.end())
   {
-    computeArm(time, *mu_["panda_left"], left_arm_origin_);
-    computeArm(time, *mu_["panda_right"], right_arm_origin_);
-    computeArm(time, *mu_["panda_top"], top_arm_origin_);
+    computeArm(time, *mu_["panda_left"], left_arm_origin_, left_target);
+    computeArm(time, *mu_["panda_right"], right_arm_origin_, right_target);
+    // computeArm(time, *mu_["panda_top"], top_arm_origin_, top_target);
     return true;
   }
   else
@@ -81,7 +88,7 @@ bool AssembleTripleMoveActionServer::compute(ros::Time time)
   return false;
 }
 
-bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm, Eigen::Isometry3d origin)
+bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm, Eigen::Isometry3d origin, Eigen::Vector3d target_pos)
 {
   if (!as_.isActive())
     return false;
@@ -98,20 +105,18 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
   Eigen::Matrix<double, 6, 1> f_star_zero;
-
-  f_measured_ = arm.f_measured_;
   
-
   if (first_)
   {
     motion_start_time_ = time.toSec();
     first_ = false;
   }
+  
   f_star = PegInHole::threeDofMove(origin, current_, target_pos, xd, time.toSec(), motion_start_time_, duration_);
   m_star = PegInHole::keepCurrentOrientation(origin, current_, xd, 200, 5);
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
-
+  // std::cout << "target: " << target_pos.transpose() << std::endl;
   // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
 
