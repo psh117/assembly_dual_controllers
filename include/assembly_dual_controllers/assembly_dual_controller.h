@@ -37,6 +37,7 @@
 #include <assembly_dual_controllers/servers/task_space_move_action_server.h>
 #include <assembly_dual_controllers/servers/idle_control_server.h>
 #include <assembly_dual_controllers/servers/assemble_probe_edge_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_triple_move_action_server.h>
 
 
 // #include <assembly_dual_controllers/single_peginhole_action_server.h>
@@ -81,6 +82,7 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   std::unique_ptr<AssembleBoltActionServer> assemble_bolt_action_server_;
   std::unique_ptr<TaskSpaceMoveActionServer> task_space_move_action_server_;
   std::unique_ptr<AssembleProbeEdgeActionServer> assemble_probe_edge_action_server_;
+  std::unique_ptr<AssembleTripleMoveActionServer> assemble_triple_move_action_server_;
   std::unique_ptr<IdleControlServer> idle_control_server_;
   
   std::map<std::string, std::shared_ptr<FrankaModelUpdater> >  arms_data_; ///< Holds all relevant data for both arms.

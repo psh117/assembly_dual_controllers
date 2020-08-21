@@ -168,6 +168,8 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/task_space_move", node_handle, arms_data_);
   assemble_probe_edge_action_server_ = std::make_unique<AssembleProbeEdgeActionServer>
   ("/assembly_dual_controller/assemble_probe_edge_control", node_handle, arms_data_);
+  assemble_triple_move_action_server_ = std::make_unique<AssembleTripleMoveActionServer>
+  ("/assembly_dual_controller/assemble_triple_move_control", node_handle, arms_data_);
   // assemble_dual_side_chair_recovery_action_server_ = std::make_unique<AssembleDualArmSideChairRecoveryActionServer>
   // ("/assembly_dual_controller/assemble_dual_side_chair_recovery_control", node_handle, arms_data_);
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
@@ -261,6 +263,8 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   idle_control_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_probe_edge_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+  assemble_triple_move_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   // assemble_dual_side_chair_recovery_action_server_->compute(time);
   // t[ctr_index++] = sb_.elapsedAndReset();
