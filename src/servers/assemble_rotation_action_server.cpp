@@ -115,15 +115,16 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
   auto & xd = arm.xd_; //velocity
   
   Eigen::Vector3d delphi_delta, f_star, m_star;
-  Eigen::Vector6d f_lpf, f_star_zero;
+  Eigen::Vector6d f_ext, f_ext_a, f_star_zero;
   Eigen::Vector3d moment_lpf_a;
   double dis;
   double run_time;  
-  double m_sum;
+  double friction, m_sum;
 
-  f_measured_ = arm.f_measured_;
-  f_lpf = arm.f_measured_filtered_;
-  moment_lpf_a = T_WA_.linear()*f_lpf.tail<3>();
+  f_ext = arm.f_ext_;
+  f_ext_a.head<3>() = T_WA_.linear().inverse()*f_ext.head<3>();
+  f_ext_a.tail<3>() = T_WA_.linear().inverse()*f_ext.tail<3>();
+  moment_lpf_a = T_WA_.linear()*f_ext.tail<3>();
   current_ = arm.transform_;
 
   dis = origin_.translation()(2) - current_.translation()(2);
@@ -135,12 +136,15 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
     is_first_ = false;
     std::cout<<"ROTATE TO SEARCH"<<std::endl;
   }
-  m_sum = sqrt(pow(moment_lpf_a(0),2) + pow(moment_lpf_a(1),2) + pow(moment_lpf_a(2),2));
-  if(m_sum > f_threshold_)
-  // if(Criteria::detectHole(origin_, current_, f_lpf.tail<3>(), T_WA_, f_threshold_))
+  m_sum = sqrt(pow(f_ext(3),2) + pow(f_ext(4),2) + pow(f_ext(5),2));
+  friction = sqrt(pow(f_ext_a(0),2) + pow(f_ext_a(1),2));
+
+  // if(run_time > 0.05 && m_sum > f_threshold_)
+  if(run_time > 0.05 && friction >= 8.0 && m_sum > f_threshold_)
+  // if(Criteria::detectHole(origin_, current_, f_ext.tail<3>(), T_WA_, f_threshold_))
   {
     std::cout<<"HOLE IS DETECTED"<<std::endl;
-    std::cout<<"moment_lpf_a(2): "<<moment_lpf_a(2)<<std::endl;
+    std::cout<<"m_sum(2): "<<m_sum<<std::endl;
     setSucceeded();
   }
 
@@ -153,7 +157,7 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
 
   if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_)) //duration wrong??
   { 
-    std::cout<<"No holes"<<std::endl;
+    std::cout<<"Time out"<<std::endl;
     setAborted();
   } 
 
@@ -166,10 +170,8 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
 
   m_press = T_EA_.translation().cross(f_press);
   m_star = PegInHole::tiltMotion(origin_, current_, xd, T_EP_, rot_axis, range_, time.toSec(), arm.task_start_time_.toSec(), duration_).tail<3>();
-  m_star = 0.70*m_star + current_.linear()*m_press;
+  m_star = 0.60*m_star + current_.linear()*m_press;
   
-  
-
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
   
@@ -180,8 +182,9 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
 
   arm.setTorque(desired_torque);
   
+
   fm_rotation_search << f_measured_.transpose() << std::endl;
-  fm_rotation_search_lpf << f_lpf.transpose() << std::endl;
+  fm_rotation_search_lpf << f_ext_a.transpose() << std::endl;
   pr_rotation_search << position.transpose() << std::endl;  
 
 

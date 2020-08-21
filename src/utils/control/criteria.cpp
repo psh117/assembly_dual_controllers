@@ -5,16 +5,16 @@ bool Criteria::reachGoal2D(const Eigen::Vector3d &p,
                            const Eigen::Isometry3d &T_wa)
 {
     //ignore the last component(insertion direction) of the vectors!! only 2d!
-    Eigen::Vector3d u,v;
+    Eigen::Vector3d u, v;
     double dis;
     bool result;
 
-    u = T_wa.linear()*p;
-    v = T_wa.linear()*q;
+    u = T_wa.linear() * p;
+    v = T_wa.linear() * q;
 
-    for(int i = 0; i < 2; i ++)
+    for (int i = 0; i < 2; i++)
     {
-        dis += pow(p(i)-q(i),2);
+        dis += pow(p(i) - q(i), 2);
     }
     dis = sqrt(dis);
 
@@ -29,16 +29,16 @@ bool Criteria::reachGoal3D(const Eigen::Vector3d &p,
                            const double threshold,
                            const Eigen::Isometry3d &T_wa)
 {
-    Eigen::Vector3d u,v;
+    Eigen::Vector3d u, v;
     double dis;
     bool result;
 
-    u = T_wa.linear()*p;
-    v = T_wa.linear()*q;
+    u = T_wa.linear() * p;
+    v = T_wa.linear() * q;
 
-    for(int i = 0; i < 3; i ++)
+    for (int i = 0; i < 3; i++)
     {
-        dis += pow(p(i)-q(i),2);
+        dis += pow(p(i) - q(i), 2);
     }
     dis = sqrt(dis);
 
@@ -63,10 +63,10 @@ bool Criteria::checkContact(const Eigen::Vector3d &force,
 
     if (contact_force >= threshold)
     {
-        std::cout<<"contact_force: "<<contact_force<<std::endl;
+        std::cout << "contact_force: " << contact_force << std::endl;
         result = true; //detect contact!
     }
-        
+
     else
         result = false;
 
@@ -86,12 +86,13 @@ bool Criteria::detectHole(const Eigen::Isometry3d &origin,
     f_a = T_wa.linear().inverse() * force;
     f = sqrt(pow(f_a(0), 2) + pow(f_a(1), 2)); // reaction force from X-Y plane wrt {A}
 
-    if(f >= friction)
+    if (f >= friction)
     {
         result = true;
-        std::cout<<"f_a: "<<f<<std::endl;
-    } 
-    else result = false;
+        std::cout << "f_a: " << f << std::endl;
+    }
+    else
+        result = false;
 
     return result;
 }
@@ -109,8 +110,13 @@ bool Criteria::detectObject(const Eigen::Isometry3d &origin,
     f_a = T_wa.linear().inverse() * force;
     f = sqrt(pow(f_a(0), 2) + pow(f_a(1), 2)); // reaction force from X-Y plane wrt {A}
 
-    if(f >= blocking_force)  result = true;
-    else result = false;
+    if (f >= blocking_force)
+    {
+        result = true;
+        // std::cout<<"f_detection : "<<f<<std::endl;
+    }
+    else
+        result = false;
 
     return result;
 }
@@ -129,9 +135,9 @@ bool Criteria::checkContact(const double current_force,
 }
 
 bool Criteria::checkDisplacement(const Eigen::Isometry3d &origin,
-                       const Eigen::Isometry3d &current,
-                       const Eigen::Isometry3d &T_wa,
-                       const double depth)  //0.270
+                                 const Eigen::Isometry3d &current,
+                                 const Eigen::Isometry3d &T_wa,
+                                 const double depth) //0.270
 {
     bool result;
     Eigen::Vector3d p, f_a;
@@ -145,44 +151,44 @@ bool Criteria::checkDisplacement(const Eigen::Isometry3d &origin,
     // if(dz )
 }
 
-bool Criteria::detectHole(const double origin,
-                const double current_position,
-                const double friction,
-                const double depth_threshold,
-                const double force_threshold)
-{
-    double dz;
-    bool result; // true = success, false = fail
+// bool Criteria::detectHole(const double origin,
+//                 const double current_position,
+//                 const double friction,
+//                 const double depth_threshold,
+//                 const double force_threshold)
+// {
+//     double dz;
+//     bool result; // true = success, false = fail
 
-    dz = origin - current_position;
+//     dz = origin - current_position;
 
-    // Keep considering conditions, which is || or &&
-    if (dz >= depth_threshold && friction >= force_threshold)
-    {
-        //std::cout<<"Z_l + F_L"<<std::endl;
-        result = true; //z_l + f_l
-    }
-    else if (dz >= depth_threshold && friction < force_threshold)
-    {
-        //std::cout<<"Z_l + F_s"<<std::endl;
-        result = true; //z_l + f_s
-    }
-    else if (dz < depth_threshold && friction >= force_threshold)
-    {
-        //std::cout<<"Z_s + F_l"<<std::endl;
-        //std::cout<<dz<<"    "<<friction<<std::endl;
-        result = true; //z_s + f_l
-    }
-    else
-        result = false; //z_s + f_s
-    return result;
-}
+//     // Keep considering conditions, which is || or &&
+//     if (dz >= depth_threshold && friction >= force_threshold)
+//     {
+//         //std::cout<<"Z_l + F_L"<<std::endl;
+//         result = true; //z_l + f_l
+//     }
+//     else if (dz >= depth_threshold && friction < force_threshold)
+//     {
+//         //std::cout<<"Z_l + F_s"<<std::endl;
+//         result = true; //z_l + f_s
+//     }
+//     else if (dz < depth_threshold && friction >= force_threshold)
+//     {
+//         //std::cout<<"Z_s + F_l"<<std::endl;
+//         //std::cout<<dz<<"    "<<friction<<std::endl;
+//         result = true; //z_s + f_l
+//     }
+//     else
+//         result = false; //z_s + f_s
+//     return result;
+// }
 
 double Criteria::judgeInsertion(const double origin,
-                      const double current_position,
-                      const double current_velocity,
-                      const double friction,
-                      const double target_depth)
+                                const double current_position,
+                                const double current_velocity,
+                                const double friction,
+                                const double target_depth)
 {
     double velocity_threshold = 0.01; // fix it later
     double force_threshold = 15.0;
@@ -248,7 +254,7 @@ bool Criteria::timeOut(const double current_time,
 }
 
 bool Criteria::checkForceLimit(const double f,
-                            const double threshold)
+                               const double threshold)
 {
     bool is_done;
 
@@ -261,11 +267,11 @@ bool Criteria::checkForceLimit(const double f,
 }
 
 bool Criteria::checkForceLimit(const Eigen::Vector3d &force,
-                                 const double threshold)
+                               const double threshold)
 {
     double f;
-    
-    f = sqrt(pow(force(0),2) + pow(force(1),2) + pow(force(2),2));
+
+    f = sqrt(pow(force(0), 2) + pow(force(1), 2) + pow(force(2), 2));
     // std::cout<<"current force: "<<force_sqrt_<<std::endl;
     // std::cout<<"threshold force: "<<threshold<<std::endl;
     if (f >= threshold)
@@ -275,10 +281,10 @@ bool Criteria::checkForceLimit(const Eigen::Vector3d &force,
 }
 
 bool Criteria::checkMomentLimit(const std::vector<double> m1,
-                      const std::vector<double> m2,
-                      const std::vector<double> m3,
-                      const int swing_dir,
-                      const double threshold)
+                                const std::vector<double> m2,
+                                const std::vector<double> m3,
+                                const int swing_dir,
+                                const double threshold)
 {
     bool is_done;
     int size;
@@ -303,8 +309,10 @@ bool Criteria::checkMomentLimit(const std::vector<double> m1,
 
     avg = sum / size;
 
-    if (avg >= threshold)   is_done = true;
-    else    is_done = false;
+    if (avg >= threshold)
+        is_done = true;
+    else
+        is_done = false;
 
     // std::cout<<"size : "<<size<<std::endl;
     // std::cout<<"sum : "<<sum<<std::endl;
@@ -312,6 +320,23 @@ bool Criteria::checkMomentLimit(const std::vector<double> m1,
     // std::cout<<"is_done : "<<is_done<<std::endl;
 
     return is_done;
+}
+
+bool Criteria::contactLossInProbing(const Eigen::Vector3d &vel,
+                                    const Eigen::Vector3d &obj_dir,
+                                    const double threshold)
+{
+    double selected_vel;
+    bool result;
+
+    selected_vel = abs(obj_dir.dot(vel));
+
+    if (selected_vel >= threshold)
+        result = true; // loss contact!
+    else
+        result = false;
+
+    return result;
 }
 
 //  double Criteria::fuzzyLogic(const double origin, const double vel, const double dis, const double force)

@@ -27,6 +27,7 @@ class AssembleProbeEdgeActionServer : public ActionServerBase
     READY,
     PROBE_ON_THE_EDGE,
     LOST_CONTACT,
+    RECOVER_CONTACT,
     COMPLETE,
     FAIL
   };
@@ -51,25 +52,30 @@ class AssembleProbeEdgeActionServer : public ActionServerBase
   Eigen::Isometry3d T_EA_, T_WA_;
 
   double contact_force_;
+  double contact_loss_threshold_;
   double attraction_force_;
   double probing_speed_;
 
   int probe_index_;
   int last_probe_index_;
   int dir_index_;
+  int count_;
 
   Eigen::Vector2d object_location_;
   Eigen::Vector3d probe_origin_;
   Eigen::Vector5d probing_sequence_;
   Eigen::Vector6d f_star_zero_;
-  Eigen::Vector6d f_star_lpf_;
-  Eigen::Vector6d f_star_lpf_prev_;
+  Eigen::Vector6d accumulated_wrench_;
+  Eigen::Vector6d init_force_ext_;
+  Eigen::Vector3d normal_vector_;
+  Eigen::Matrix3d selection_matrix_; // 1 = probing force direction, 0 = attraction force direction
+
   // !!! DO NOT USE RAW POINTER OF FILE !!!
   // FILE *force_moment_ee;
 
   std::ofstream probe_ft_data;
   std::ofstream probe_pr_data;
-  std::ofstream probe_ft_data_lpf;
+  std::ofstream probe_vel_data;
   std::ofstream probe_ft_cmd_data;
 
   bool is_mode_changed_;

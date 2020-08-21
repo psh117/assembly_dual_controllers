@@ -111,9 +111,9 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
   auto & xd = arm.xd_; //velocity
   
   Eigen::Vector3d f_star, m_star, f_contact;    
-  Eigen::Vector6d f_star_zero, f_lpf;
+  Eigen::Vector6d f_star_zero, f_ex;
   
-  f_lpf = arm.f_measured_filtered_;
+  f_ex = arm.f_ext_;
   current_ = arm.transform_;
 
   int cnt_max = 300;
@@ -122,7 +122,7 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
   { 
     f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 7500, 200, 300, 5).head<3>(); //w.r.t {W}
     m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 7500, 200, 300, 5).tail<3>();
-    if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, f_lpf, cnt_start, count_, cnt_max);    
+    if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, f_ex, cnt_start, count_, cnt_max);    
     count_++;
     if(count_ >= cnt_max)
     {
@@ -157,8 +157,8 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
       break;
 
     case APPROACH:
-      f_contact = T_WA_.linear().inverse()*f_lpf.head<3>() - accumulated_wrench_.head<3>();
-      // f_contact = T_WA_.linear().inverse() * (f_lpf.head<3>() - f_star);
+      f_contact = T_WA_.linear().inverse()*f_ex.head<3>() - accumulated_wrench_.head<3>();
+      // f_contact = T_WA_.linear().inverse() * (f_ex.head<3>() - f_star);
 
       if(is_approach_first_)
       {

@@ -39,10 +39,11 @@ class AssembleVerifyActionServer : public ActionServerBase
     int search_index_;
     int cnt_;
     
+    Eigen::Vector3d verify_origin_;
     Eigen::Vector3d target_;    
     Eigen::Vector2d search_dir_;
     Eigen::Vector2d detect_object_;
-    Eigen::Vector3d f_init_;
+    Eigen::Vector6d accumulated_wrench_;
 
     STATE state_;
     
@@ -50,10 +51,7 @@ class AssembleVerifyActionServer : public ActionServerBase
     double threshold_; //0.8
     double search_range_;
     double search_duration_;
-    double angle_range_; //5*M_PI/180
-    int mode_;
-    int swing_dir_;
-
+    
     // !!! DO NOT USE RAW POINTER OF FILE !!!
     // FILE *save_data_fm;
     std::ofstream verify_pr_data;

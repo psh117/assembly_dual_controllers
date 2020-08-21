@@ -74,7 +74,7 @@ add_library(assembly_controller_common_lib
   src/servers/assemble_side_chair_action_server.cpp
   src/servers/assemble_rotation_action_server.cpp
   src/servers/assemble_triple_recovery_action_server.cpp
-  src/servers/assemble_bolt_action_server.cpp
+  src/servers/assemble_approach_bolt_action_server.cpp
   src/servers/assemble_dual_spiral_action_server.cpp
   src/servers/assemble_dual_approach_action_server.cpp
   src/servers/assemble_probe_edge_action_server.cpp

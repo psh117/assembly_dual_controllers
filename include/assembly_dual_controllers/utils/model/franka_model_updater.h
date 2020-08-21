@@ -22,11 +22,8 @@ struct FrankaModelUpdater
   Eigen::Matrix<double, 7, 1> qd_;
   Eigen::Matrix<double, 7, 1> tau_measured_;
   Eigen::Matrix<double, 7, 1> tau_desired_read_;
-  Eigen::Matrix<double, 7, 1> tau_contact_;
-  Eigen::Matrix<double, 7, 1> tau_contact_filtered_;
-  Eigen::Matrix<double, 6, 1> f_measured_;
-  Eigen::Matrix<double, 6, 1> f_measured_filtered_;
-  Eigen::Matrix<double, 6, 1> f_contact_;
+  Eigen::Matrix<double, 7, 1> tau_ext_filtered_;
+  Eigen::Matrix<double, 6, 1> f_ext_;
   Eigen::Matrix<double, 7, 1> gravity_;
   Eigen::Matrix<double, 6, 7> jacobian_;
   Eigen::Matrix<double, 7, 6> jacobian_bar_; ///< dynamically consistent inverse
@@ -35,6 +32,7 @@ struct FrankaModelUpdater
   Eigen::Matrix<double, 3, 3> rotation_;
   Eigen::Isometry3d transform_;
   Eigen::Matrix<double, 6, 1> xd_;
+  Eigen::Matrix<double, 6, 1> xd_prev_;
   Eigen::Matrix<double, 7, 1> q_limit_center_;
 
   Eigen::Matrix<double, 7, 1> initial_q_;  ///< initial joint configuration for idle control

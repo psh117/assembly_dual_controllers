@@ -159,11 +159,10 @@ bool AssembleDualApproachActionServer::computeTaskArm(ros::Time time, FrankaMode
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
   Eigen::Matrix<double, 6, 1> f_star_zero;
-  Eigen::Vector6d f_lpf;
+  Eigen::Vector6d f_ext;
   double run_time;
 
-  f_measured_ = arm.f_measured_;
-  f_lpf = arm.f_measured_filtered_;
+  f_ext = arm.f_ext_;
   task_arm_current_ = arm.transform_;
 
   switch (state_)
@@ -199,7 +198,7 @@ bool AssembleDualApproachActionServer::computeTaskArm(ros::Time time, FrankaMode
 
     run_time = time.toSec() - approach_star_time_;
 
-    if (run_time > 0.05 && Criteria::checkContact(f_lpf.head<3>(), T_task_A_, contact_force_))
+    if (run_time > 0.05 && Criteria::checkContact(f_ext.head<3>(), T_task_A_, contact_force_))
     {
       if (set_tilt_back_)
         state_ = TILT_BACK;
@@ -221,10 +220,6 @@ bool AssembleDualApproachActionServer::computeTaskArm(ros::Time time, FrankaMode
     f_star = T_task_A_.linear() * f_star;
 
     m_star = PegInHole::keepCurrentOrientation(task_arm_origin_, task_arm_current_, xd, 200, 5);
-    // std::cout<<"f_star for approach: "<<f_star.transpose()<<std::endl;
-    force_moment << f_measured_.transpose() << std::endl;
-    force_moment_lpf << f_lpf.transpose() << std::endl;
-
     break;
 
   case TILT_BACK:
@@ -252,6 +247,14 @@ bool AssembleDualApproachActionServer::computeTaskArm(ros::Time time, FrankaMode
     break;
   }
 
+  // if(state_ == (ASSEMBLY_STATE) EXEC)
+  // {
+  //   Eigen::Vector6d f_contact;
+  //   f_contact.head<3>() = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_a_.head<3>();
+  //   f_contact.tail<3>() = T_WA_.linear().inverse()*f_ext.tail<3>() - accumulated_wrench_a_.tail<3>();
+  //   force_moment<< f_contact.transpose()<<std::endl;
+  // }
+
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
 
@@ -260,7 +263,7 @@ bool AssembleDualApproachActionServer::computeTaskArm(ros::Time time, FrankaMode
 
   // f_star_zero.setZero();
   // std::cout<<"f_measured: "<<f_measured_.transpose()<<std::endl;
-  // std::cout<<"f_filtered: "<<f_lpf.transpose()<<std::endl;
+  // std::cout<<"f_filtered: "<<f_ext.transpose()<<std::endl;
 
   Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
@@ -282,10 +285,9 @@ bool AssembleDualApproachActionServer::computeAssistArm(ros::Time time, FrankaMo
   auto &xd = arm.xd_; //velocity
 
   Eigen::Vector3d f_star, m_star;
-  Eigen::Vector6d f_star_zero, f_lpf;
+  Eigen::Vector6d f_star_zero, f_ext;
 
-  f_measured_ = arm.f_measured_;
-  f_lpf = arm.f_measured_filtered_;
+  f_ext = arm.f_ext_;
   assist_arm_current_ = arm.transform_;
 
   f_star = PegInHole::keepCurrentPosition(assist_arm_origin_, assist_arm_current_, xd, 5000, 100);

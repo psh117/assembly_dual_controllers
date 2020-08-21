@@ -30,6 +30,7 @@ void AssembleProbeEdgeActionServer::goalCallback()
   origin_ = mu_[goal_->arm_name]->transform_;  
 
   contact_force_ = goal_-> contact_force;
+  contact_loss_threshold_ = goal_ -> contact_loss_threshold;
   attraction_force_ = goal_-> attraction_force;
   object_location_(0) = goal_-> object_location.data[0];
   object_location_(1) = goal_-> object_location.data[1];
@@ -47,15 +48,15 @@ void AssembleProbeEdgeActionServer::goalCallback()
   T_EA_.translation() = ee_to_assembly_point_;
   
   T_WA_ = origin_*T_EA_;
-  
+ 
   if(probe_ft_data.is_open())     probe_ft_data.close();
-  if(probe_ft_data_lpf.is_open()) probe_ft_data_lpf.close();
   if(probe_pr_data.is_open())     probe_pr_data.close();
+  if(probe_vel_data.is_open())    probe_vel_data.close();
   if(probe_ft_cmd_data.is_open()) probe_ft_cmd_data.close();
     
   probe_ft_data.open("probe_ft_data.txt");
-  probe_ft_data_lpf.open("probe_ft_data_lpf.txt");
   probe_pr_data.open("probe_pr_data.txt");
+  probe_vel_data.open("probe_vel_data.txt");
   probe_ft_cmd_data.open("probe_ft_cmd_data.txt");
 
   state_ = PROBE_STATE::READY;
@@ -64,19 +65,16 @@ void AssembleProbeEdgeActionServer::goalCallback()
   dir_index_ = 0;
   last_probe_index_ = 4;
   probe_origin_ = origin_.translation();
-
+  probe_origin_(2) += 0.005;
   generateProbingSequence(object_location_);
-
-  f_star_lpf_.setZero();
-  f_star_lpf_prev_.setZero();
 
   control_running_ = true;
   
   std::cout<<"PROBING START"<<std::endl;
-  std::cout<<"object_location: "<<object_location_.transpose()<<std::endl;
-  std::cout<<"contact force: "<< contact_force_<<std::endl;
-  std::cout<<"attaction force: "<<attraction_force_<<std::endl;
-  std::cout<<"probing_speed: "<<probing_speed_<<std::endl;
+  // std::cout<<"object_location: "<<object_location_.transpose()<<std::endl;
+  // std::cout<<"contact force: "<< contact_force_<<std::endl;
+  // std::cout<<"attaction force: "<<attraction_force_<<std::endl;
+  // std::cout<<"probing_speed: "<<probing_speed_<<std::endl;
 }
 
 void AssembleProbeEdgeActionServer::preemptCallback()
@@ -118,24 +116,34 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
   auto & gravity = arm.gravity_;
   auto & xd = arm.xd_;
   
-  Eigen::Vector3d f_star, m_star;
-  Eigen::Vector3d f_att, f_prob, f_contact;
-  Eigen::Vector6d f_lpf;
-  Eigen::Vector3d obj_dir;
+  Eigen::Vector3d f_a, f_star, m_star;
+  Eigen::Vector3d f_att, f_prob;
+  Eigen::Vector6d f_ext, task_vel_a;
+  Eigen::Vector3d obj_dir, abs_normal_vector;
   double run_time;
   double speed;
   int dir;
 
-  f_lpf = arm.f_measured_filtered_;
-  f_contact = arm.f_contact_.head<3>();
-  
+  f_ext = arm.f_ext_;
   current_ = arm.transform_;
-  
+  task_vel_a.head<3>() = T_WA_.linear().inverse()*arm.xd_.head<3>();
+  task_vel_a.tail<3>() = T_WA_.linear().inverse()*arm.xd_.tail<3>();
+
   if(is_mode_changed_)
   {
     arm.task_start_time_ = time;
     origin_ = arm.transform_;
     is_mode_changed_ = false;
+
+    
+    normal_vector_ << updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)), 0;
+    abs_normal_vector << abs(normal_vector_(0)), abs(normal_vector_(1)), abs(normal_vector_(2));
+    selection_matrix_ = Eigen::Matrix3d::Identity() - Eigen::Matrix3d(abs_normal_vector.asDiagonal());
+    
+    // std::cout<<"dir_index: "<< dir_index_<<std::endl;
+    // std::cout<<"normal vector: "<< normal_vector_.transpose()<<std::endl;
+    // std::cout<<"abs normal vector: "<< normal_vector_.transpose()<<std::endl;
+    // std::cout<<"selection matrix: \n"<< selection_matrix_<<std::endl;
   }
 
   run_time = time.toSec() - arm.task_start_time_.toSec();
@@ -148,106 +156,140 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
 
       f_star = PegInHole::straightMotionEE(origin_, current_, xd, T_EA_, obj_dir, 0.01, time.toSec(), arm.task_start_time_.toSec());
       f_star = T_WA_.linear() * f_star;
-      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 400, 5);
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
 
-      if(Criteria::detectObject(origin_, current_, f_lpf.head<3>(), T_WA_, contact_force_)) //when lost contact
+      if(Criteria::detectObject(origin_, current_, f_ext.head<3>(), T_WA_, contact_force_)) //when lost contact
       {
         std::cout << "READY TO PROBE" << std::endl;
         state_ = PROBE_ON_THE_EDGE;
         is_mode_changed_ = true;
+        init_force_ext_ = f_ext;
+        std::cout<<"init_force_ext: "<< init_force_ext_.head<3>().transpose()<<std::endl;
       }
-
       break;
 
     case PROBE_ON_THE_EDGE:
+      
+      // f_ext = f_ext - init_force_ext_;      
       dir = probing_sequence_(dir_index_);
       speed = probing_speed_;
-      
-      f_att = generateNormalForce(updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)), attraction_force_);      
-      f_prob = generateProbingForce(origin_, current_, xd, T_EA_, dir, speed, time.toSec(), arm.task_start_time_.toSec());
-      f_star = f_att + f_prob;
-      f_star = T_WA_.linear() * f_star;
-      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 400, 5);
+      origin_.translation()(2) = probe_origin_(2);     
 
-      if(run_time > 0.5 && !Criteria::detectObject(origin_, current_, f_lpf.head<3>(), T_WA_, contact_force_)) //when lost contact
+      // f_att = generateNormalForce(updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)), attraction_force_);      
+      f_att = generateNormalForce(normal_vector_.head<2>(), attraction_force_);      
+      f_prob = generateProbingForce(origin_, current_, xd, T_EA_, dir, speed, time.toSec(), arm.task_start_time_.toSec());
+      f_a = f_att + selection_matrix_*f_prob;
+      f_star = T_WA_.linear() * f_a;
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 100, 1);
+      
+      // if(run_time > cnt_max/1000 && !Criteria::detectObject(origin_, current_, f_ext.head<3>(), T_WA_, contact_loss_threshold_)) //when lost contact
+      if(run_time > 0.1 && Criteria::contactLossInProbing(task_vel_a.head<3>(), normal_vector_, contact_loss_threshold_))
       {
         std::cout << "LOST CONTACT" << std::endl;
         state_ = LOST_CONTACT;
         is_mode_changed_ = true;
       }
 
-      if (dir_index_ == last_probe_index_ && Criteria::reachGoal3D(probe_origin_, current_.translation(), 0.002, T_WA_))
+      if (dir_index_ == last_probe_index_ && Criteria::reachGoal2D(probe_origin_, current_.translation(), 0.005, T_WA_))
       {
         state_ = COMPLETE;
         is_mode_changed_ = true;
         std::cout << "Probing is done" << std::endl;
       }
-      // std::cout<<"---------------------"<<std::endl;
-      // std::cout<<"normal vector: "<< updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)).transpose()<<std::endl;
-      // std::cout<<"f_att: "<<f_att.transpose()<<std::endl;
-      // std::cout<<"f_prob: "<<f_prob.transpose()<<std::endl;
-      // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
-      // std::cout<<"dir_index: "<<dir_index_<<std::endl;
-      // std::cout<<"probing_sequence_: "<<probing_sequence_(dir_index_)<<std::endl;
-      // std::cout<<"f_contact: "<<f_contact.transpose()<<std::endl;
-      probe_ft_data_lpf << f_lpf.transpose() << std::endl;
-      probe_pr_data << (current_ * T_EA_).translation().transpose() << std::endl;
-      probe_ft_cmd_data << f_contact.transpose() << std::endl;
+      break;
+    
+    case LOST_CONTACT:
+      f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 1000, 10, 10, 0.1).head<3>();
+      m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 1000, 10, 10, 0.1).tail<3>();
+
+      if(run_time > 0.5)
+      {
+        std::cout<<"Try to contact again"<<std::endl;
+        state_ = RECOVER_CONTACT;
+        is_mode_changed_ = true;
+      }
+
       break;
 
-    case LOST_CONTACT:
+    case RECOVER_CONTACT:
       dir = probing_sequence_(dir_index_);
-      speed = -probing_speed_;
+      speed = -probing_speed_/10;
      
       origin_.translation()(2) = probe_origin_(2);     
 
-      f_att = generateNormalForce(updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)), attraction_force_/2);
+      // f_att = generateNormalForce(updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)), attraction_force_);
+      f_att = generateNormalForce(normal_vector_.head<2>(), attraction_force_/10);      
       f_prob = generateProbingForce(origin_, current_, xd, T_EA_, dir, speed, time.toSec(), arm.task_start_time_.toSec());
-      f_prob.head<2>() = 0.1 * f_prob.head<2>();
-      f_star = f_att + f_prob;
-      f_star = T_WA_.linear() * f_star;
-      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 400, 5);
+      
+      f_a = f_att + selection_matrix_*f_prob;
+      f_star = T_WA_.linear() * f_a;
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 1);
 
-      if(run_time > 0.5 && Criteria::detectObject(origin_, current_, f_lpf.head<3>(), T_WA_, contact_force_)) //when lost contact
+      if(run_time > 0.1 && Criteria::detectObject(origin_, current_, f_ext.head<3>(), T_WA_, contact_force_)) //when lost contact
       {
         state_ = PROBE_ON_THE_EDGE;
         std::cout << "Contact!!" << std::endl;
         is_mode_changed_ = true;
         dir_index_++;
         if (dir_index_ >= probing_sequence_.rows())
+        {
           dir_index_ = probing_sequence_.rows();      
+        }
       }
       // std::cout<<"---------------------"<<std::endl;
       // std::cout<<"normal vector: "<< updateNormalVector((PROBE_DIRECTION)probing_sequence_(dir_index_)).transpose()<<std::endl;
+      // std::cout<<"abs_normal vector: "<< normal_vector.transpose()<<std::endl;
       // std::cout<<"f_att: "<<f_att.transpose()<<std::endl;
       // std::cout<<"f_prob: "<<f_prob.transpose()<<std::endl;
       // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
-      // std::cout<<"dir_index: "<<dir_index_<<std::endl;
+      // std::cout<<"selection matrix: \n"<< selection_matrix<<std::endl;
       break;
 
     case FAIL:
       std::cout<<"FAIL TO DETECT OBJECT"<<std::endl;
       setAborted();
       break;
+
     case COMPLETE:
       std::cout<<"FINISHED PROBING EDGES"<<std::endl;
       setSucceeded();
       break;
   }
   
+  if(run_time > 100.0) setAborted();
+
   f_star_zero_.head<3>() = f_star;
   f_star_zero_.tail<3>() = m_star;
   
   // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
   
-  // if(state_ > PROBE_ON_THE_EDGE) f_star_zero_.setZero();  
+  // if(state_ == PROBE_ON_THE_EDGE) f_star_zero_.setZero();  
   // std::cout<<"f_measured: "<<f_measured_.transpose()<<std::endl;
-  // std::cout<<"f_filtered: "<<f_lpf.transpose()<<std::endl;
+  // std::cout<<"f_filtered: "<<f_ext.transpose()<<std::endl;
   
+  // if(state_ == LOST_CONTACT) f_star_zero_.setZero();
+  if(state_ == PROBE_ON_THE_EDGE)
+  {
+    probe_pr_data << (current_ * T_EA_).translation().transpose() << std::endl;
+    probe_ft_cmd_data << (T_WA_.inverse()* f_star.head<3>()).transpose() << std::endl;
+  }
+  probe_ft_data << (T_WA_.inverse()*f_ext.head<3>()).transpose() << std::endl;
+  probe_vel_data << task_vel_a.transpose()<<std::endl;
+  // if(dir_index_ == 1) f_star_zero_.setZero();
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero_;
   arm.setTorque(desired_torque);
 
+  
+  // std::cout << "---------------------" << std::endl;
+  // std::cout << "state: "<<state_<<std::endl;
+  // std::cout << "abs_normal vector: " << normal_vector_.transpose() << std::endl;
+  // std::cout << "f_att: " << f_att.transpose() << std::endl;
+  // std::cout << "f_prob: " << f_prob.transpose() << std::endl;
+  // std::cout << "f_a: " << f_a.transpose() << std::endl;
+  // std::cout << "f_star: " << f_star.transpose() << std::endl;
+  // std::cout << "selection matrix: \n"<< selection_matrix_ << std::endl;
+  // probe_ft_data << (f_ext - init_force_ext_).transpose() << std::endl;
   return true;
 }
 
@@ -277,7 +319,6 @@ Eigen::Vector2d AssembleProbeEdgeActionServer::updateNormalVector(PROBE_DIRECTIO
   else if(probing_direction == PROBE_DIRECTION::RIGHT)  n << -1, 0; //RIGHT --> -x
   else if(probing_direction == PROBE_DIRECTION::LEFT)  n << 1, 0;  //LEFT --> +x
   else if(probing_direction == PROBE_DIRECTION::DOWN)  n << 0, 1;  //DOWN --> +y
-
   return n;
 }
 

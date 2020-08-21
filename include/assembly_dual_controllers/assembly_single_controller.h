@@ -31,7 +31,7 @@
 #include <assembly_dual_controllers/servers/assemble_triple_recovery_action_server.h>
 // #include <assembly_dual_controllers/servers/assemble_dual_spiral_action_server.h>
 // #include <assembly_dual_controllers/servers/assemble_dual_approach_action_server.h>
-#include <assembly_dual_controllers/servers/assemble_bolt_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_approach_bolt_action_server.h>
 #include <assembly_dual_controllers/servers/task_space_move_action_server.h>
 #include <assembly_dual_controllers/servers/idle_control_server.h>
 
@@ -72,7 +72,7 @@ class AssemblySingleController : public controller_interface::MultiInterfaceCont
   std::unique_ptr<AssembleTripleRecoveryActionServer> assemble_triple_recovery_action_server_;
   // std::unique_ptr<AssembleDualSpiralActionServer> assemble_dual_spiral_action_server_;
   // std::unique_ptr<AssembleDualApproachActionServer> assemble_dual_approach_action_server_;
-  std::unique_ptr<AssembleBoltActionServer> assemble_bolt_action_server_;
+  std::unique_ptr<AssembleApproachBoltActionServer> assemble_approach_bolt_action_server_;
   std::unique_ptr<TaskSpaceMoveActionServer> task_space_move_action_server_;
 
   std::unique_ptr<IdleControlServer> idle_control_server_;

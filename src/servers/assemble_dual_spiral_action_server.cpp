@@ -126,10 +126,9 @@ bool AssembleDualSpiralActionServer::computeTaskArm(ros::Time time, FrankaModelU
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
   Eigen::Vector6d f_star_zero;
-  Eigen::Vector6d f_lpf;
+  Eigen::Vector6d f_ext;
 
-  f_measured_ = arm.f_measured_;
-  f_lpf = arm.f_measured_filtered_;
+  f_ext = arm.f_ext_;
   task_arm_current_ = arm.transform_;
 
   if (timeOut(time.toSec(), arm.task_start_time_.toSec(), spiral_duration_)) //duration wrong??
@@ -148,8 +147,10 @@ bool AssembleDualSpiralActionServer::computeTaskArm(ros::Time time, FrankaModelU
   //dual peg in hole
   if (mode_ == 2)
   {
-    m_star = PegInHole::generateTwistSearchMotionEE(task_arm_origin_, task_arm_current_, T_EA_, xd, range_, time.toSec(), arm.task_start_time_.toSec(), twist_duration_);
-    m_star = T_WA_.linear() * m_star;
+    Eigen::Vector6d f_spiral;
+    f_spiral = PegInHole::generateTwistSpiralEE(task_arm_origin_, task_arm_current_, xd, pitch_, lin_vel_, pressing_force_, T_EA_, range_, time.toSec(), arm.task_start_time_.toSec(), spiral_duration_, twist_duration_);
+    f_star = T_WA_.linear() * (f_spiral.head<3>());
+    m_star = T_WA_.linear() * f_spiral.tail<3>();
   }
 
   // f_star.setZero();
@@ -159,7 +160,7 @@ bool AssembleDualSpiralActionServer::computeTaskArm(ros::Time time, FrankaModelU
   Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
 
-  // save_sprial_data << f_lpf.transpose() << std::endl;
+  // save_sprial_data << f_ext.transpose() << std::endl;
 
   return true;
 }
@@ -178,13 +179,12 @@ bool AssembleDualSpiralActionServer::computeAssistArm(ros::Time time, FrankaMode
   auto &xd = arm.xd_; //velocity
 
   Eigen::Vector3d f_star, m_star;
-  Eigen::Vector6d f_star_zero, f_lpf;
+  Eigen::Vector6d f_star_zero, f_ext;
   Eigen::Isometry3d T_AA; // transform of assembly point wrt assist arm
   Eigen::Vector3d reaction_force;
   double reaction_force_sum;
 
-  f_measured_ = arm.f_measured_;
-  f_lpf = arm.f_measured_filtered_;
+  f_ext = arm.f_ext_;
   assist_arm_current_ = arm.transform_;
 
   f_star = PegInHole::keepCurrentPosition(assist_arm_origin_, assist_arm_current_, xd, 5000, 100);
@@ -192,7 +192,7 @@ bool AssembleDualSpiralActionServer::computeAssistArm(ros::Time time, FrankaMode
 
   T_AA = assist_arm_current_.inverse()*T_WA_;
   
-  reaction_force = assist_arm_current_.linear().inverse()*f_lpf.head<3>();
+  reaction_force = assist_arm_current_.linear().inverse()*f_ext.head<3>();
 
   reaction_force_sum = sqrt(pow(reaction_force(0),2) + pow(reaction_force(1),2));
   if(time.toSec() > arm.task_start_time_.toSec() + 5.0)
@@ -213,7 +213,7 @@ bool AssembleDualSpiralActionServer::computeAssistArm(ros::Time time, FrankaMode
   Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
 
-  save_sprial_data << f_lpf.transpose() << std::endl;
+  save_sprial_data << f_ext.transpose() << std::endl;
 
   return true;
 }

@@ -113,10 +113,10 @@ bool AssembleDualSideChairRecoveryActionServer::computeTaskArm(ros::Time time, F
   auto &xd = arm.xd_; //velocity
 
   Eigen::Vector3d f_star, m_star;
-  Eigen::Vector6d f_star_zero, f_lpf;
+  Eigen::Vector6d f_star_zero, f_ext;
   double duration;
 
-  f_lpf = arm.f_measured_filtered_;
+  f_ext = arm.f_ext_;
   task_arm_current_ = arm.transform_;
   duration = 1.0;
 
@@ -155,7 +155,7 @@ bool AssembleDualSideChairRecoveryActionServer::computeTaskArm(ros::Time time, F
   Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
 
-  // save_sprial_data << f_lpf.transpose() << std::endl;
+  // save_sprial_data << f_ext.transpose() << std::endl;
 
   return true;
 }
@@ -174,13 +174,13 @@ bool AssembleDualSideChairRecoveryActionServer::computeAssistArm(ros::Time time,
   auto &xd = arm.xd_; //velocity
 
   Eigen::Vector3d f_star, m_star;
-  Eigen::Vector6d f_star_zero, f_lpf;
+  Eigen::Vector6d f_star_zero, f_ext;
   Eigen::Vector3d f_contact;
 
-  f_lpf = arm.f_measured_filtered_;
+  f_ext = arm.f_ext_;
   assist_arm_current_ = arm.transform_;
 
-  f_contact = T_WA_.linear().inverse()*f_lpf.head<3>() - accumulated_wrench_.head<3>();
+  f_contact = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_.head<3>();
 
   if(is_assist_mode_changed_)
   {
@@ -234,7 +234,7 @@ bool AssembleDualSideChairRecoveryActionServer::computeAssistArm(ros::Time time,
   Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * f_star_zero;
   arm.setTorque(desired_torque);
 
-  save_sprial_data << f_lpf.transpose() << std::endl;
+  save_sprial_data << f_ext.transpose() << std::endl;
 
   return true;
 }

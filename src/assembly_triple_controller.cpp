@@ -179,8 +179,8 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_rotation_control", node_handle, arms_data_);
   assemble_triple_recovery_action_server_ = std::make_unique<AssembleTripleRecoveryActionServer>
   ("/assembly_dual_controller/assemble_triple_recovery_control", node_handle, arms_data_);
-  assemble_bolt_action_server_ = std::make_unique<AssembleBoltActionServer>
-  ("/assembly_dual_controller/assemble_bolt_control", node_handle, arms_data_);
+  assemble_approach_bolt_action_server_ = std::make_unique<AssembleApproachBoltActionServer>
+  ("/assembly_dual_controller/assemble_approach_bolt_control", node_handle, arms_data_);
   task_space_move_action_server_ = std::make_unique<TaskSpaceMoveActionServer>
   ("/assembly_dual_controller/task_space_move", node_handle, arms_data_);
   assemble_probe_edge_action_server_ = std::make_unique<AssembleProbeEdgeActionServer>
@@ -251,7 +251,7 @@ void AssemblyTripleController::update(const ros::Time& time, const ros::Duration
   assemble_triple_recovery_action_server_->compute(time);
   assemble_dual_spiral_action_server_->compute(time);
   assemble_dual_approach_action_server_->compute(time);
-  assemble_bolt_action_server_->compute(time);
+  assemble_approach_bolt_action_server_->compute(time);
   task_space_move_action_server_->compute(time);
   idle_control_server_->compute(time);
   assemble_probe_edge_action_server_->compute(time);

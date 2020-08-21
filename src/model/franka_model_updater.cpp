@@ -44,15 +44,14 @@ void FrankaModelUpdater::updateModel()
   
   for(int i=0; i<7; i++)
   {
-    qd_(i) = franka::lowpassFilter(0.001, qd_now(i), qd_(i), 150.0);
+    qd_(i) = franka::lowpassFilter(0.001, qd_now(i), qd_(i), 150);
   }
 
   jacobian_ = Eigen::Map<Eigen::Matrix<double, 6, 7>>(jacobian_array.data());
   tau_measured_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(robot_state.tau_J.data());
   tau_desired_read_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(robot_state.tau_J_d.data());
-  tau_contact_ = tau_measured_ - tau_desired_read_;
+  tau_ext_filtered_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(robot_state.tau_ext_hat_filtered.data());
   gravity_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(gravity_array.data());
-
   transform_ = Eigen::Matrix4d::Map(model_handle_->getPose(franka::Frame::kEndEffector).data());
   // transform_.translation() += transform_.linear() * Eigen::Vector3d(0,0,-0.103);
   position_ = transform_.translation();
@@ -60,7 +59,7 @@ void FrankaModelUpdater::updateModel()
   
   xd_ = jacobian_ * qd_;
 
-  lambda_matrix_ = (jacobian_ * mass_matrix_.inverse() * jacobian_.transpose()).inverse();
+  lambda_matrix_ = (jacobian_ * mass_matrix_.inverse() * jacobian_.transpose() + 0.001 * Eigen::Matrix<double,6,6>::Identity()).inverse();
   modified_mass_matrix_ = mass_matrix_;
   modified_mass_matrix_(4,4) += 0.1;
   modified_mass_matrix_(5,5) += 0.1;
@@ -68,19 +67,8 @@ void FrankaModelUpdater::updateModel()
   modified_lambda_matrix_ = (jacobian_ * modified_mass_matrix_.inverse() * jacobian_.transpose()).inverse();
   jacobian_bar_ = mass_matrix_.inverse()*jacobian_.transpose()*lambda_matrix_;
   null_projector_ = Eigen::Matrix<double, 7,7>::Identity() - jacobian_.transpose() * jacobian_bar_.transpose();
-  f_measured_ = jacobian_bar_.transpose()*(tau_measured_ - gravity_);
 
-  for(int i=0; i<6; i++)
-  {
-    f_measured_filtered_(i) = franka::lowpassFilter(0.001, f_measured_(i), f_measured_filtered_(i), 1.0);
-  }
-
-  for(int i = 0; i < 7; i++)
-  {
-    tau_contact_filtered_(i) = franka::lowpassFilter(0.001, tau_contact_(i), tau_contact_filtered_(i), 1.0);
-  }
-
-  f_contact_ = jacobian_bar_.transpose()*(tau_contact_filtered_ - gravity_);
+  f_ext_ = jacobian_bar_.transpose()*tau_ext_filtered_;
 
   printState();
 }

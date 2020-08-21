@@ -12,6 +12,12 @@ using namespace PegInHole;
 
 class AssembleInsertActionServer : public ActionServerBase
 {
+    enum CONTROL_TYPE : int
+    {
+      SIMPLE = 1,
+      COMPLEX = 2
+    };
+
     actionlib::SimpleActionServer<assembly_msgs::AssembleExertForceAction> as_;
 
     assembly_msgs::AssembleExertForceFeedback feedback_;
@@ -21,14 +27,6 @@ class AssembleInsertActionServer : public ActionServerBase
     void goalCallback() override;
     void preemptCallback() override;
 
-    Eigen::Matrix<double, 6, 1> f_measured_;
-    Eigen::Matrix<double, 6, 1> desired_xd_;
-    Eigen::Vector3d desired_x_;
-    Eigen::Matrix<double, 7, 6> j_inverse_;
-    
-    Eigen::Matrix3d init_rot_;
-    Eigen::Vector3d init_pos_;
-    
     Eigen::Isometry3d origin_;
     Eigen::Isometry3d current_;
 
@@ -37,11 +35,12 @@ class AssembleInsertActionServer : public ActionServerBase
    
     Eigen::Isometry3d T_EA_, T_WA_;
     
+    bool wiggle_motion_;
+    bool wiggle_motion_z_axis_;
+    bool yawing_motion_;
+
     double duration_;
     double insertion_force_;
-    bool wiggle_motion_;
-
-    bool yawing_motion_;
     double yawing_angle_;
     double init_yaw_angle_;
     double yaw_low_limit_ = -2.8973;
@@ -49,6 +48,11 @@ class AssembleInsertActionServer : public ActionServerBase
 
     double wiggle_angle_;
     double wiggle_angular_vel_;
+
+    CONTROL_TYPE mode_;
+
+    Eigen::Vector3d U_EA_;
+    Eigen::Vector3d U_dir_; //w.r.t {E} 
     
 public:
   AssembleInsertActionServer(std::string name, ros::NodeHandle &nh, 
