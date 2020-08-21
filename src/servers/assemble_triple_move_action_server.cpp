@@ -35,7 +35,7 @@ void AssembleTripleMoveActionServer::goalCallback()
   f_measured_.setZero();
 
   duration_ = goal_->duration;
-
+  contact_force_ = goal_->contact_force;
   left_target = left_arm_origin_.translation();
   right_target = right_arm_origin_.translation();
   // top_target = top_arm_origin_.translation();
@@ -43,13 +43,11 @@ void AssembleTripleMoveActionServer::goalCallback()
   left_target[2] += goal_->target_position.position.z;
   right_target[2] += goal_->target_position.position.z;
   // top_target[2] += goal_->target_position.position.z;
-  // target_pos[0] = goal_->target_position.position.x;
-  // target_pos[1] = goal_->target_position.position.y;
-  // target_pos[2] = goal_->target_position.position.z;
-  
-  first_ = true;
 
   control_running_ = true;
+  count_ = 0;
+  left_state_ = EXEC;
+  right_state_ = EXEC;
 
   std::cout << "Move simultaneously using dual arm" << std::endl;
   std::cout << "left_arm_origin_: \n"
@@ -75,9 +73,16 @@ bool AssembleTripleMoveActionServer::compute(ros::Time time)
 
   if (mu_.find("panda_left") != mu_.end() && mu_.find("panda_right") != mu_.end())
   {
-    computeArm(time, *mu_["panda_left"], left_arm_origin_, left_target);
-    computeArm(time, *mu_["panda_right"], right_arm_origin_, right_target);
+    if (first_)
+    {
+      motion_start_time_ = time.toSec();
+      first_ = false;
+    }
+    computeArm(time, *mu_["panda_left"], left_arm_origin_, left_target, left_state_);
+    computeArm(time, *mu_["panda_right"], right_arm_origin_, right_target, right_state_);
     // computeArm(time, *mu_["panda_top"], top_arm_origin_, top_target);
+    if (succeed_flag == 2)
+      setSucceeded();
     return true;
   }
   else
@@ -88,11 +93,12 @@ bool AssembleTripleMoveActionServer::compute(ros::Time time)
   return false;
 }
 
-bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm, Eigen::Isometry3d origin, Eigen::Vector3d target_pos)
+bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm, 
+                                                Eigen::Isometry3d origin, Eigen::Vector3d target_pos, MOVE_STATE state_)
 {
   if (!as_.isActive())
     return false;
-
+  
   auto &mass = arm.mass_matrix_;
   auto &rotation = arm.rotation_;
   auto &position = arm.position_;
@@ -104,16 +110,64 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
 
   Eigen::Vector3d f_star;
   Eigen::Vector3d m_star;
-  Eigen::Matrix<double, 6, 1> f_star_zero;
-  
-  if (first_)
+  Eigen::Matrix<double, 6, 1> f_star_zero, f_ext;
+  double run_time;
+  Eigen::Vector3d force;
+  f_ext = arm.f_ext_;  
+
+  int cnt_max = 500;
+  int cnt_start = 400;
+  if (count_ < cnt_max)
   {
-    motion_start_time_ = time.toSec();
-    first_ = false;
+    f_star = PegInHole::keepCurrentPose(origin, current_, xd, 5000, 200, 200, 5).head<3>(); //w.r.t {W}
+    m_star = PegInHole::keepCurrentPose(origin, current_, xd, 5000, 200, 200, 5).tail<3>();
+    if (count_ == 0)
+    {
+      std::cout << "command force: " << f_star.transpose() << std::endl;
+      std::cout << "command moment: " << m_star.transpose() << std::endl;
+    }
+    if (count_ > cnt_start)
+      PegInHole::getCompensationWrench(accumulated_wrench_, f_ext, cnt_start, count_, cnt_max);
+    count_++;
+    if (count_ >= cnt_max)
+    {
+      count_ = cnt_max;
+      std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
+      wrench_rtn_.force.x = accumulated_wrench_(0);
+      wrench_rtn_.force.y = accumulated_wrench_(1);
+      wrench_rtn_.force.z = accumulated_wrench_(2);
+      wrench_rtn_.torque.x = accumulated_wrench_(3);
+      wrench_rtn_.torque.y = accumulated_wrench_(4);
+      wrench_rtn_.torque.z = accumulated_wrench_(5);
+      // result_.compensation = wrench_rtn_;
+    }
   }
-  
-  f_star = PegInHole::threeDofMove(origin, current_, target_pos, xd, time.toSec(), motion_start_time_, duration_);
-  m_star = PegInHole::keepCurrentOrientation(origin, current_, xd, 200, 5);
+
+  else
+  {
+    switch (state_)
+    {
+      case EXEC :
+        run_time = time.toSec() - motion_start_time_;
+        force = f_ext.head<3>() - accumulated_wrench_.head<3>();
+        if (run_time > 0.05 && Criteria::checkContact(force, contact_force_))
+        {
+          // std::cout<<"running time: "<< run_time<<std::endl;
+          std::cout << "CHECK CONTATCT!!!!!" << std::endl;
+          succeed_flag++;
+          state_ = KEEPCURRENT;
+        }
+        f_star = PegInHole::threeDofMove(origin, current_, target_pos, xd, time.toSec(), motion_start_time_, duration_);
+        m_star = PegInHole::keepCurrentOrientation(origin, current_, xd, 200, 5);
+        break;
+
+      case KEEPCURRENT:
+        f_star = PegInHole::keepCurrentPose(origin, current_, xd, 5000, 200, 200, 5).head<3>();
+        m_star = PegInHole::keepCurrentPose(origin, current_, xd, 5000, 200, 200, 5).tail<3>();
+        break;
+    }
+  }
+    
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
   // std::cout << "target: " << target_pos.transpose() << std::endl;
@@ -128,11 +182,13 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
 
 void AssembleTripleMoveActionServer::setSucceeded()
 {
+  result_.is_completed = true;
   as_.setSucceeded();
   control_running_ = false;
 }
 void AssembleTripleMoveActionServer::setAborted()
 {
+  result_.is_completed = false;
   as_.setAborted();
   control_running_ = false;
 }
