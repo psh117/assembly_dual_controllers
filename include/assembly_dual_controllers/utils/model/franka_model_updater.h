@@ -50,6 +50,16 @@ struct FrankaModelUpdater
 
   double delta_tau_max_ {0.05};
 
+  // gravity compensation --
+  double mass_obj_;
+  Eigen::Matrix<double, 3, 7> jv_l_;
+  Eigen::Matrix<double, 1, 7> gravity_obj_;
+  Eigen::Vector3d p_7l_;
+  Eigen::Matrix3d p_7l_hat_;
+  Eigen::Vector3d g_;
+  void updateGravityObj();
+  // -- gravity compensation
+
   FrankaModelUpdater() ;
 	FrankaModelUpdater(std::shared_ptr<franka_hw::FrankaModelHandle> model_handle, 
                      std::shared_ptr<franka_hw::FrankaStateHandle> state_handle) ;

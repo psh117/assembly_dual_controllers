@@ -135,6 +135,8 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
 
   idle_control_server_ = std::make_unique<IdleControlServer>
   ("/assembly_dual_controller/idle_control", node_handle, arms_data_);
+  grasp_update_server_ = std::make_unique<GraspUpdateServer>
+  ("/assembly_dual_controller/grasp_update", node_handle, arms_data_);
 
   assemble_approach_action_server_ = std::make_unique<AssembleApproachActionServer>
   ("/assembly_dual_controller/assemble_approach_control", node_handle, arms_data_);
