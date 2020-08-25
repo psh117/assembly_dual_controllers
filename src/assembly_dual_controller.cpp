@@ -236,10 +236,22 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_spiral_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_insert_action_server_->compute(time);
+  if(ctr_index == 5 && sb_.elapsedAndReset() > 0.005)
+  {
+    std::cout<<sb_.elapsedAndReset()<<std::endl;
+    std::cout<<"spiral action takes long computation time"<<std::endl;
+    // std::cout<<assemble_verify_action_server_->printDebugState(time);
+  }
+  assemble_insert_action_server_->compute(time);  
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_verify_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
+  if(ctr_index == 7 && sb_.elapsedAndReset() > 0.005)
+  {
+    std::cout<<sb_.elapsedAndReset()<<std::endl;
+    std::cout<<"verify action takes long computation time"<<std::endl;
+    std::cout<<assemble_verify_action_server_->printDebugState(time);
+  }
   assemble_parallel_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_move_action_server_->compute(time);
@@ -264,10 +276,18 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_probe_edge_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
+  if(ctr_index == 19 && sb_.elapsedAndReset() > 0.005)
+  {
+    std::cout<<sb_.elapsedAndReset()<<std::endl;
+    std::cout<<"probe action takes long computation time"<<std::endl;
+    std::cout<<assemble_verify_action_server_->printDebugState(time);
+  }
   assemble_triple_move_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   // assemble_dual_side_chair_recovery_action_server_->compute(time);
   // t[ctr_index++] = sb_.elapsedAndReset();
+
+  
 
   for(int i=0; i<ctr_index; ++i)
   {
