@@ -1,7 +1,7 @@
 #include <assembly_dual_controllers/utils/model/franka_model_updater.h>
 
 
-const double FrankaModelUpdater::PRINT_RATE = 300.0;
+const double FrankaModelUpdater::PRINT_RATE = 0.01;
 
 FrankaModelUpdater::FrankaModelUpdater() {
   initialize();
@@ -111,7 +111,7 @@ void FrankaModelUpdater::printState()
   // ros::Duration dt = ros::Time::now() - prev_time;
   // prev_time = ros::Time::now();
   // std::cout << dt.toSec() << std::endl;
-  if (++print_count_ < 1000 * PRINT_RATE)
+  if (++print_count_ <  1000 / PRINT_RATE)
     return;
   Eigen::Quaterniond qt_init (initial_transform_.linear());
   Eigen::Quaterniond qt_cur (transform_.linear());
