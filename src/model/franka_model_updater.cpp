@@ -26,6 +26,7 @@ void FrankaModelUpdater::initialize()
                                         0, 0, 1 ,0,
                                         0, 0, 0, 1;
   Eigen::Matrix4d::Map(EE_T_K_.data()) = Eigen::Matrix4d::Identity();
+  g_ << 0.0, 0.0, -9.81;
 }
 void FrankaModelUpdater::updateModel()
 {
@@ -56,7 +57,7 @@ void FrankaModelUpdater::updateModel()
   // transform_.translation() += transform_.linear() * Eigen::Vector3d(0,0,-0.103);
   position_ = transform_.translation();
   rotation_ = transform_.rotation();
-  
+
   xd_ = jacobian_ * qd_;
 
   lambda_matrix_ = (jacobian_ * mass_matrix_.inverse() * jacobian_.transpose() + 0.001 * Eigen::Matrix<double,6,6>::Identity()).inverse();
@@ -73,8 +74,15 @@ void FrankaModelUpdater::updateModel()
   printState();
 }
 
+void FrankaModelUpdater::updateGravityObj()
+{
+  jv_l_ = jacobian_.block<3,3>(0,0) + p_7l_hat_ * jacobian_.block<3,3>(3,0);
+  gravity_obj_ = -1 * mass_obj_ * g_ * jv_l_;
+}
+
 void FrankaModelUpdater::setTorque(const Eigen::Matrix<double,7,1> &torque_command, bool idle_control)
 {
+  // updateGravityObj();
   for(int i=0; i<7; ++i)
   {
     joint_handles_[i].setCommand(torque_command(i));
