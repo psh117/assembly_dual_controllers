@@ -27,9 +27,6 @@ void AssembleMoveActionServer::goalCallback()
 
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
   
-
-  f_measured_.setZero();
-
   origin_ = mu_[goal_->arm_name]->transform_;  
   
   target_pos_(0) = goal_->move_to_target.position.x;
@@ -39,7 +36,9 @@ void AssembleMoveActionServer::goalCallback()
   target_quat_.y() = goal_->move_to_target.orientation.y;
   target_quat_.z() = goal_->move_to_target.orientation.z;
   target_quat_.w() = goal_->move_to_target.orientation.w;
-  std::cout<<"target w.r.t global frame: "<<target_pos_.transpose()<<std::endl;
+  
+  std::cout<<"target w.r.t assemble frame: "<<target_pos_.transpose()<<std::endl;
+
   ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
   ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
   ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
@@ -48,44 +47,26 @@ void AssembleMoveActionServer::goalCallback()
   ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
   ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
-  // target_.translation() = target_pos_; //start from {A} frame
-  // target_.linear() = target_quat_.toRotationMatrix();
+  target_.translation() = target_pos_; //start from {A} frame, T_AD(T_AA')
+  target_.linear() = target_quat_.toRotationMatrix();
 
   T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
   T_EA_.translation() = ee_to_assembly_point_;
   T_WA_ = origin_*T_EA_;
 
-  Eigen::Vector3d relative_pose = target_pos_ - origin_.translation(); //P_we
-  Eigen::Matrix3d relative_rot = T_WA_.linear().inverse()*origin_.linear(); //R_ae
+  // target_ = target_*T_EA_.inverse();
 
-  target_.translation() = T_WA_.linear().inverse()*relative_pose; // P_ae
-  target_.linear() = target_quat_.toRotationMatrix();
+  // Eigen::Vector3d relative_pose = target_pos_ - origin_.translation(); //P_we
+  // Eigen::Matrix3d relative_rot = T_WA_.linear().inverse()*origin_.linear(); //R_ae
 
-  std::cout<<"origin: "<<origin_.translation().transpose()<<std::endl;
-  std::cout<<"T_EA: \n"<<T_EA_.matrix()<<std::endl;
-  std::cout<<"T_WA: \n"<<T_WA_.matrix()<<std::endl;
-  std::cout<<"TARGET: \n"<<target_.matrix()<<std::endl;
-  std::cout<<"TF pos: "<<target_pos_.transpose()<<std::endl;
-  std::cout<<"TF quat: "<<target_quat_.x()<<", "<<target_quat_.y()<<", "<<target_quat_.z()<<", "<<target_quat_.w()<<std::endl; 
-
-  type_ = goal_ ->mode;
-  dir_ = goal_ ->dir;
-  option_ = goal_ ->option;
-  target_distance_ = goal_->target_distance;
-
+  // target_.translation() = T_WA_.linear().inverse()*relative_pose; // P_ae
+  // target_.linear() = target_quat_.toRotationMatrix();
+  
+  // target_ = T_WA_*target_;
+  
   is_mode_changed_ = true;
   state_ = LIFT_UP;
-  litf_dir_ = 2;
-  // state_ = MOVE;
-
-  Eigen::Vector3d del_X;
-  del_X = target_.translation();// - origin_.translation();
-  lift_up_distance_ = del_X(litf_dir_);
-  move_distance_ = sqrt(pow(del_X(0),2)+pow(del_X(1),2));
-  speed_ = 0.05;
-  std::cout<<"LIFT UP: "<<lift_up_distance_<<std::endl;
-  std::cout<<"MOVE DISTANCE: "<<move_distance_<<std::endl;
-  std::cout<<"TARGET: "<<target_.translation().transpose()<<std::endl;
+  
 }
 
 void AssembleMoveActionServer::preemptCallback()
@@ -115,11 +96,11 @@ bool AssembleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &ar
   if (!as_.isActive())
       return false; 
 
-  auto & mass = arm.mass_matrix_;
-  auto & rotation = arm.rotation_;
-  auto & position = arm.position_;
+  // auto & mass = arm.mass_matrix_;
+  // auto & rotation = arm.rotation_;
+  // auto & position = arm.position_;
   auto & jacobian = arm.jacobian_;
-  auto & tau_measured = arm.tau_measured_;
+  // auto & tau_measured = arm.tau_measured_;
   auto & gravity = arm.gravity_;
   auto & xd = arm.xd_; //velocity
   
@@ -128,7 +109,10 @@ bool AssembleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &ar
   Eigen::Vector6d f_star_zero;
   Eigen::Matrix3d rot_target;
   double duration;
+  double lift_up;
   current_ = arm.transform_;
+  duration = 1.0;
+  lift_up = -0.03;
 
   if(is_mode_changed_)
   {
@@ -140,12 +124,11 @@ bool AssembleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &ar
 
   switch (state_)
   {
-  case LIFT_UP: //move along z-axis
-    duration = abs(lift_up_distance_)/speed_;
+  case LIFT_UP: //move along z-axis w.r.t {A}   
     
-    f_star = PegInHole::oneDofMoveEE(origin_,current_, xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), duration, lift_up_distance_, litf_dir_);
+    f_star = PegInHole::oneDofMoveEE(origin_, current_, xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), duration, lift_up, 2);
     f_star = T_WA_.linear()*f_star;
-    m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
+    m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
 
     if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration + 0.1))
     {
@@ -153,38 +136,37 @@ bool AssembleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &ar
       is_mode_changed_ = true;
       std::cout<<"LIFT UP! GO TO NEXT MOTION"<<std::endl;
     }
+
     break;
-  case MOVE: // move on X-Y plane
-    duration = move_distance_ / speed_;
-    f_star = PegInHole::twoDofMoveEE(origin_, current_, xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), duration, target_.translation(), 2);
-    f_star = T_WA_.linear()*f_star;
+  case MOVE: // move on X-Y plane w.r.t {A}
     
-    m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 200, 5);
-
-    if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration + 0.01))
-    {
-      state_ = ROTATE;
-      is_mode_changed_ = true;
-      std::cout<<"MOVE TO TARGET! ALGINE ORIENTATION"<<std::endl;
-      std::cout<<"initial pose: "<<origin_.translation().transpose()<<std::endl;
-      std::cout<<"final pose: "<< current_.translation().transpose()<<std::endl;
-    }
-    break;
-
-  case ROTATE:
-    duration = 2.0;
-   
-    f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 6000, 200);
-    // m_star = PegInHole::rotateWithMat(origin_, current_, xd,  T_WA_.linear()*target_.linear(), time.toSec(), arm.task_start_time_.toSec(), duration);
-    // rot_target = target_quat_.toRotationMatrix()*T_EA_.linear().inverse();
-    m_star = PegInHole::rotateWithMat(origin_, current_, xd,  target_quat_.toRotationMatrix(), time.toSec(), arm.task_start_time_.toSec(), duration);
-
-    if (timeOut(time.toSec(), arm.task_start_time_.toSec(), duration + 0.1))
+    f_star = PegInHole::twoDofMoveEE(origin_, current_, xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), duration*2, target_.translation(), 2);
+    f_star = T_WA_.linear()*f_star;    
+    m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
+    // m_star = PegInHole::rotateWithMat(origin_, current_, xd,  T_WA_.linear()*target_quat_.toRotationMatrix(), time.toSec(), arm.task_start_time_.toSec(), duration);
+    
+    if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration*2 + 0.1))
     {
       state_ = COMPLETE;
       is_mode_changed_ = true;
       std::cout<<"FINITHED"<<std::endl;
     }
+    break;
+
+  case ROTATE:
+    // duration = 2.0;
+   
+    // f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 6000, 200);
+    // // m_star = PegInHole::rotateWithMat(origin_, current_, xd,  T_WA_.linear()*target_.linear(), time.toSec(), arm.task_start_time_.toSec(), duration);
+    // // rot_target = target_quat_.toRotationMatrix()*T_EA_.linear().inverse();
+    // m_star = PegInHole::rotateWithMat(origin_, current_, xd,  target_quat_.toRotationMatrix(), time.toSec(), arm.task_start_time_.toSec(), duration);
+
+    // if (timeOut(time.toSec(), arm.task_start_time_.toSec(), duration + 0.1))
+    // {
+    //   state_ = COMPLETE;
+    //   is_mode_changed_ = true;
+    //   std::cout<<"FINITHED"<<std::endl;
+    // }
     break;
 
   case COMPLETE:
@@ -193,10 +175,8 @@ bool AssembleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &ar
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
-  // std::cout<<"f_star_zero: "<<f_star_zero.transpose()<<std::endl;
-
-  // f_star_zero.setZero();
-  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
+  
+  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero;
   arm.setTorque(desired_torque);
 
   return true;

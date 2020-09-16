@@ -45,7 +45,8 @@ class AssembleApproachBoltActionServer : public ActionServerBase
   double contact_force_;  
   double time_limit_;
   double init_yaw_angle_;
-  
+  double revolve_duration_;
+
   ASSEMBLY_STATE state_;
 
   bool is_mode_changed_;
@@ -56,7 +57,7 @@ class AssembleApproachBoltActionServer : public ActionServerBase
   Eigen::Vector6d accumulated_wrench_a_;
   geometry_msgs::Wrench wrench_rtn_;
 
-  std::ofstream force_moment;
+  std::ofstream force_moment {"fm_bolt_approach_data.txt"};
 
 public:
   AssembleApproachBoltActionServer(std::string name, ros::NodeHandle &nh,

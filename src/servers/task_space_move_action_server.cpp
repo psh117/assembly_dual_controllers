@@ -11,11 +11,8 @@ as_(nh,name,false)
   as_.registerPreemptCallback(boost::bind(&TaskSpaceMoveActionServer::preemptCallback, this));
   as_.start();
   
-  
   _task1.resize(2,dof);
   _task2.resize(6,dof);
-
-
 }
 
 void TaskSpaceMoveActionServer::goalCallback()
@@ -207,6 +204,9 @@ bool TaskSpaceMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &a
     std::cout << "position error: " << (target_pose_.translation() -  arm.position_).transpose() << std::endl;
     std::cout << "rotational error: " << r_error.transpose() << std::endl;
     as_.setSucceeded();
+    arm.setInitialValues(target_pose_);
+    arm.idle_controlled_ = true;
+    arm.setTorque(desired_torque, true);
     control_running_ = false;
     return true;
   }

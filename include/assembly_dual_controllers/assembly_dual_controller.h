@@ -34,6 +34,7 @@
 #include <assembly_dual_controllers/servers/assemble_dual_approach_action_server.h>
 // #include <assembly_dual_controllers/servers/assemble_dual_side_chair_recovery_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_approach_bolt_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_retreat_bolt_action_server.h>
 #include <assembly_dual_controllers/servers/task_space_move_action_server.h>
 #include <assembly_dual_controllers/servers/idle_control_server.h>
 #include <assembly_dual_controllers/servers/assemble_probe_edge_action_server.h>
@@ -44,7 +45,9 @@
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
 #include <geometry_msgs/PoseStamped.h>
-
+#include <franka_msgs/SetLoad.h>
+#include <franka_msgs/SetLoadRequest.h>
+#include <franka_msgs/SetLoadResponse.h>
 #include <fstream>
 
 #define EYE(X) Matrix<double, X, X>::Identity()
@@ -80,6 +83,7 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   std::unique_ptr<AssembleDualApproachActionServer> assemble_dual_approach_action_server_;
   // std::unique_ptr<AssembleDualArmSideChairRecoveryActionServer> assemble_dual_side_chair_recovery_action_server_;
   std::unique_ptr<AssembleApproachBoltActionServer> assemble_approach_bolt_action_server_;
+  std::unique_ptr<AssembleRetreatBoltActionServer> assemble_retreat_bolt_action_server_;
   std::unique_ptr<TaskSpaceMoveActionServer> task_space_move_action_server_;
   std::unique_ptr<AssembleProbeEdgeActionServer> assemble_probe_edge_action_server_;
   std::unique_ptr<AssembleTripleMoveActionServer> assemble_triple_move_action_server_;
@@ -101,6 +105,9 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   ros::Time task_start_time_;
 
   //ros::Duration ;
+  franka_msgs::SetLoadRequest init_load_;
+  franka_msgs::SetLoadResponse load_response_;
+
 
   std::ofstream debug_file_q{"q.txt"};
   std::ofstream debug_file_fuck{"f.txt"};

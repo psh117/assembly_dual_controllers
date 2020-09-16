@@ -65,8 +65,8 @@ class AssembleDualApproachActionServer : public ActionServerBase
   bool is_approach_first_;
   bool is_tilt_back_first_;
 
-  std::ofstream force_moment;
-  std::ofstream force_moment_lpf;
+  std::ofstream force_moment {"fm_dual_approach_data.txt"};
+  std::ofstream force_moment_lpf {"fm_dual_approach_data_lfp.txt"};
 
 public:
   AssembleDualApproachActionServer(std::string name, ros::NodeHandle &nh,

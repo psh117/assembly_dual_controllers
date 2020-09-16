@@ -1,7 +1,7 @@
 #pragma once
 
 #include <assembly_dual_controllers/servers/action_server_base.h>
-#include <assembly_msgs/AssembleExertForceAction.h>
+#include <assembly_msgs/AssembleRetreatBoltAction.h>
 #include <assembly_dual_controllers/utils/dyros_math.h>
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 #include <assembly_dual_controllers/utils/control/criteria.h>
@@ -10,7 +10,7 @@ using namespace dyros_math;
 using namespace Criteria;
 using namespace PegInHole;
 
-class AssembleInsertActionServer : public ActionServerBase
+class AssembleRetreatBoltActionServer : public ActionServerBase
 {
     enum CONTROL_TYPE : int
     {
@@ -18,11 +18,11 @@ class AssembleInsertActionServer : public ActionServerBase
       COMPLEX = 2
     };
 
-    actionlib::SimpleActionServer<assembly_msgs::AssembleExertForceAction> as_;
+    actionlib::SimpleActionServer<assembly_msgs::AssembleRetreatBoltAction> as_;
 
-    assembly_msgs::AssembleExertForceFeedback feedback_;
-    assembly_msgs::AssembleExertForceResult result_;
-    assembly_msgs::AssembleExertForceGoalConstPtr goal_;
+    assembly_msgs::AssembleRetreatBoltFeedback feedback_;
+    assembly_msgs::AssembleRetreatBoltResult result_;
+    assembly_msgs::AssembleRetreatBoltGoalConstPtr goal_;
 
     void goalCallback() override;
     void preemptCallback() override;
@@ -37,15 +37,11 @@ class AssembleInsertActionServer : public ActionServerBase
     
     bool wiggle_motion_;
     bool wiggle_motion_z_axis_;
-    bool yawing_motion_;
-
+    
     double duration_;
-    double insertion_force_;
-    double yawing_angle_;
-    double init_yaw_angle_;
-    double yaw_low_limit_ = -2.8973;
-    double yaw_up_limit_ = 2.8973;
-
+    double retreat_force_;
+    double retreat_distance_;
+    double time_limit_;    
     double wiggle_angle_;
     double wiggle_angular_vel_;
 
@@ -53,11 +49,9 @@ class AssembleInsertActionServer : public ActionServerBase
 
     Eigen::Vector3d U_EA_;
     Eigen::Vector3d U_dir_; //w.r.t {E} 
-
-    std::ofstream insert_pose_data {"insert_pose_data.txt"};
     
 public:
-  AssembleInsertActionServer(std::string name, ros::NodeHandle &nh, 
+  AssembleRetreatBoltActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);
 
   bool compute(ros::Time time) override;
@@ -67,5 +61,4 @@ public:
   private:
     void setSucceeded();
     void setAborted();
-    void savePosture();
 };

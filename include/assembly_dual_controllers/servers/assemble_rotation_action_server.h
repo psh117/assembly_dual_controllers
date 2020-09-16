@@ -43,9 +43,9 @@ class AssembleRotationActionServer : public ActionServerBase
     Eigen::Vector3d asm_dir_;
     double duration_;
 
-    std::ofstream fm_rotation_search;
-    std::ofstream fm_rotation_search_lpf;
-    std::ofstream pr_rotation_search;
+    std::ofstream fm_rotation_search {"fm_rotation_search.txt"};
+    std::ofstream fm_rotation_search_lpf {"fm_rotation_search_lpf.txt"};
+    std::ofstream pr_rotation_search {"pr_rotation_search.txt"};
 
 public:
   AssembleRotationActionServer(std::string name, ros::NodeHandle &nh, 

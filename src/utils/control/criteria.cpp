@@ -59,11 +59,12 @@ bool Criteria::checkContact(const Eigen::Vector3d &force,
     double contact_force;
 
     f_a = T_wa.linear().inverse() * force;
-    contact_force = abs(f_a(2)); // z- axis is always assembly direction wrt {A}
-
+    // contact_force = abs(f_a(2)); // z- axis is always assembly direction wrt {A}
+    contact_force = f_a(2);
     if (contact_force >= threshold)
     {
         std::cout << "contact_force: " << contact_force << std::endl;
+
         result = true; //detect contact!
     }
 
@@ -97,9 +98,7 @@ bool Criteria::detectHole(const Eigen::Isometry3d &origin,
     return result;
 }
 
-bool Criteria::detectObject(const Eigen::Isometry3d &origin,
-                            const Eigen::Isometry3d &current,
-                            const Eigen::Vector3d &force,
+bool Criteria::detectObject(const Eigen::Vector3d &force,
                             const Eigen::Isometry3d &T_wa,
                             const double blocking_force)
 {
@@ -113,7 +112,7 @@ bool Criteria::detectObject(const Eigen::Isometry3d &origin,
     if (f >= blocking_force)
     {
         result = true;
-        // std::cout<<"f_detection : "<<f<<std::endl;
+        std::cout<<"f_detection : "<<f<<std::endl;
     }
     else
         result = false;
@@ -134,22 +133,22 @@ bool Criteria::checkContact(const double current_force,
     return result;
 }
 
-bool Criteria::checkDisplacement(const Eigen::Isometry3d &origin,
-                                 const Eigen::Isometry3d &current,
-                                 const Eigen::Isometry3d &T_wa,
-                                 const double depth) //0.270
-{
-    bool result;
-    Eigen::Vector3d p, f_a;
-    double dz, f;
+// bool Criteria::checkDisplacement(const Eigen::Isometry3d &origin,
+//                                  const Eigen::Isometry3d &current,
+//                                  const Eigen::Isometry3d &T_wa,
+//                                  const double depth) //0.270
+// {
+//     bool result;
+//     Eigen::Vector3d p, f_a;
+//     double dz, f;
 
-    p = origin.translation() - current.translation();
-    p = T_wa.linear().inverse() * p;
+//     p = origin.translation() - current.translation();
+//     p = T_wa.linear().inverse() * p;
 
-    dz = p(2); // assembly direction is always z-axis wrt {A}
+//     dz = p(2); // assembly direction is always z-axis wrt {A}
 
-    // if(dz )
-}
+//     // if(dz )
+// }
 
 // bool Criteria::detectHole(const double origin,
 //                 const double current_position,
@@ -336,6 +335,23 @@ bool Criteria::contactLossInProbing(const Eigen::Vector3d &vel,
     else
         result = false;
 
+    return result;
+}
+
+bool Criteria::holdHeavyMass(const Eigen::Vector3d &input_force,
+                             const double threshold)
+{
+    double m;
+    bool result;
+
+    m = sqrt(pow(input_force(0),2) + pow(input_force(1),2) + pow(input_force(2),2));
+
+    if (m >= threshold)
+        result = true;
+    else
+        result = false;
+
+    std::cout << "The holding mass is : " << m / 10 << std::endl;
     return result;
 }
 

@@ -14,10 +14,10 @@ class AssembleMoveActionServer : public ActionServerBase
 {
   enum STATE : int
   {
-    LIFT_UP,
-    MOVE,
-    ROTATE,
-    COMPLETE
+    LIFT_UP,  //0
+    MOVE,     //1
+    ROTATE,   //2
+    COMPLETE  //3
   };
 
     actionlib::SimpleActionServer<assembly_msgs::AssembleMoveAction> as_;

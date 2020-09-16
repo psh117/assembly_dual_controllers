@@ -2,7 +2,7 @@
 <launch>
 
   <arg name="robot" default="$(find assembly_env_description)/robots/assembly_env.urdf.xacro" />
-  <arg name="robot_id" default="panda_triple" />
+  <arg name="robot_id" default="panda_dual" />
   <!-- <arg name="robot_left_ip" default="172.16.2.2" />
   <arg name="robot_right_ip" default="172.16.4.4" />
   <arg name="robot_top_ip" default="172.16.0.3" /> -->
@@ -10,12 +10,12 @@
   <!-- <arg name="panda_right/robot_ip" default="172.16.4.4" /> -->
   <!-- <arg name="panda_top/robot_ip" default="172.16.0.3" /> -->
   <!-- <arg name="robot_ips" default="{panda_left/robot_ip, panda_right/robot_ip,  panda_top/robot_ip}" /> -->
-  <arg name="robot_ips" default="{panda_left/robot_ip: 172.16.2.2, panda_right/robot_ip: 172.16.4.4,  panda_top/robot_ip: 172.16.0.3}" />
+  <arg name="robot_ips" default="{panda_left/robot_ip: 172.16.2.2, panda_right/robot_ip: 172.16.4.4,  panda_top/robot_ip: 172.16.3.3}" />
   <arg name="rviz" default="false" />
   <arg name="rqt" default="false" />
 
-  <arg name="hw_config_file" default="$(find assembly_dual_controllers)/config/franka_combined_control_node.yaml"/>
-  <arg name="controllers_file" default="$(find assembly_dual_controllers)/config/default_combined_controllers.yaml" />
+  <arg name="hw_config_file" default="$(find assembly_dual_controllers)/config/franka_combined_control_node_triple.yaml"/>
+  <arg name="controllers_file" default="$(find assembly_dual_controllers)/config/default_combined_controllers_triple.yaml" />
 
   <arg name="controllers_to_start" default="panda_left_state_controller panda_right_state_controller panda_top_state_controller"/>
   <arg name="joint_states_source_list" default="[panda_left_state_controller/joint_states, panda_right_state_controller/joint_states, panda_top_state_controller/joint_states, panda_left/franka_gripper/joint_states, panda_right/franka_gripper/joint_states, panda_top/franka_gripper/joint_states]"/>
@@ -31,11 +31,16 @@
   </include>
 
   <group ns="$(arg robot_id)">
-    <rosparam command="load" file="$(find assembly_dual_controllers)/config/assembly_dual_controllers.yaml" />
-    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"  args="assembly_dual_controller"/>
+    <rosparam command="load" file="$(find assembly_dual_controllers)/config/assembly_dual_controllers_triple.yaml" />
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"  args="assembly_triple_controller"/>
   </group>
 
-  <param name="robot_description" command="$(find xacro)/xacro.py '$(find assembly_env_description)/robots/assembly_env.urdf.xacro'" />
+  <include file="$(find franka_gripper)/launch/franka_gripper.launch">
+    <arg name="robot_ip" value="172.16.2.2" />
+    <arg name="arm_id" value="panda_left" />
+    <arg name="node_name" value="panda_left_gripper" />
+  </include>
+
+    <param name="robot_description" command="$(find xacro)/xacro.py '$(find assembly_env_description)/robots/assembly_env.urdf.xacro'" />
   <include file="$(find assembly_moveit_config)/launch/planning_context.launch"/>
-  
 </launch>

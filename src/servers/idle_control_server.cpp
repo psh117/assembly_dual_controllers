@@ -52,9 +52,10 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
   //   arm.setInitialValues();
   //   std::cout << "Large translational difference detected. Set initial position to this position" << std::endl;
   // }
-
+  
   switch (param.mode)
   {
+
     case assembly_msgs::IdleControl::Request::DISABLED:
     {
       arm.setTorque(Eigen::Vector7d::Zero(), true);
@@ -108,8 +109,7 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
 
       arm.setTorque(tau_desired, true);
       arm.idle_controlled_ = true;
-
-
+      
       // auto fstar = PegInHole::keepCurrentPose(
       //   arm.initial_transform_, arm.transform_, arm.xd_, param.p_gain, param.d_gain);
 
@@ -198,6 +198,7 @@ void IdleControlServer::computeArm(ros::Time time, FrankaModelUpdater &arm, asse
     default:
       arm.setTorque(Eigen::Vector7d::Zero(), true);
   }
+
 } 
 
 bool IdleControlServer::setTarget(assembly_msgs::IdleControl::Request  &req,

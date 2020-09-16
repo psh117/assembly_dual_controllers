@@ -123,7 +123,9 @@ namespace PegInHole
                                    const Eigen::Isometry3d &T_ea,
                                    const double t,
                                    const double t_0,
-                                   const double duration);
+                                   const double duration,
+                                   const double kp = 700,
+                                   const double kv = 10);
 
     Eigen::Vector3d threeDofMove(const Eigen::Isometry3d &origin,
                                  const Eigen::Isometry3d &current,
@@ -154,7 +156,20 @@ namespace PegInHole
                                            const double kp = 200,
                                            const double kv = 5);
 
-    Eigen::Vector3d pressEE(const double force);
+    Eigen::Vector3d pressEE(const double force, 
+                            const Eigen::Vector6d &xd,
+                            const Eigen::Isometry3d &T_wa,
+                            const double speed, 
+                            const double kp = 100);
+
+    Eigen::Vector3d pressCubicEE(const Eigen::Isometry3d &origin,
+                                const Eigen::Isometry3d &current,
+                                const Eigen::Vector6d &xd,
+                                const Eigen::Isometry3d &T_wa,
+                                const double force,
+                                const double t,
+                                const double t_0,
+                                const double duration);
 
     Eigen::Vector6d generateTwistSpiralEE(const Eigen::Isometry3d &origin,
                                           const Eigen::Isometry3d &current,
@@ -274,4 +289,7 @@ namespace PegInHole
                                const int num_max);
                                
     Eigen::Vector3d getNormalVector(const Eigen::Vector3d &v);
+
+    Eigen::MatrixXd LeastSquareEdgeProbing(const std::vector<double> x_vec,
+                                           const std::vector<double> y_vec);
 }; // namespace PegInHole

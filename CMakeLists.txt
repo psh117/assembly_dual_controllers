@@ -3,7 +3,14 @@ project(assembly_dual_controllers)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_BUILD_TYPE RELEASE)
+set(CMAKE_BUILD_TYPE RELWITHDEBINFO)
+
+add_definitions(-DUSE_REAL_ROBOT_INTERFACE)
+
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+
+
+find_package(RBDL REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -59,6 +66,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${Franka_INCLUDE_DIRS}
+  ${RBDL_INCLUDE_DIR}
 )
 
 add_library(assembly_controller_common_lib
@@ -80,11 +88,14 @@ add_library(assembly_controller_common_lib
   src/servers/assemble_probe_edge_action_server.cpp
   src/servers/assemble_triple_move_action_server.cpp
 #  src/servers/assemble_dual_side_chair_recovery_action_server.cpp
+  src/servers/assemble_retreat_bolt_action_server.cpp
   src/servers/task_space_move_action_server.cpp
   src/model/franka_model_updater.cpp
   src/utils/control/peg_in_hole_base.cpp
   src/utils/control/criteria.cpp
   src/utils/dyros_math.cpp
+
+  src/model/franka_panda_model.cpp
 )
 
 add_library(${PROJECT_NAME}
@@ -105,11 +116,14 @@ add_dependencies(${PROJECT_NAME}
 target_link_libraries(assembly_controller_common_lib PUBLIC
   ${Franka_LIBRARIES}
   ${catkin_LIBRARIES}
+
+  ${RBDL_LIBRARY}
 )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
   ${Franka_LIBRARIES}
   ${catkin_LIBRARIES}
+  ${RBDL_LIBRARY}
   assembly_controller_common_lib
 )
 

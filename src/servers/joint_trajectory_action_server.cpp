@@ -20,6 +20,13 @@ as_(nh,name,false)
       joint_names.push_back(joint_name);
     }
     joint_names_[iter->first] = joint_names;
+        
+    Eigen::VectorXd kp(7), kv(7);
+    kp << 800, 800, 800, 800, 500, 400, 300;
+    kv << 10, 10, 10, 10, 5, 5, 3;
+    arm_gain_map_[iter->first] = std::make_pair(kp,kv);
+
+    server_  = nh_.advertiseService(name + "_gain_set", &JointTrajectoryActionServer::setTarget, this);
   }
 }
 
@@ -130,15 +137,16 @@ bool JointTrajectoryActionServer::compute(ros::Time time)
   {
     if (arm.second == true)
     {
-      computeArm(time, *mu_[arm.first], start_index_map_[arm.first]);
+      computeArm(time, *mu_[arm.first], arm.first);
     }
   }
   return false;
 }
 
 
-bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm, int start_index)
+bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm, const std::string & arm_name)
 {
+  int start_index = start_index_map_[arm_name];
   Eigen::Matrix<double, 7, 1> q_desired, qd_desired, qdd_desired, tau_cmd;
   auto total_time = goal_->trajectory.points.back().time_from_start;
   ros::Duration passed_time = time - start_time_;
@@ -179,12 +187,12 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
   }
 
   Eigen::Matrix<double, 7,7> kp, kv;
-  Eigen::Matrix<double, 7, 1> kp_d, kd_d;
-  kp_d << 800, 800, 800, 800, 500, 400, 300;
-  kd_d << 10, 10, 10, 10, 5, 5, 3;
+  // Eigen::Matrix<double, 7, 1> kp_d, kd_d;
+  // kp_d << 800, 800, 800, 800, 500, 400, 300;
+  // kd_d << 10, 10, 10, 10, 5, 5, 3;
   
-  kp = kp_d.asDiagonal();
-  kv = kd_d.asDiagonal();
+  kp = arm_gain_map_[arm_name].first.asDiagonal();
+  kv = arm_gain_map_[arm_name].second.asDiagonal();
   // kp = Eigen::Matrix<double, 7,7>::Identity() * 800;
   // kv = Eigen::Matrix<double, 7,7>::Identity() * 10;
 
@@ -227,5 +235,36 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
   }
 
   arm.setTorque(desired_torque);
+  return true;
+}
+
+
+bool JointTrajectoryActionServer::setTarget(assembly_msgs::SetTrajectoryFollowerGain::Request  &req,
+                                            assembly_msgs::SetTrajectoryFollowerGain::Response &res)
+{
+
+  auto it = arm_gain_map_.find(req.arm_name);
+  if (it == arm_gain_map_.end())
+  {
+    ROS_WARN("arm name %s is not in the arm_gain_map_. ignore", req.arm_name.c_str());
+    res.is_succeed = false;
+    return true;
+  }
+
+  if (req.p_gain.size() != 7 || req.d_gain.size() != 7)
+  {
+    ROS_INFO("req.p_gain != 7, resetting the gains");
+
+    Eigen::VectorXd kp(7), kv(7);
+    kp << 800, 800, 800, 800, 500, 400, 300;
+    kv << 10, 10, 10, 10, 5, 5, 3;
+    arm_gain_map_[req.arm_name] = std::make_pair(kp,kv);
+  }
+  else
+  {
+    arm_gain_map_[req.arm_name].first = Eigen::VectorXd::Map(req.p_gain.data(),7);
+    arm_gain_map_[req.arm_name].second = Eigen::VectorXd::Map(req.d_gain.data(),7);
+  }
+  res.is_succeed = true;
   return true;
 }

@@ -16,6 +16,11 @@ bool AssemblyTripleController::initArm(
     const std::string& arm_id,
     const std::vector<std::string>& joint_names) {
   std::shared_ptr<FrankaModelUpdater> arm_data = std::make_shared<FrankaModelUpdater>();
+  auto & t_7e = arm_data->t_7e_;
+  
+  t_7e.setIdentity();
+  t_7e.translation() << 0.0, 0.0, 0.103;
+
   auto* model_interface = robot_hw->get<franka_hw::FrankaModelInterface>();
   if (model_interface == nullptr) {
     ROS_ERROR_STREAM(
@@ -68,13 +73,28 @@ bool AssemblyTripleController::initArm(
     }
   }
   arm_data->arm_name_ = arm_id;
-  arms_data_.emplace(std::make_pair(arm_id, arm_data));
+  arm_data->q_out_file_.open(arm_id + "_q_out.txt");
+  arm_data->x_out_file_.open(arm_id + "_x_out.txt");
 
+  arm_data->q_offset_.setZero();
+
+  arms_data_.emplace(std::make_pair(arm_id, arm_data));
   return true;
 }
 
 bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
                                   ros::NodeHandle& node_handle) {
+  unsigned long mask = 1; /* processor 0 */  
+  /* bind process to processor 0 */  
+  if (pthread_setaffinity_np(pthread_self(), sizeof(mask), (cpu_set_t *)&mask) <0) 
+  {  
+    perror("pthread_setaffinity_np");  
+  }
+
+  init_load_.mass = 0.0;
+  ros::service::call("/panda_dual/panda_left/set_load",init_load_,load_response_);
+  ros::service::call("/panda_dual/panda_right/set_load",init_load_,load_response_);
+  ros::service::call("/panda_dual/panda_top/set_load",init_load_,load_response_);
 
   if (!node_handle.getParam("left/arm_id", left_arm_id_)) {
     ROS_ERROR_STREAM(
@@ -111,7 +131,7 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
         "AssemblyTripleController: Could not read parameter top_arm_id_");
     return false;
   }
-
+  
   std::vector<std::string> top_joint_names;
   if (!node_handle.getParam("top/joint_names", top_joint_names) ||
       top_joint_names.size() != 7) {
@@ -127,27 +147,30 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   bool left_success = initArm(robot_hw, left_arm_id_, left_joint_names);
   bool right_success = initArm(robot_hw, right_arm_id_, right_joint_names);
   bool top_success = initArm(robot_hw, top_arm_id_, top_joint_names);
-
-  // Get the transformation from right_O_frame to left_O_frame
-  tf::StampedTransform transform;
-  tf::TransformListener listener;
-  try {
-    if (listener.waitForTransform(left_arm_id_ + "_link0", right_arm_id_ + "_link0", 
-                                  ros::Time(0), ros::Duration(4.0))) {
-      listener.lookupTransform(left_arm_id_ + "_link0", right_arm_id_ + "_link0",
-                                  ros::Time(0), transform);
-    } else {
-      ROS_ERROR(
-          "AssemblyTripleController: Failed to read transform from %s to %s. "
-          "Aborting init!",
-          (right_arm_id_ + "_link0").c_str(), (left_arm_id_ + "_link0").c_str());
-      return false;
-    }
-  } catch (tf::TransformException& ex) {
-    ROS_ERROR("AssemblyTripleController: %s", ex.what());
-    return false;
-  }
-  tf::transformTFToEigen(transform, Ol_T_Or_);  // NOLINT (readability-identifier-naming)
+  arms_data_["panda_left"]->q_offset_ << -0.00209657, -0.0103961,-0.00302744,-0.00134568, 0.00393938, -0.0253182 -7.66409e-12;
+  // arms_data_["panda_right"]->q_offset_ << -0.00113419,  -0.00316993,  0.000600501,  -0.00200384,  0.000897991,  -0.00657346, -2.02488e-12;
+  arms_data_["panda_right"]->q_offset_ << -0.00130828, -0.00322306, 0.000850395, -0.00201338,  0.00523785,  -0.0057014, -0.00770664;
+  arms_data_["panda_top"]->q_offset_.setZero();
+    // Get the transformation from right_O_frame to left_O_frame
+  // tf::StampedTransform transform;
+  // tf::TransformListener listener;
+  // try {
+  //   if (listener.waitForTransform(left_arm_id_ + "_link0", right_arm_id_ + "_link0", 
+  //                                 ros::Time(0), ros::Duration(4.0))) {
+  //     listener.lookupTransform(left_arm_id_ + "_link0", right_arm_id_ + "_link0",
+  //                                 ros::Time(0), transform);
+  //   } else {
+  //     ROS_ERROR(
+  //         "AssemblyTripleController: Failed to read transform from %s to %s. "
+  //         "Aborting init!",
+  //         (right_arm_id_ + "_link0").c_str(), (left_arm_id_ + "_link0").c_str());
+  //     return false;
+  //   }
+  // } catch (tf::TransformException& ex) {
+  //   ROS_ERROR("AssemblyTripleController: %s", ex.what());
+  //   return false;
+  // }
+  // tf::transformTFToEigen(transform, Ol_T_Or_);  // NOLINT (readability-identifier-naming)
 
 
   idle_control_server_ = std::make_unique<IdleControlServer>
@@ -181,10 +204,14 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_triple_recovery_control", node_handle, arms_data_);
   assemble_approach_bolt_action_server_ = std::make_unique<AssembleApproachBoltActionServer>
   ("/assembly_dual_controller/assemble_approach_bolt_control", node_handle, arms_data_);
+  assemble_retreat_bolt_action_server_ = std::make_unique<AssembleRetreatBoltActionServer>
+  ("/assembly_dual_controller/assemble_retreat_bolt_control", node_handle, arms_data_);  
   task_space_move_action_server_ = std::make_unique<TaskSpaceMoveActionServer>
   ("/assembly_dual_controller/task_space_move", node_handle, arms_data_);
   assemble_probe_edge_action_server_ = std::make_unique<AssembleProbeEdgeActionServer>
   ("/assembly_dual_controller/assemble_probe_edge_control", node_handle, arms_data_);
+  assemble_triple_move_action_server_ = std::make_unique<AssembleTripleMoveActionServer>
+  ("/assembly_dual_controller/assemble_triple_move_control", node_handle, arms_data_);
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
 
@@ -204,6 +231,7 @@ void AssemblyTripleController::startingArm(FrankaModelUpdater& arm_data) {
   Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_initial(initial_state.dq.data());
   Eigen::Map<Eigen::Matrix<double, 7, 1>> q_initial(initial_state.q.data());
   Eigen::Isometry3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
+  sb_.reset();
 }
 
 void AssemblyTripleController::starting(const ros::Time& time) {
@@ -223,8 +251,6 @@ void AssemblyTripleController::starting(const ros::Time& time) {
   // Eigen::Vector3d EEr_r_EEr_EEl =  // NOLINT (readability-identifier-naming)
   //     EEr_T_EEl_.translation();    // NOLINT (readability-identifier-naming)
   // EEl_T_C_.translation() = -0.5 * EEr_T_EEl_.inverse().rotation() * EEr_r_EEr_EEl;
-
-
   // Bias correction for the current external torque
   start_time_ = ros::Time::now();
 }
@@ -232,30 +258,65 @@ void AssemblyTripleController::starting(const ros::Time& time) {
 void AssemblyTripleController::update(const ros::Time& time, const ros::Duration& period) {
 
   // std::cout << period.toSec() << std::endl;
+  double t[30];
+  t[0] = sb_.elapsedAndReset();
   for (auto& arm : arms_data_) {
     arm.second->updateModel();
     arm.second->target_updated_ = false;
   }
+  t[1] = sb_.elapsedAndReset();
 
-
+  int ctr_index = 2;
   joint_trajectory_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_approach_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_spiral_action_server_->compute(time);
-  assemble_insert_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+  assemble_insert_action_server_->compute(time);  
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_verify_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_parallel_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_move_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_press_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_side_chair_action_server_ ->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_rotation_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_triple_recovery_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_dual_spiral_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_dual_approach_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_approach_bolt_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   task_space_move_action_server_->compute(time);
-  idle_control_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_probe_edge_action_server_->compute(time);
-  
+  t[ctr_index++] = sb_.elapsedAndReset();
+  assemble_triple_move_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+  assemble_retreat_bolt_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+
+  // add normal action server above ----------
+  idle_control_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+  // assemble_dual_side_chair_recovery_action_server_->compute(time);
+  // t[ctr_index++] = sb_.elapsedAndReset();
+
+
+  for(int i=0; i<ctr_index; ++i)
+  {
+    debug_file_td_ << t[i] << '\t';
+  }
+  debug_file_td_ << std::endl;
+    
 
   // Eigen::Matrix<double, 7, 1> tau_cmd;  
   // tau_cmd.setZero();

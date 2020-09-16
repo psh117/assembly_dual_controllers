@@ -63,15 +63,6 @@ void AssembleRotationActionServer::goalCallback()
   T_WA_ = origin_*T_EA_;
   T_WP_ = origin_*T_EP_;
 
-  if(fm_rotation_search.is_open())  fm_rotation_search.close();
-  if(fm_rotation_search_lpf.is_open())  fm_rotation_search_lpf.close();
-  if(pr_rotation_search.is_open())  pr_rotation_search.close();
-
-  fm_rotation_search.open("fm_rotation_search.txt");
-  fm_rotation_search_lpf.open("fm_rotation_search_lpf.txt");
-  pr_rotation_search.open("pr_rotation_search.txt");
-
-
   control_running_ = true;
 }
 

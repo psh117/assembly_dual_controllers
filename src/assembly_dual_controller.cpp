@@ -16,6 +16,11 @@ bool AssemblyDualController::initArm(
     const std::string& arm_id,
     const std::vector<std::string>& joint_names) {
   std::shared_ptr<FrankaModelUpdater> arm_data = std::make_shared<FrankaModelUpdater>();
+  auto & t_7e = arm_data->t_7e_;
+  
+  t_7e.setIdentity();
+  t_7e.translation() << 0.0, 0.0, 0.103;
+
   auto* model_interface = robot_hw->get<franka_hw::FrankaModelInterface>();
   if (model_interface == nullptr) {
     ROS_ERROR_STREAM(
@@ -68,13 +73,27 @@ bool AssemblyDualController::initArm(
     }
   }
   arm_data->arm_name_ = arm_id;
-  arms_data_.emplace(std::make_pair(arm_id, arm_data));
+  arm_data->q_out_file_.open(arm_id + "_q_out.txt");
+  arm_data->x_out_file_.open(arm_id + "_x_out.txt");
 
+  arm_data->q_offset_.setZero();
+
+  arms_data_.emplace(std::make_pair(arm_id, arm_data));
   return true;
 }
 
 bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
                                   ros::NodeHandle& node_handle) {
+  unsigned long mask = 1; /* processor 0 */  
+  /* bind process to processor 0 */  
+  if (pthread_setaffinity_np(pthread_self(), sizeof(mask), (cpu_set_t *)&mask) <0) 
+  {  
+    perror("pthread_setaffinity_np");  
+  }
+
+  init_load_.mass = 0.0;
+  ros::service::call("/panda_dual/panda_left/set_load",init_load_,load_response_);
+  ros::service::call("/panda_dual/panda_right/set_load",init_load_,load_response_);
 
   if (!node_handle.getParam("left/arm_id", left_arm_id_)) {
     ROS_ERROR_STREAM(
@@ -110,7 +129,9 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   
   bool left_success = initArm(robot_hw, left_arm_id_, left_joint_names);
   bool right_success = initArm(robot_hw, right_arm_id_, right_joint_names);
-
+  arms_data_["panda_left"]->q_offset_ << -0.00209657, -0.0103961,-0.00302744,-0.00134568, 0.00393938, -0.0253182 -7.66409e-12;
+  // arms_data_["panda_right"]->q_offset_ << -0.00113419,  -0.00316993,  0.000600501,  -0.00200384,  0.000897991,  -0.00657346, -2.02488e-12;
+  arms_data_["panda_right"]->q_offset_ << -0.00130828, -0.00322306, 0.000850395, -0.00201338,  0.00523785,  -0.0057014, -0.00770664;
   // Get the transformation from right_O_frame to left_O_frame
   // tf::StampedTransform transform;
   // tf::TransformListener listener;
@@ -163,7 +184,9 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   assemble_triple_recovery_action_server_ = std::make_unique<AssembleTripleRecoveryActionServer>
   ("/assembly_dual_controller/assemble_triple_recovery_control", node_handle, arms_data_);
   assemble_approach_bolt_action_server_ = std::make_unique<AssembleApproachBoltActionServer>
-  ("/assembly_dual_controller/assemble_bolt_control", node_handle, arms_data_);
+  ("/assembly_dual_controller/assemble_approach_bolt_control", node_handle, arms_data_);
+  assemble_retreat_bolt_action_server_ = std::make_unique<AssembleRetreatBoltActionServer>
+  ("/assembly_dual_controller/assemble_retreat_bolt_control", node_handle, arms_data_);  
   task_space_move_action_server_ = std::make_unique<TaskSpaceMoveActionServer>
   ("/assembly_dual_controller/task_space_move", node_handle, arms_data_);
   assemble_probe_edge_action_server_ = std::make_unique<AssembleProbeEdgeActionServer>
@@ -212,8 +235,6 @@ void AssemblyDualController::starting(const ros::Time& time) {
   // Eigen::Vector3d EEr_r_EEr_EEl =  // NOLINT (readability-identifier-naming)
   //     EEr_T_EEl_.translation();    // NOLINT (readability-identifier-naming)
   // EEl_T_C_.translation() = -0.5 * EEr_T_EEl_.inverse().rotation() * EEr_r_EEr_EEl;
-
-
   // Bias correction for the current external torque
   start_time_ = ros::Time::now();
 }
@@ -236,22 +257,10 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_spiral_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
-  if(ctr_index == 5 && sb_.elapsedAndReset() > 0.005)
-  {
-    std::cout<<sb_.elapsedAndReset()<<std::endl;
-    std::cout<<"spiral action takes long computation time"<<std::endl;
-    // std::cout<<assemble_verify_action_server_->printDebugState(time);
-  }
   assemble_insert_action_server_->compute(time);  
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_verify_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
-  if(ctr_index == 7 && sb_.elapsedAndReset() > 0.005)
-  {
-    std::cout<<sb_.elapsedAndReset()<<std::endl;
-    std::cout<<"verify action takes long computation time"<<std::endl;
-    std::cout<<assemble_verify_action_server_->printDebugState(time);
-  }
   assemble_parallel_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_move_action_server_->compute(time);
@@ -272,22 +281,19 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   t[ctr_index++] = sb_.elapsedAndReset();
   task_space_move_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
-  idle_control_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
   assemble_probe_edge_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
-  if(ctr_index == 19 && sb_.elapsedAndReset() > 0.005)
-  {
-    std::cout<<sb_.elapsedAndReset()<<std::endl;
-    std::cout<<"probe action takes long computation time"<<std::endl;
-    std::cout<<assemble_verify_action_server_->printDebugState(time);
-  }
   assemble_triple_move_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+  assemble_retreat_bolt_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+
+  // add normal action server above ----------
+  idle_control_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   // assemble_dual_side_chair_recovery_action_server_->compute(time);
   // t[ctr_index++] = sb_.elapsedAndReset();
 
-  
 
   for(int i=0; i<ctr_index; ++i)
   {

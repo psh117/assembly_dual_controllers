@@ -5,6 +5,7 @@
 #include <assembly_dual_controllers/utils/dyros_math.h>
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 #include <assembly_dual_controllers/utils/control/criteria.h>
+#include <geometry_msgs/Wrench.h>
 
 using namespace dyros_math;
 using namespace Criteria;
@@ -45,13 +46,14 @@ class AssembleTripleMoveActionServer : public ActionServerBase
 
   Eigen::Vector6d accumulated_wrench_;
   geometry_msgs::Wrench wrench_rtn_;
+  bool is_mode_changed_{false};
 
 public:
   AssembleTripleMoveActionServer(std::string name, ros::NodeHandle &nh,
                                  std::map<std::string, std::shared_ptr<FrankaModelUpdater>> &mu);
 
   bool compute(ros::Time time) override;
-  bool computeArm(ros::Time time, FrankaModelUpdater &arm, Eigen::Isometry3d origin, Eigen::Vector3d target_pos, MOVE_STATE state_);
+  bool computeArm(ros::Time time, FrankaModelUpdater &arm, Eigen::Isometry3d origin, Eigen::Vector3d target_pos, MOVE_STATE &state_);
 
 private:
   void setSucceeded();

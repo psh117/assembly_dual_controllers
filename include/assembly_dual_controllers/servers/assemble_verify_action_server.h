@@ -46,6 +46,7 @@ class AssembleVerifyActionServer : public ActionServerBase
     Eigen::Vector6d accumulated_wrench_;
 
     STATE state_;
+    STATE prev_state_;
     
     //--------------------------------------    
     double threshold_; //0.8
@@ -54,17 +55,18 @@ class AssembleVerifyActionServer : public ActionServerBase
     
     // !!! DO NOT USE RAW POINTER OF FILE !!!
     // FILE *save_data_fm;
-    std::ofstream verify_pr_data;
-    std::ofstream verify_ft_data;
+    std::ofstream verify_pr_data {"verify_pr_data.txt"};
+    std::ofstream verify_ft_data {"verify_ft_data.txt"};
 
 public:
   AssembleVerifyActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);
   bool compute(ros::Time time) override;
-  Eigen::Vector2d setSearchDirection(const Eigen::Vector3d &spiral_origin, const Eigen::Vector3d &start_point, const Eigen::Isometry3d &T_WA);
+  bool printDebugState(ros::Time timt);
 
 private:
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
   void setSucceeded();
   void setAborted();
+  void detectObjectLocation();
 };

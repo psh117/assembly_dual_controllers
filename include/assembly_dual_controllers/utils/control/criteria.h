@@ -24,9 +24,7 @@ namespace Criteria
                     const Eigen::Isometry3d &T_wa,
                     const double friction);
 
-    bool detectObject(const Eigen::Isometry3d &origin,
-                      const Eigen::Isometry3d &current,
-                      const Eigen::Vector3d &force,
+    bool detectObject(const Eigen::Vector3d &force,
                       const Eigen::Isometry3d &T_wa,
                       const double blocking_force);
 
@@ -84,4 +82,7 @@ namespace Criteria
     bool contactLossInProbing(const Eigen::Vector3d &vel,
                               const Eigen::Vector3d &prob_dir,
                               const double threshold);
+
+    bool holdHeavyMass(const Eigen::Vector3d &input_force,
+                       const double threshold);
 }; // namespace Criteria

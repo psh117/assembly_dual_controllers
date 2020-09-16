@@ -103,6 +103,9 @@ void AssembleInsertActionServer::goalCallback()
 
   U_EA_ = PegInHole::getNormalVector(T_EA_.translation());
   U_dir_ = T_EA_.linear().col(2);
+
+  std::cout<<"------------------"<<std::endl;
+
 }
 
 void AssembleInsertActionServer::preemptCallback()
@@ -114,8 +117,11 @@ void AssembleInsertActionServer::preemptCallback()
 
 bool AssembleInsertActionServer::compute(ros::Time time)
 {
+  if (!control_running_)
+    return false;
+    
   if (!as_.isActive())
-      return false; 
+    return false; 
   
   if ( mu_.find(goal_->arm_name) != mu_.end() ) {
     computeArm(time, *mu_[goal_->arm_name]);
@@ -133,23 +139,25 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   if (!as_.isActive())
       return false; 
 
-  auto & mass = arm.mass_matrix_;
-  auto & rotation = arm.rotation_;
-  auto & position = arm.position_;
+  // auto & mass = arm.mass_matrix_;
+  // auto & rotation = arm.rotation_;
+  // auto & position = arm.position_;
   auto & jacobian = arm.jacobian_;
-  auto & tau_measured = arm.tau_measured_;
-  auto & gravity = arm.gravity_;
+  // auto & tau_measured = arm.tau_measured_;
+  // auto & gravity = arm.gravity_;
   auto & xd = arm.xd_; //velocity
-
+  
   Eigen::Vector3d f_star, m_star, m_wig, m_yaw;;
   Eigen::Vector3d m_dir; 
   Eigen::Vector6d f_star_zero;
-
-  current_ = arm.transform_;
+  double run_time;
   
-  if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_))
+  current_ = arm.transform_;
+  run_time = time.toSec() - arm.task_start_time_.toSec();
+  if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_ +0.01))
   {
     std::cout<<"INSERTION IS DONE"<<std::endl;
+    std::cout<<"run time: "<< run_time<<std::endl;
     savePosture();
     setSucceeded();
   }
@@ -171,7 +179,9 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   //   m_star = current_.linear()*(insertion_force_*U_dir_);
   //   break;
   // }
-  f_star = PegInHole::pressEE(insertion_force_); //w.r.t {A}
+  //f_star = PegInHole::pressEE(insertion_force_); //w.r.t {A}
+
+  f_star = PegInHole::pressCubicEE(origin_, current_, xd, T_WA_, insertion_force_, time.toSec(), arm.task_start_time_.toSec(), duration_/2);
   f_star = T_WA_.linear()*f_star;
   
   if(wiggle_motion_ && yawing_motion_)
@@ -196,7 +206,7 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
     m_star = PegInHole::generateWiggleMotionEE_Zaxis(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
     m_star = T_WA_.linear()*m_star;
   }
-  else  m_star = keepCurrentOrientation(origin_, current_ , xd, 200, 5);
+  else  m_star = keepCurrentOrientation(origin_, current_ , xd, 2000, 15);
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
@@ -205,9 +215,11 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
   
   // f_star_zero.setZero();
-  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
+  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero;
   arm.setTorque(desired_torque);
   
+  insert_pose_data << arm.position_<<std::endl;
+  // std::cout<<"f_star: "<< f_star.transpose()<<std::endl;
   return true;
 }
 

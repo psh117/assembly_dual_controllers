@@ -87,14 +87,6 @@ void AssembleDualApproachActionServer::goalCallback()
   is_approach_first_ = true;
   is_tilt_back_first_ = true;
 
-  if (force_moment.is_open())
-    force_moment.close();
-  if (force_moment_lpf.is_open())
-    force_moment_lpf.close();
-
-  force_moment.open("fm_dual_approach_data.txt");
-  force_moment_lpf.open("fm_dual_approach_data_lfp.txt");
-
   control_running_ = true;
 
   std::cout<<"Approach using dual arm"<<std::endl;

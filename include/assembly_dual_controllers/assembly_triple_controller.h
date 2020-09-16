@@ -18,6 +18,7 @@
 #include <Eigen/Dense>
 
 #include <assembly_dual_controllers/utils/model/franka_model_updater.h>
+#include <assembly_dual_controllers/utils/timer/suhan_benchmark.h>
 #include <assembly_dual_controllers/servers/joint_trajectory_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_approach_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_insert_action_server.h>
@@ -32,15 +33,20 @@
 #include <assembly_dual_controllers/servers/assemble_dual_spiral_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_dual_approach_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_approach_bolt_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_retreat_bolt_action_server.h>
 #include <assembly_dual_controllers/servers/task_space_move_action_server.h>
 #include <assembly_dual_controllers/servers/idle_control_server.h>
 #include <assembly_dual_controllers/servers/assemble_probe_edge_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_triple_move_action_server.h>
+
 
 // #include <assembly_dual_controllers/single_peginhole_action_server.h>
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
 #include <geometry_msgs/PoseStamped.h>
-
+#include <franka_msgs/SetLoad.h>
+#include <franka_msgs/SetLoadRequest.h>
+#include <franka_msgs/SetLoadResponse.h>
 #include <fstream>
 
 #define EYE(X) Matrix<double, X, X>::Identity()
@@ -75,8 +81,10 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   std::unique_ptr<AssembleDualSpiralActionServer> assemble_dual_spiral_action_server_;
   std::unique_ptr<AssembleDualApproachActionServer> assemble_dual_approach_action_server_;
   std::unique_ptr<AssembleApproachBoltActionServer> assemble_approach_bolt_action_server_;
+  std::unique_ptr<AssembleRetreatBoltActionServer> assemble_retreat_bolt_action_server_;
   std::unique_ptr<TaskSpaceMoveActionServer> task_space_move_action_server_;
   std::unique_ptr<AssembleProbeEdgeActionServer> assemble_probe_edge_action_server_;
+  std::unique_ptr<AssembleTripleMoveActionServer> assemble_triple_move_action_server_;
   std::unique_ptr<IdleControlServer> idle_control_server_;
   
   std::map<std::string, std::shared_ptr<FrankaModelUpdater> >  arms_data_; ///< Holds all relevant data for both arms.
@@ -95,6 +103,9 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   ros::Time task_start_time_;
 
   //ros::Duration ;
+  franka_msgs::SetLoadRequest init_load_;
+  franka_msgs::SetLoadResponse load_response_;
+
 
   std::ofstream debug_file_q{"q.txt"};
   std::ofstream debug_file_fuck{"f.txt"};
@@ -104,7 +115,8 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   std::ofstream debug_file_tq{"iamdebugt.txt"};
   std::ofstream debug_file_3{"iamdebug.txt"};
 
-  std::ofstream debug_file_td{"time_debug.txt"};
+  SuhanBenchmark sb_;
+  std::ofstream debug_file_td_{"time_debug.txt"};
 
   /**
    * Saturates torque commands to ensure feasibility.

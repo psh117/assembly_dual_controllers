@@ -62,6 +62,7 @@ class AssembleApproachActionServer : public ActionServerBase
   bool is_ready_first_;
   bool is_approach_first_;
   bool is_tilt_back_first_;
+  bool heavy_mass_;
 
   int count_;
   Eigen::Vector6d accumulated_wrench_;
@@ -72,9 +73,10 @@ class AssembleApproachActionServer : public ActionServerBase
   // !!! DO NOT USE RAW POINTER OF FILE !!!
   // FILE *force_moment_ee;
 
-  std::ofstream force_moment;
-  std::ofstream force_moment_tilt_back;
-  std::ofstream contact_force;
+  std::ofstream approach_pose_data {"approach_pose_data.txt"};
+  std::ofstream force_moment {"fm_approach_data.txt"};
+  std::ofstream force_moment_tilt_back {"force_moment_tilt_back.txt"};
+  std::ofstream contact_force {"contact_force.txt"};
   std::ofstream q_dot_data;
 
 

@@ -21,8 +21,6 @@ class AssembleDualSpiralActionServer : public ActionServerBase
     void goalCallback() override;
     void preemptCallback() override;
 
-    Eigen::Matrix<double, 6, 1> f_measured_;
-
     Eigen::Isometry3d task_arm_origin_;
     Eigen::Isometry3d task_arm_current_;
     Eigen::Isometry3d assist_arm_origin_;
@@ -38,14 +36,18 @@ class AssembleDualSpiralActionServer : public ActionServerBase
     double spiral_duration_;
     double range_;
     double twist_duration_;
+    int assist_arm_action_;
 
-    Eigen::Vector3d ee_to_assembly_point_;
-    Eigen::Quaterniond ee_to_assembly_quat_;
-   
-    Eigen::Isometry3d T_EA_, T_WA_;
+    Eigen::Vector3d ee_to_assembly_point_task_;
+    Eigen::Vector3d ee_to_assembly_point_assist_;
+    Eigen::Quaterniond ee_to_assembly_quat_task_;   
+    Eigen::Quaterniond ee_to_assembly_quat_assist_;
+
+    Eigen::Isometry3d T_EA_task_, T_WA_task_;
+    Eigen::Isometry3d T_EA_assist_, T_WA_assist_;
     //--- parameters from .action file
 
-    std::ofstream save_sprial_data;
+    std::ofstream save_sprial_data {"save_sprial_data.txt"};
     
 public:
   AssembleDualSpiralActionServer(std::string name, ros::NodeHandle &nh, 

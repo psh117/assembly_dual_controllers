@@ -58,6 +58,7 @@ class AssembleSpiralActionServer : public ActionServerBase
 
   bool is_first_;
   bool is_mode_changed_;
+  bool heavy_mass_;
   ASSEMBLY_STATE state_;
 
   int count_;
@@ -67,11 +68,11 @@ class AssembleSpiralActionServer : public ActionServerBase
   // !!! DO NOT USE RAW POINTER OF FILE !!!
   // FILE *spiral_data;
 
-  std::ofstream spiral_search;
-  std::ofstream twist_search;
-  std::ofstream spiral_arm_position;
-  std::ofstream force_spiral_cmd; 
-    
+  std::ofstream spiral_search {"spiral_search.txt"};
+  std::ofstream twist_search {"twist_search.txt"};
+  std::ofstream spiral_arm_position {"spiral_arm_position.txt"};
+  std::ofstream force_spiral_cmd {"force_spiral_cmd.txt"}; 
+      
 public:
   AssembleSpiralActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);
