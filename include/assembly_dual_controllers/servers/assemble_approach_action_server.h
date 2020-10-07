@@ -35,18 +35,15 @@ class AssembleApproachActionServer : public ActionServerBase
   Eigen::Isometry3d origin_;
   Eigen::Isometry3d current_;
 
-  Eigen::Vector3d ee_to_assembly_point_;
-  Eigen::Quaterniond ee_to_assembly_quat_;
+  Eigen::Vector3d flange_to_assembly_point_;
+  Eigen::Quaterniond flange_to_assembly_quat_;
 
-  Eigen::Isometry3d T_EA_, T_WA_;
-
+  Eigen::Isometry3d T_7A_, T_WA_;
   Eigen::Vector3d tilt_axis_;
-
   Eigen::Vector3d approach_origin_;
 
   double descent_speed_;
   double contact_force_;
-  // int assemble_dir_;
   double time_limit_;
   bool set_tilt_;
   bool set_tilt_back_;
@@ -55,7 +52,8 @@ class AssembleApproachActionServer : public ActionServerBase
   double tilt_back_threshold_;
 
   double tilt_start_time_;
-  double approach_star_time_;
+  double approach_start_time_;
+  double total_action_start_time_;
 
   ASSEMBLY_STATE state_;
 
@@ -69,7 +67,9 @@ class AssembleApproachActionServer : public ActionServerBase
   Eigen::Vector6d accumulated_wrench_a_;
   geometry_msgs::Wrench wrench_rtn_;
 
-
+  Eigen::VectorXd joint_angle_margin_;
+  Eigen::Vector7d q_init_, q_null_target_;
+  Eigen::Vector7d tau_null_cmd_;
   // !!! DO NOT USE RAW POINTER OF FILE !!!
   // FILE *force_moment_ee;
 
@@ -90,7 +90,6 @@ public:
 private:
   void setSucceeded();
   void setAborted();
-  
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
   //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
 };

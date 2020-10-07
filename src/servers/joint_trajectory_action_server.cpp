@@ -39,6 +39,7 @@ void JointTrajectoryActionServer::goalCallback()
   {
     ROS_WARN("[JointTrajectoryActionServer::goalCallback] Joint trajectory goal but no data has been received. Just passing it.");
     as_.setAborted();
+    control_running_ = false;
     return; 
   }
   ROS_INFO("[JointTrajectoryActionServer::goalCallback] Joint trajectory goal has been received.");
@@ -89,6 +90,7 @@ void JointTrajectoryActionServer::goalCallback()
   {
     ROS_ERROR("[JointTrajectoryActionServer::goalCallback] the name %s is not in the arm list.", goal_->trajectory.joint_names[0].c_str());
     as_.setAborted();
+    control_running_ = false;
     return;
   }
 
@@ -117,16 +119,22 @@ void JointTrajectoryActionServer::goalCallback()
   feedback_.actual.positions.resize(as_joint_size);
   feedback_.actual.velocities.resize(as_joint_size);
   feedback_.actual.accelerations.resize(as_joint_size);
+
+  control_running_ = true;
 }
 void JointTrajectoryActionServer::preemptCallback()
 {
   ROS_INFO("[%s] Preempted", action_name_.c_str());
   as_.setPreempted();
+  control_running_ = false;
 }
 
 
 bool JointTrajectoryActionServer::compute(ros::Time time)
 {
+  if (!control_running_)
+    return false;
+
   if (!as_.isActive())
       return false; 
   
@@ -226,6 +234,7 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
     if (as_.isActive())
     {
       as_.setSucceeded();
+      control_running_ = false;
     }
     traj_running_ = false;
     arm.setInitialValues(goal_q);

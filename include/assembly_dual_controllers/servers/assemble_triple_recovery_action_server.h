@@ -28,11 +28,11 @@ class AssembleTripleRecoveryActionServer : public ActionServerBase
     void preemptCallback() override;
 
     Eigen::Isometry3d origin_, current_, target_;
-    Eigen::Isometry3d T_EA_, T_WA_;
+    Eigen::Isometry3d T_7A_, T_7P_, T_WA_;
 
-    Eigen::Vector3d ee_to_assembly_point_;
-    Eigen::Quaterniond ee_to_assembly_quat_;
-
+    Eigen::Vector3d flange_to_assembly_point_;
+    Eigen::Quaterniond flange_to_assembly_quat_;
+    
     Eigen::Vector3d target_pose_position_;
     Eigen::Quaterniond target_pose_quat_;
     Eigen::Vector6d accumulated_wrench_;
@@ -50,6 +50,8 @@ class AssembleTripleRecoveryActionServer : public ActionServerBase
     Eigen::Vector3d tilt_axis_;
     int count_;
 
+    std::ofstream triple_recovery_fm_data {"triple_recovery_fm_data.txt"};
+    std::ofstream triple_recovery_pr_data {"triple_recovery_pr_data.txt"};
 public:
   AssembleTripleRecoveryActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);

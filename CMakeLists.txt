@@ -76,7 +76,6 @@ add_library(assembly_controller_common_lib
   src/servers/assemble_spiral_action_server.cpp
   src/servers/assemble_verify_action_server.cpp
   src/servers/idle_control_server.cpp
-  src/servers/assemble_parallel_action_server.cpp
   src/servers/assemble_move_action_server.cpp
   src/servers/assemble_press_action_server.cpp
   src/servers/assemble_side_chair_action_server.cpp

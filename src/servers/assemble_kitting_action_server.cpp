@@ -1,16 +1,16 @@
-#include <assembly_dual_controllers/servers/assemble_approach_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_kitting_action_server.h>
 
-AssembleApproachActionServer::AssembleApproachActionServer(std::string name, ros::NodeHandle &nh, 
+AssembleKittingActionServer::AssembleKittingActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu)
 : ActionServerBase(name,nh,mu),
 as_(nh,name,false)
 {
-	as_.registerGoalCallback(boost::bind(&AssembleApproachActionServer::goalCallback, this));
-	as_.registerPreemptCallback(boost::bind(&AssembleApproachActionServer::preemptCallback, this));
+	as_.registerGoalCallback(boost::bind(&AssembleKittingActionServer::goalCallback, this));
+	as_.registerPreemptCallback(boost::bind(&AssembleKittingActionServer::preemptCallback, this));
   as_.start();
 }
 
-void AssembleApproachActionServer::goalCallback()
+void AssembleKittingActionServer::goalCallback()
 {
   feedback_header_stamp_ = 0;
   goal_ = as_.acceptNewGoal();
@@ -21,67 +21,35 @@ void AssembleApproachActionServer::goalCallback()
   } 
   else 
   {
-    ROS_ERROR("[AssembleApproachActionServer::goalCallback] the name %s is not in the arm list.", goal_->arm_name.c_str());
+    ROS_ERROR("[AssembleKittingActionServer::goalCallback] the name %s is not in the arm list.", goal_->arm_name.c_str());
     return ;
   }
 
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
-  total_action_start_time_ = ros::Time::now().toSec();
-  // origin_ = mu_[goal_->arm_name]->transform_;  
+  
   origin_ = mu_[goal_->arm_name]->initial_transform_;
+  
   contact_force_ = goal_->contact_force;
   
   descent_speed_ = goal_ ->descent_speed;  
   time_limit_ = goal_ ->time_limit;
-  tilt_angle_ = goal_ ->tilt_angle;
-  tilt_duration_ = goal_->tilt_duration;
-  state_ = (ASSEMBLY_STATE)goal_->state;
-  set_tilt_ = goal_->set_tilt;
-
-  flange_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
-  flange_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
-  flange_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
-  flange_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
-  flange_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
-  flange_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
-  flange_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
-
-  tilt_back_threshold_ = goal_ -> tilt_back_threshold;
-  //TODO : delete T_WD_, T_AD_
-  T_7A_.linear() = flange_to_assembly_quat_.toRotationMatrix(); // from the flange frame to the assembly frame
-  T_7A_.translation() = flange_to_assembly_point_;
-
-  tilt_axis_ = getTiltDirection(T_7A_);
-
-  T_WA_ = origin_*T_7A_;
-
+  
   is_ready_first_ = true;
-  is_approach_first_ = true;
-  is_tilt_back_first_ = true;
   
   control_running_ = true;
 
-  std::cout<<"APPROACH START"<<std::endl;
-  std::cout<<"set tilt: "<<set_tilt_<<std::endl;
-  std::cout<<"T_7A_: \n"<< T_7A_.matrix()<<std::endl;
-  std::cout<<"contact_threshold: "<<contact_force_<<std::endl;
-  
-  accumulated_wrench_.setZero();
-  count_ = 0;
-
-  q_init_ = mu_[goal_->arm_name]->q_;
-  q_null_target_ = getNullSpaceJointTarget(rbdl_panda_.getJointLimit(), q_init_);
+  std::cout<<"KITTING START"<<std::endl;
   
 }
 
-void AssembleApproachActionServer::preemptCallback()
+void AssembleKittingActionServer::preemptCallback()
 {
   ROS_INFO("[%s] Preempted", action_name_.c_str());
   as_.setPreempted();
   control_running_ = false;
 }
 
-bool AssembleApproachActionServer::compute(ros::Time time)
+bool AssembleKittingActionServer::compute(ros::Time time)
 {
   if (!control_running_)
     return false;
@@ -93,14 +61,14 @@ bool AssembleApproachActionServer::compute(ros::Time time)
     computeArm(time, *mu_[goal_->arm_name]);
     return true;
   } else {
-    ROS_ERROR("[AssembleApproachActionServer::compute] the name %s is not in the arm list.", goal_->arm_name.c_str());
+    ROS_ERROR("[AssembleKittingActionServer::compute] the name %s is not in the arm list.", goal_->arm_name.c_str());
   }
 
   return false;
 }
 
 
-bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm)
+bool AssembleKittingActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm)
 {
   if (!as_.isActive())
       return false; 
@@ -114,44 +82,16 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   auto & xd = arm.xd_;
   
   Eigen::Vector3d f_star, m_star;
-  Eigen::Vector6d f_star_zero, f_ext, f_tilt;
+  Eigen::Vector6d f_star_zero, f_ext;
   double run_time;
   Eigen::Vector3d force;
-  
+  Eigen::Isometry3d T_kitting;
+
   f_ext = arm.f_ext_;
   current_ = arm.transform_;
   
-  int cnt_max = 500;
-  int cnt_start = 100;
-  if(count_ < cnt_max)
-  { 
-    f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 700, 10, 2000, 15).head<3>(); //w.r.t {W}
-    m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 700, 10, 2000, 15).tail<3>();
-    if(count_ == 0)
-    {
-      std::cout<<"command force: "<< f_star.transpose()<<std::endl;
-      std::cout<<"command moment: "<< m_star.transpose()<<std::endl;
-    }
-    if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, f_ext, cnt_start, count_, cnt_max);    
-    count_++;
-    if(count_ >= cnt_max)
-    {
-      count_ = cnt_max;
-      accumulated_wrench_a_.head<3>() = T_WA_.linear().inverse() * accumulated_wrench_.head<3>();
-      accumulated_wrench_a_.tail<3>() = T_WA_.linear().inverse() * accumulated_wrench_.tail<3>();
-      std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
-      wrench_rtn_.force.x = accumulated_wrench_a_(0);
-      wrench_rtn_.force.y = accumulated_wrench_a_(1);
-      wrench_rtn_.force.z = accumulated_wrench_a_(2);
-      wrench_rtn_.torque.x = accumulated_wrench_a_(3);
-      wrench_rtn_.torque.y = accumulated_wrench_a_(4);
-      wrench_rtn_.torque.z = accumulated_wrench_a_(5);
-      result_.compensation = wrench_rtn_;
-      heavy_mass_ = Criteria::holdHeavyMass(accumulated_wrench_.head<3>(), 8.0);
-    } 
-  }
-  else
-  {
+  T_kitting = Eigen::Matirx4d::I
+  f_star = PegInHole::oneDofMoveEE
     switch (state_)
     {
     case READY:
@@ -170,7 +110,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         std::cout << "TILT DONE" << std::endl;
       }
       
-      f_tilt = PegInHole::tiltMotion(origin_, current_, xd, T_7A_, tilt_axis_, tilt_angle_, time.toSec(), tilt_start_time_, tilt_duration_, 800.0, 20.0);
+      f_tilt = PegInHole::tiltMotion(origin_, current_, xd, T_7A_, tilt_axis_, tilt_angle_, time.toSec(), tilt_start_time_, tilt_duration_, 800.0, 50.0);
       f_star = f_tilt.head<3>();
       m_star = f_tilt.tail<3>();
       
@@ -204,12 +144,12 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         break;
       }
 
-      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 800, 20);
+      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 800, 50);
       m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
       
       if(heavy_mass_)
       {
-        f_star = T_WA_.linear() * (f_star);// + accumulated_wrench_.head<3>();
+        f_star = T_WA_.linear() * (f_star) + accumulated_wrench_.head<3>();
         m_star = m_star + 1.2*accumulated_wrench_.tail<3>();
       }
       else
@@ -244,7 +184,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         setSucceeded();
       }
 
-      f_tilt = PegInHole::tiltMotion(origin_, current_, xd, T_7A_, tilt_axis_, -(tilt_angle_*1.5), time.toSec(), tilt_start_time_, tilt_duration_+1.0, 700.0, 40.0);
+      f_tilt = PegInHole::tiltMotion(origin_, current_, xd, T_7A_, tilt_axis_, -tilt_angle_, time.toSec(), tilt_start_time_, tilt_duration_,800.0, 50.0);
       f_star = f_tilt.head<3>();
       m_star = f_tilt.tail<3>();
 
@@ -259,7 +199,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
     }
   }
 
-  if(state_ == (ASSEMBLY_STATE) EXEC)
+  if(state_ <= (ASSEMBLY_STATE) EXEC)
   {
     Eigen::Vector6d f_contact;
     f_contact.head<3>() = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_a_.head<3>();
@@ -295,13 +235,13 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   return true;
 }
 
-void AssembleApproachActionServer::setSucceeded()
+void AssembleKittingActionServer::setSucceeded()
 {
   result_.is_completed = true;
   as_.setSucceeded(result_);
   control_running_ = false;
 }
-void AssembleApproachActionServer::setAborted()
+void AssembleKittingActionServer::setAborted()
 {
   result_.is_completed = false;
   as_.setAborted(result_);

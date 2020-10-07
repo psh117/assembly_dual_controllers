@@ -45,18 +45,18 @@ void AssembleProbeEdgeActionServer::goalCallback()
   pin_radius_ = goal_ ->pin_radius;
   offset_ = goal_ ->geometric_offset;
 
-  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
-  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
-  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
-  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
-  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
-  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
-  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  flange_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  flange_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  flange_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  flange_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  flange_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  flange_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  flange_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
   
-  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
-  T_EA_.translation() = ee_to_assembly_point_;
+  T_7A_.linear() = flange_to_assembly_quat_.toRotationMatrix();
+  T_7A_.translation() = flange_to_assembly_point_;
   
-  T_WA_ = origin_ * T_EA_;
+  T_WA_ = origin_ * T_7A_;
 
 
   state_ = PROBE_STATE::READY;
@@ -164,7 +164,7 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
     }      
   }
 
-  task_displacement = ((origin_ * T_EA_).inverse() * current_ * T_EA_).translation();
+  task_displacement = ((origin_ * T_7A_).inverse() * current_ * T_7A_).translation();
   run_time = time.toSec() - arm.task_start_time_.toSec();
 
   switch (state_)
@@ -183,7 +183,7 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
       break;
     }
 
-    f_star = PegInHole::straightMotionEE(origin_, current_, xd, T_EA_, obj_dir, 0.01, time.toSec(), arm.task_start_time_.toSec());
+    f_star = PegInHole::straightMotionEE(origin_, current_, xd, T_7A_, obj_dir, 0.01, time.toSec(), arm.task_start_time_.toSec());
     f_star = T_WA_.linear() * f_star;
     m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 10);
 
@@ -220,13 +220,13 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
     }
 
     f_att = generateNormalForce(attraction_force_, contact_loss_threshold_, xd, T_WA_, normal_vector_, 5, time.toSec(), arm.task_start_time_.toSec());
-    f_prob = generateProbingForce(origin_, current_, xd, T_EA_, dir, speed, time.toSec(), arm.task_start_time_.toSec());
+    f_prob = generateProbingForce(origin_, current_, xd, T_7A_, dir, speed, time.toSec(), arm.task_start_time_.toSec());
     f_a = f_att + selection_matrix_ * f_prob;
     f_star = T_WA_.linear() * f_a; //+ init_force_ext_.head<3>();
     m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 10);
 
     // save_position = World_to_robot_ * current_.translation();
-    save_position = (T_WA_.inverse()*current_*T_EA_).translation(); // probing path w.r.t {A}
+    save_position = (T_WA_.inverse()*current_*T_7A_).translation(); // probing path w.r.t {A}
     path_x_.push_back(save_position(0));
     path_y_.push_back(save_position(1));
 
@@ -283,7 +283,7 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
 
     // f_att = generateNormalForce(normal_vector_.head<2>(), attraction_force_ / 5);
     // f_att = generateNormalForce(attraction_force_/3, contact_loss_threshold_, xd, T_WA_, normal_vector_, 50, time.toSec(), arm.task_start_time_.toSec());
-    f_prob = generateProbingForce(origin_, current_, xd, T_EA_, dir, speed, time.toSec(), arm.task_start_time_.toSec());
+    f_prob = generateProbingForce(origin_, current_, xd, T_7A_, dir, speed, time.toSec(), arm.task_start_time_.toSec());
     f_a = f_prob;
     f_star = T_WA_.linear() * f_a;
     m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 1500, 10);
@@ -319,7 +319,7 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
 
   case COMPLETE:
     cross_point = getCrossPoint(probe_coeff_);    
-    renew_origin = renewOrigin(probe_origin_, current_, T_EA_, cross_point, probing_sequence_, probe_dist_);
+    renew_origin = renewOrigin(probe_origin_, current_, T_7A_, cross_point, probing_sequence_, probe_dist_);
     
     renew_origin_.position.x = renew_origin(0);
     renew_origin_.position.y = renew_origin(1);
@@ -354,7 +354,7 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
   // if(state_ == RECOVER_CONTACT) f_star_zero_.setZero();
   if (state_ == PROBE_ON_THE_EDGE || state_ == CONTACT_AGAIN)
   {
-    // probe_pr_data << (current_ * T_EA_).translation().transpose() << std::endl;
+    // probe_pr_data << (current_ * T_7A_).translation().transpose() << std::endl;
     probe_pr_data << save_position.transpose() << std::endl;
     // probe_pr_data << arm.position_.transpose() << std::endl;
     probe_ft_cmd_data << (T_WA_.inverse() * f_star.head<3>()).transpose() << std::endl;
@@ -367,7 +367,7 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
     probe_ft_data << f.transpose() << std::endl;
   }
 
-  // probe_pr_data << (T_WA_.inverse()*current_ * T_EA_).translation().transpose() << std::endl;
+  // probe_pr_data << (T_WA_.inverse()*current_ * T_7A_).translation().transpose() << std::endl;
   // if(dir_index_ == 1) f_star_zero_.setZero();
 
   Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() *arm.modified_lambda_matrix_*f_star_zero_;

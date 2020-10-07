@@ -33,9 +33,9 @@ class AssembleMoveActionServer : public ActionServerBase
     Eigen::Matrix<double, 6, 1> desired_xd_;
         
     Eigen::Isometry3d origin_, current_, target_;
-    Eigen::Isometry3d T_EA_, T_WA_;
-    Eigen::Vector3d target_pos_, ee_to_assembly_point_;
-    Eigen::Quaterniond target_quat_, ee_to_assembly_quat_;
+    Eigen::Isometry3d T_7A_, T_WA_;
+    Eigen::Vector3d target_pos_, flange_to_assembly_point_;
+    Eigen::Quaterniond target_quat_, flange_to_assembly_quat_;
   
     int type_;
     int dir_;

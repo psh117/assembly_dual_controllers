@@ -29,18 +29,18 @@ void AssembleVerifyActionServer::goalCallback()
   
   origin_ = mu_[goal_->arm_name]->transform_;  
 
-  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
-  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
-  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
-  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
-  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
-  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
-  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  flange_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  flange_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  flange_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  flange_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  flange_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  flange_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  flange_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
-  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
-  T_EA_.translation() = ee_to_assembly_point_;
+  T_7A_.linear() = flange_to_assembly_quat_.toRotationMatrix();
+  T_7A_.translation() = flange_to_assembly_point_;
   
-  T_WA_ = origin_*T_EA_;
+  T_WA_ = origin_*T_7A_;
   
   control_running_ = true;
 
@@ -59,13 +59,13 @@ void AssembleVerifyActionServer::goalCallback()
   search_duration_ = goal_->search_duration;
    
 
-  std::cout<<"T_EA_: \n"<<T_EA_.matrix()<<std::endl;
+  std::cout<<"T_7A_: \n"<<T_7A_.matrix()<<std::endl;
   std::cout<<"T_WA_: \n"<<T_WA_.matrix()<<std::endl;
   std::cout<<"T_WE_: \n"<<origin_.linear()<<std::endl;
   // std::cout << "verify_origin: " << T_WA_.translation().transpose() << std::endl;
   // std::cout << "origin_: " << origin_.translation().transpose() << std::endl;
   std::cout << "search dir: " << search_dir_.transpose() << std::endl;
-  // std::cout<<"detection threshold: "<<threshold_<<std::endl;
+  std::cout<<"detection threshold: "<<threshold_<<std::endl;
 }
 
 void AssembleVerifyActionServer::preemptCallback()
@@ -160,7 +160,7 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
       if (cnt_ > cnt_start)   PegInHole::getCompensationWrench(accumulated_wrench_, f_ext, cnt_start, cnt_, cnt_max);
       cnt_++;
-      f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 700, 10);      
+      f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 3000, 100);      
       break;
 
     case FORWARD:
@@ -191,7 +191,7 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         break;
       }
 
-      f_star = PegInHole::threeDofMoveEE(origin_, current_, target_, xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), search_duration_, 700, 10);
+      f_star = PegInHole::threeDofMoveEE(origin_, current_, target_, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), search_duration_, 3000, 50);
       f_star = T_WA_.linear() * (f_star) + force_compensation;
       break;
 
@@ -215,12 +215,12 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
       detectObjectLocation();
       
-      f_star = PegInHole::threeDofMoveEE(origin_, current_, target_, xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), search_duration_, 700, 10);
+      f_star = PegInHole::threeDofMoveEE(origin_, current_, target_, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), search_duration_, 3000, 50);
       f_star = T_WA_.linear() * (f_star) + force_compensation;
       break;
   }
 
-  m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd,  2000, 15);
+  m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd,  200, 5);
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
@@ -228,7 +228,8 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   
   // if(state_ == BACKWARD) f_star_zero.setZero();
 
-  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero;
+  // Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero;
+  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() *f_star_zero;
 
   arm.setTorque(desired_torque);
 

@@ -39,18 +39,18 @@ void AssembleApproachBoltActionServer::goalCallback()
 
   state_ = READY;
   
-  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
-  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
-  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
-  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
-  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
-  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
-  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  flange_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  flange_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  flange_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  flange_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  flange_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  flange_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  flange_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
   //TODO : delete T_WD_, T_AD_
-  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
-  T_EA_.translation() = ee_to_assembly_point_;
-  T_WA_ = origin_ * T_EA_;
+  T_7A_.linear() = flange_to_assembly_quat_.toRotationMatrix();
+  T_7A_.translation() = flange_to_assembly_point_;
+  T_WA_ = origin_ * T_7A_;
 
   is_mode_changed_ = false;
 
@@ -58,7 +58,7 @@ void AssembleApproachBoltActionServer::goalCallback()
 
   std::cout << "BOLT APPROACH START" << std::endl;
   // std::cout<<"state_: "<<state_<<std::endl;
-  std::cout<<"T_EA_: \n"<< T_EA_.matrix()<<std::endl;
+  std::cout<<"T_7A_: \n"<< T_7A_.matrix()<<std::endl;
   std::cout << "contact_threshold: " << contact_force_ << std::endl;
   std::cout<<"init yaw angle: "<<init_yaw_angle_*RAD2DEG<<std::endl;
   std::cout<<"revolving duration: "<<revolve_duration_<<std::endl;
@@ -134,7 +134,7 @@ bool AssembleApproachBoltActionServer::computeArm(ros::Time time, FrankaModelUpd
         std::cout << "RORATE DONE" << std::endl;
       }
       f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 5000, 200, 200, 5).head<3>(); //w.r.t {W}
-      m_star = PegInHole::generateYawingMotionEE(origin_, current_, T_EA_, xd, -init_yaw_angle_, revolve_duration_, time.toSec(), arm.task_start_time_.toSec());
+      m_star = PegInHole::generateYawingMotionEE(origin_, current_, T_7A_, xd, -init_yaw_angle_, revolve_duration_, time.toSec(), arm.task_start_time_.toSec());
       m_star = T_WA_.linear()*m_star;
       break;
 
@@ -153,7 +153,7 @@ bool AssembleApproachBoltActionServer::computeArm(ros::Time time, FrankaModelUpd
         setAborted();
       }
 
-      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_EA_, descent_speed_, time.toSec(), arm.task_start_time_.toSec());
+      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), arm.task_start_time_.toSec());
       f_star = T_WA_.linear() * f_star;
 
       m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 400, 5);

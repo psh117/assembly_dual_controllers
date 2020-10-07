@@ -25,12 +25,15 @@ public:
 
   int getDof() override;
 
-private:
   void initModel();
-
+  void initModel(const Eigen::Ref<const Eigen::Matrix<double, 7, 4> > & dh); // 7x4
+private:
+  Eigen::Isometry3d transformDH(const double a, const double d, const double alpha, const double theta);
+  
   RigidBodyDynamics::Math::Vector3d com_position_[kDof];
   RigidBodyDynamics::Math::Vector3d ee_position_;
   Eigen::Vector3d joint_posision_[kDof];
+  Eigen::Matrix3d rot_ee_;
 
   std::shared_ptr<RigidBodyDynamics::Model> model_;
   unsigned int body_id_[kDof];

@@ -29,10 +29,10 @@ class AssembleVerifyActionServer : public ActionServerBase
     void preemptCallback() override;
 
     Eigen::Isometry3d origin_, current_;
-    Eigen::Isometry3d T_EA_, T_WA_;
+    Eigen::Isometry3d T_7A_, T_WA_;
     
-    Eigen::Vector3d ee_to_assembly_point_;
-    Eigen::Quaterniond ee_to_assembly_quat_;
+    Eigen::Vector3d flange_to_assembly_point_;
+    Eigen::Quaterniond flange_to_assembly_quat_;
     Eigen::Vector3d spiral_origin_;
     
     bool is_mode_changed_;

@@ -66,8 +66,10 @@ void FrankaModelUpdater::updateModel()
 
   t[debug_index++] = sb_.elapsedAndReset();
   // transform_ = Eigen::Matrix4d::Map(model_handle_->getPose(franka::Frame::kEndEffector).data());
-  transform_ = rbdl_model_.getTransform(q_ + q_offset_);
-  jacobian_ = rbdl_model_.getJacobianMatrix(q_ + q_offset_);
+  // transform_ = rbdl_model_.getTransform(q_ + q_offset_);
+  // jacobian_ = rbdl_model_.getJacobianMatrix(q_ + q_offset_);
+  transform_ = rbdl_model_.getTransform(q_);
+  jacobian_ = rbdl_model_.getJacobianMatrix(q_);
   t[debug_index++] = sb_.elapsedAndReset();
 #else
   // mass_matrix_ = 
@@ -123,11 +125,11 @@ void FrankaModelUpdater::updateModel()
   printState();
   t[debug_index++] = sb_.elapsedAndReset();
 
-  for(int i=0; i<debug_index; ++i)
-  {
-    debug_file_td_ << t[i] << '\t';
-  }
-  debug_file_td_ << std::endl;
+  // for(int i=0; i<debug_index; ++i)
+  // {
+  //   debug_file_td_ << t[i] << '\t';
+  // }
+  // debug_file_td_ << std::endl;
 }
 
 void FrankaModelUpdater::setTorque(const Eigen::Matrix<double,7,1> &torque_command, bool idle_control)
@@ -162,7 +164,8 @@ void FrankaModelUpdater::setInitialValues(const Eigen::Ref<const Eigen::VectorXd
   // Eigen::Matrix<double, 7, 1>::Map(q_array.data()) = q;
   // B_T_EE = model_handle_->getPose(franka::Frame::kEndEffector, q_array, F_T_EE_, EE_T_K_);
   // initial_transform_ = Eigen::Matrix4d::Map(B_T_EE.data());
-  initial_transform_ = rbdl_model_.getTransform(q + q_offset_);
+  // initial_transform_ = rbdl_model_.getTransform(q + q_offset_);
+  initial_transform_ = rbdl_model_.getTransform(q);
 #else
   initial_transform_ = mujoco_helper_->getRBDLModel().getTransform(q);
 #endif

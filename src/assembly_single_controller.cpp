@@ -163,8 +163,6 @@ bool AssemblySingleController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_verify_completion_control", node_handle, arms_data_);
   joint_trajectory_action_server_ = std::make_unique<JointTrajectoryActionServer>
   ("/assembly_dual_controller/joint_trajectory_control", node_handle, arms_data_);
-  assemble_parallel_action_server_ = std::make_unique<AssembleParallelActionServer>
-  ("/assembly_dual_controller/assemble_parallel_control", node_handle, arms_data_);
   assemble_move_action_server_ = std::make_unique<AssembleMoveActionServer>
   ("/assembly_dual_controller/assemble_move_control", node_handle, arms_data_);
   assemble_press_action_server_ = std::make_unique<AssemblePressActionServer>
@@ -242,7 +240,6 @@ void AssemblySingleController::update(const ros::Time& time, const ros::Duration
   assemble_spiral_action_server_->compute(time);
   assemble_insert_action_server_->compute(time);
   assemble_verify_action_server_->compute(time);
-  assemble_parallel_action_server_->compute(time);
   assemble_move_action_server_->compute(time);
   assemble_press_action_server_->compute(time);
   assemble_side_chair_action_server_ ->compute(time);

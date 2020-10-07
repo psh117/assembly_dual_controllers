@@ -36,7 +36,7 @@ namespace PegInHole
                                                  const Eigen::Vector3d position,
                                                  const Eigen::Matrix3d rotation,
                                                  const Eigen::Matrix<double, 6, 1> current_velocity,
-                                                 const double kp = 5000, const double kv = 100);
+                                                 const double kp = 700, const double kv = 40);
 
     Eigen::Vector3d generateSpiral(const Eigen::Vector3d origin,
                                    const Eigen::Vector3d current_position,
@@ -62,12 +62,6 @@ namespace PegInHole
                                                        const double current_time,
                                                        const double init_time);
 
-    Eigen::Vector3d rotateOrientationPerpenticular(const Eigen::Matrix3d initial_rotation_M,
-                                                   const Eigen::Matrix3d rotation_M,
-                                                   const Eigen::Matrix<double, 6, 1> current_velocity,
-                                                   const double duration,
-                                                   const double current_time,
-                                                   const double init_time);
     Eigen::Vector3d getNormalForce(const Eigen::Vector3d &normal_vector,
                                    const double force);
 
@@ -87,8 +81,11 @@ namespace PegInHole
                                const Eigen::Ref<const Eigen::Vector6d> &xd, const Eigen::Isometry3d T_ea,
                                const Eigen::Vector3d tilt_axis, //wrt {A}
                                const double tilt_angle,
-                               const double t, const double t_0, const double duration);
-    // bool::judgeHeavyMass(const double t, const double )
+                               const double t,
+                               const double t_0,
+                               const double duration,
+                               const double kp = 700.0,
+                               const double kv = 40.0);
 
     Eigen::Vector3d pinMoveEE(const Eigen::Isometry3d &origin,
                               const Eigen::Isometry3d &current,
@@ -114,7 +111,9 @@ namespace PegInHole
                                         const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
                                         const double speed,
                                         const double t,
-                                        const double t_0);
+                                        const double t_0,
+                                        const double kp = 700,
+                                        const double kv = 40);
 
     Eigen::Vector3d threeDofMoveEE(const Eigen::Isometry3d &origin,
                                    const Eigen::Isometry3d &current,
@@ -133,28 +132,30 @@ namespace PegInHole
                                  const Eigen::Ref<const Eigen::Vector6d> &xd,
                                  const double t,
                                  const double t_0,
-                                 const double duration);
+                                 const double duration,
+                                 const double kp = 700,
+                                 const double kv = 40);
 
     Eigen::Vector6d keepCurrentPose(const Eigen::Isometry3d &origin,
                                     const Eigen::Isometry3d &current,
                                     const Eigen::Ref<const Eigen::Vector6d> &xd,
-                                    const double kp = 200,
-                                    const double kv = 5,
-                                    const double kp_o = 200,
-                                    const double kv_o = 5,
+                                    const double kp = 700,
+                                    const double kv = 40,
+                                    const double kp_o = 2000,
+                                    const double kv_o = 15,
                                     const Eigen::Ref<const Eigen::Matrix6d> &lambda = Eigen::Matrix6d::Identity());
 
     Eigen::Vector3d keepCurrentPosition(const Eigen::Isometry3d &origin,
                                         const Eigen::Isometry3d &current,
                                         const Eigen::Ref<const Eigen::Vector6d> &xd,
-                                        const double kp = 5000,
-                                        const double kv = 100);
+                                        const double kp = 700,
+                                        const double kv = 40);
 
     Eigen::Vector3d keepCurrentOrientation(const Eigen::Isometry3d &origin,
                                            const Eigen::Isometry3d &current,
                                            const Eigen::Ref<const Eigen::Vector6d> &xd,
-                                           const double kp = 200,
-                                           const double kv = 5);
+                                           const double kp = 2000,
+                                           const double kv = 15);
 
     Eigen::Vector3d pressEE(const double force, 
                             const Eigen::Vector6d &xd,
@@ -169,7 +170,9 @@ namespace PegInHole
                                 const double force,
                                 const double t,
                                 const double t_0,
-                                const double duration);
+                                const double duration,
+                                const double kp = 800,
+                                const double kv = 20);
 
     Eigen::Vector6d generateTwistSpiralEE(const Eigen::Isometry3d &origin,
                                           const Eigen::Isometry3d &current,
@@ -206,7 +209,9 @@ namespace PegInHole
                                      const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
                                      const double t,
                                      const double t_0,
-                                     const double duration);
+                                     const double duration,
+                                     const double f_gain = 5.0,
+                                     const bool set_tilt = false);
 
     Eigen::Vector6d generateSpiralEE_datasave(const Eigen::Isometry3d &origin,
                                               const Eigen::Isometry3d &current,
@@ -234,7 +239,9 @@ namespace PegInHole
                                   const Eigen::Matrix3d target_rot, //wrt {E}
                                   const double t,
                                   const double t_0,
-                                  const double duration);
+                                  const double duration,
+                                  const double kp = 2000,
+                                  const double kv = 15);
 
     Eigen::Vector3d generateWiggleMotionEE(const Eigen::Isometry3d &origin,
                                            const Eigen::Isometry3d &current,
@@ -244,15 +251,18 @@ namespace PegInHole
                                            const double w, //rad/s
                                            const double t,
                                            const double t_0);
-    
+
     Eigen::Vector3d generateWiggleMotionEE_Zaxis(const Eigen::Isometry3d &origin,
-                                                const Eigen::Isometry3d &current,
-                                                const Eigen::Isometry3d &T_ea,
-                                                const Eigen::Ref<const Eigen::Vector6d> &xd,
-                                                const double angle,
-                                                const double w, //rad/s
-                                                const double t,
-                                                const double t_0);
+                                                 const Eigen::Isometry3d &current,
+                                                 const Eigen::Isometry3d &T_ea,
+                                                 const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                                 const double angle,
+                                                 const double w, //rad/s
+                                                 const int a,
+                                                 const double b,
+                                                 const double t_offset,
+                                                 const double t,
+                                                 const double t_0);
 
     Eigen::Vector3d generateYawingMotionEE(const Eigen::Isometry3d &origin,
                                            const Eigen::Isometry3d &current,
@@ -292,4 +302,47 @@ namespace PegInHole
 
     Eigen::MatrixXd LeastSquareEdgeProbing(const std::vector<double> x_vec,
                                            const std::vector<double> y_vec);
+
+    Eigen::Vector7d inspectJointLimit(const Eigen::Vector7d &joint_angle,
+                                      const Eigen::Vector7d &joint_angle_ub,
+                                      const Eigen::Vector7d &joint_angle_lb,
+                                      const double inspection = 5,
+                                      const double angle_margin = 10*DEG2RAD);
+
+    Eigen::Vector7d nullSpaceJointTorque(const Eigen::Vector7d &q_curr,
+                                         const Eigen::Vector7d &q_init,
+                                         const Eigen::Vector7d &q_target,
+                                         const Eigen::Vector7d &q_dot,
+                                         const double t,
+                                         const double t_0,
+                                         const double duration,
+                                         const double kp = 10,
+                                         const double kv = 0.1);
+
+    Eigen::Vector7d getNullSpaceJointTarget(const Eigen::Matrix<double, 7, 2> &joint_limit_info,
+                                            const Eigen::Vector7d &q_init);
+
+    Eigen::Vector3d followSphericalCoordinateEE(const Eigen::Isometry3d &origin,
+                                                const Eigen::Isometry3d &current,
+                                                const Eigen::Isometry3d &target,
+                                                const Eigen::Vector6d &xd,
+                                                const Eigen::Isometry3d &T_7a,
+                                                const double t,
+                                                const double t_0,
+                                                const double duration,
+                                                const double radius,
+                                                const double kp = 700,
+                                                const double kv = 40);
+
+    Eigen::Vector3d generateMoment(const Eigen::Isometry3d &origin,
+                                   const Eigen::Isometry3d &current,
+                                   const Eigen::Isometry3d &T_7a,
+                                   const Eigen::Vector6d &xd,
+                                   const double angle,
+                                   const double t,
+                                   const double t_0,
+                                   const double duration,
+                                   const double kp = 2000,
+                                   const double kv = 15);
+
 }; // namespace PegInHole

@@ -26,7 +26,7 @@ void AssembleInsertActionServer::goalCallback()
   }
 
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
-
+  total_action_start_time_ = ros::Time::now().toSec();
   origin_ = mu_[goal_->arm_name]->transform_;
   
   duration_ = goal_->duration;
@@ -36,6 +36,8 @@ void AssembleInsertActionServer::goalCallback()
   wiggle_motion_ = goal_->wiggle_motion;
   wiggle_motion_z_axis_ = goal_->wiggle_motion_z_axis;
   yawing_motion_ = goal_->yawing_motion;
+
+  connector_type_ = goal_ -> connector_type;
 
   yawing_angle_ = goal_->yawing_angle * DEG2RAD; //radian
   init_yaw_angle_ = mu_[goal_->arm_name]->q_(6,0); //radian
@@ -60,21 +62,44 @@ void AssembleInsertActionServer::goalCallback()
   // std::cout<<"sum: "<<yawing_angle_ + init_yaw_angle_<<std::endl;
   // std::cout<<"-------------------------------------"<<std::endl;
 
-  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
-  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
-  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
-  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
-  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
-  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
-  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  flange_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  flange_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  flange_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  flange_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  flange_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  flange_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  flange_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
-  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
-  T_EA_.translation() = ee_to_assembly_point_;
+  T_7A_.linear() = flange_to_assembly_quat_.toRotationMatrix();
+  T_7A_.translation() = flange_to_assembly_point_;
  
-  T_WA_ = origin_*T_EA_;
+  T_WA_ = origin_*T_7A_;
 
   wiggle_angle_ = 5.0*DEG2RAD;
   wiggle_angular_vel_ = 4*M_PI; // 2pi / s
+  
+  // To define parameters of wiggle motion along z-axis
+  if(init_yaw_angle_ + wiggle_angle_ >= yaw_up_limit_)
+  {
+    wiggle_z_axis_param_.a = 1;
+    wiggle_z_axis_param_.b = init_yaw_angle_ - wiggle_angle_;
+    wiggle_z_axis_param_.t_offset = 2*M_PI/wiggle_angular_vel_/4;
+    std::cout<<"near upper joint limit"<<std::endl;
+  }
+  else if(init_yaw_angle_ - wiggle_angle_ <= yaw_low_limit_)
+  {
+    wiggle_z_axis_param_.a = -1;
+    wiggle_z_axis_param_.b = init_yaw_angle_ + wiggle_angle_;
+    wiggle_z_axis_param_.t_offset = 2*M_PI/wiggle_angular_vel_/4;
+    std::cout<<"near lower joint limit"<<std::endl;
+  }
+  else
+  {
+    wiggle_z_axis_param_.a = 1;
+    wiggle_z_axis_param_.b = 0;
+    wiggle_z_axis_param_.t_offset = 0;
+  }
+
 
   if(wiggle_motion_ && yawing_motion_) std::cout<<"wiggle & yawing motion is activated"<<std::endl;
   else if(wiggle_motion_) std::cout<<"wiggle motion is activated"<<std::endl;
@@ -83,29 +108,37 @@ void AssembleInsertActionServer::goalCallback()
   
   control_running_ = true;
 
-  Eigen::Isometry3d T_AE;
-  Eigen::Vector3d P_ae;
-  double dis;
-  T_AE = T_EA_.inverse();
-  P_ae = T_AE.translation();
-  dis = sqrt(P_ae(0)*P_ae(0) + P_ae(1)*P_ae(1));
+  // Eigen::Isometry3d T_AE;
+  // Eigen::Vector3d P_ae;
+  // double dis;
+  // T_AE = T_7A_.inverse();
+  // P_ae = T_AE.translation();
+  // dis = sqrt(P_ae(0)*P_ae(0) + P_ae(1)*P_ae(1));
 
-  if(dis <= 0.005)
-  {
-    mode_ = SIMPLE;
-    std::cout<<"Insert the part in the simple method"<<std::endl;
-  } 
-  else
-  {
-    mode_ = COMPLEX;
-    std::cout<<"Insert the part in the complex method"<<std::endl;
-  } 
+  // if(dis <= 0.005)
+  // {
+  //   mode_ = SIMPLE;
+  //   std::cout<<"Insert the part in the simple method"<<std::endl;
+  // } 
+  // else
+  // {
+  //   mode_ = COMPLEX;
+  //   std::cout<<"Insert the part in the complex method"<<std::endl;
+  // } 
 
-  U_EA_ = PegInHole::getNormalVector(T_EA_.translation());
-  U_dir_ = T_EA_.linear().col(2);
+  U_EA_ = PegInHole::getNormalVector(T_7A_.translation());
+  U_dir_ = T_7A_.linear().col(2);
 
   std::cout<<"------------------"<<std::endl;
+  if(connector_type_ == 1) std::cout<<"BOLT INSERT STARTS"<<std::endl;
+  q_init_ = mu_[goal_->arm_name]->q_;
+  q_null_target_ = getNullSpaceJointTarget(rbdl_panda_.getJointLimit(), q_init_);
+  std::cout<<"q_init_        : "<< q_init_.transpose()*RAD2DEG<<std::endl;
+  std::cout<<"q_null_target_ : "<< q_null_target_.transpose()*RAD2DEG<<std::endl;
 
+  count_ = 1;
+  insertion_depth_ = 0.0;
+  insertion_depth_prev_ = 0.0;
 }
 
 void AssembleInsertActionServer::preemptCallback()
@@ -150,17 +183,50 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   Eigen::Vector3d f_star, m_star, m_wig, m_yaw;;
   Eigen::Vector3d m_dir; 
   Eigen::Vector6d f_star_zero;
+  Eigen::Vector3d p_init_a, p_cur_a;
+  
   double run_time;
   
   current_ = arm.transform_;
   run_time = time.toSec() - arm.task_start_time_.toSec();
-  if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_ +0.01))
+
+  switch (connector_type_)
   {
-    std::cout<<"INSERTION IS DONE"<<std::endl;
-    std::cout<<"run time: "<< run_time<<std::endl;
-    savePosture();
-    setSucceeded();
+    case 0: // pin, bracket
+      if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_ +0.01))
+      {
+        std::cout<<"INSERTION IS DONE"<<std::endl;
+        std::cout<<"run time: "<< run_time<<std::endl;
+        savePosture();
+        setSucceeded();
+      }
+      break;
+    
+    case 1:
+        
+        p_init_a = T_7A_.inverse().translation(); //{E} wrt {A}
+        p_cur_a = (T_WA_.inverse() * current_).translation();
+        // insertion_depth_ = p_cur_a(2) - p_init_a(2);    
+        insertion_depth_ = p_cur_a(2);
+        
+        if(run_time > duration_ && abs(insertion_depth_ - insertion_depth_prev_) < 0.0001)
+        {
+          std::cout<<"INSERTION IS DONE"<<std::endl;
+          std::cout<<"insertion_depth_: "<< abs(insertion_depth_ - insertion_depth_prev_)<<std::endl;
+          savePosture();
+          setSucceeded();
+        }
+        
+        //save 0.5 sec previous data
+        if(count_ % 500 == 0)
+        {
+          insertion_depth_prev_ = insertion_depth_;
+        } 
+        else insertion_depth_prev_ = insertion_depth_prev_;
+
+        count_++;
   }
+
 
   // switch (mode_)
   // {
@@ -186,24 +252,26 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   
   if(wiggle_motion_ && yawing_motion_)
   {
-    m_wig = PegInHole::generateWiggleMotionEE(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
-    m_yaw = PegInHole::generateYawingMotionEE(origin_, current_, T_EA_, xd, yawing_angle_, duration_, time.toSec(), arm.task_start_time_.toSec());
+    m_wig = PegInHole::generateWiggleMotionEE(origin_, current_, T_7A_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
+    m_yaw = PegInHole::generateYawingMotionEE(origin_, current_, T_7A_, xd, yawing_angle_, duration_, time.toSec(), arm.task_start_time_.toSec());
     m_star = m_wig + m_yaw;
     m_star = T_WA_.linear()*m_star;
   }
   else if(yawing_motion_ )
   {
-    m_star = PegInHole::generateYawingMotionEE(origin_, current_, T_EA_, xd, yawing_angle_, duration_, time.toSec(), arm.task_start_time_.toSec());
+    m_star = PegInHole::generateYawingMotionEE(origin_, current_, T_7A_, xd, yawing_angle_, duration_, time.toSec(), arm.task_start_time_.toSec());
     m_star = T_WA_.linear()*m_star;
   }
   else if(wiggle_motion_)
   {
-    m_star = PegInHole::generateWiggleMotionEE(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
+    m_star = PegInHole::generateWiggleMotionEE(origin_, current_, T_7A_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
     m_star = T_WA_.linear()*m_star;
   }
   else if(wiggle_motion_z_axis_)
   {
-    m_star = PegInHole::generateWiggleMotionEE_Zaxis(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
+    m_star = PegInHole::generateWiggleMotionEE_Zaxis(origin_, current_, T_7A_, xd, wiggle_angle_, wiggle_angular_vel_,
+                                                    wiggle_z_axis_param_.a, wiggle_z_axis_param_.b, wiggle_z_axis_param_.t_offset, 
+                                                    time.toSec(), arm.task_start_time_.toSec());
     m_star = T_WA_.linear()*m_star;
   }
   else  m_star = keepCurrentOrientation(origin_, current_ , xd, 2000, 15);
@@ -215,10 +283,15 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
   
   // f_star_zero.setZero();
-  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero;
+
+  tau_null_cmd_ = PegInHole::nullSpaceJointTorque(arm.q_, q_init_, q_null_target_, arm.qd_, time.toSec(), total_action_start_time_, duration_*2);
+  // std::cout<<"tau_null_cmd : "<< tau_null_cmd_.transpose()<<std::endl;
+
+  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero + arm.null_projector_*tau_null_cmd_;
   arm.setTorque(desired_torque);
   
-  insert_pose_data << arm.position_<<std::endl;
+  // insert_pose_data << arm.position_<<std::endl;
+  insert_pose_data << p_cur_a.transpose()<<std::endl;
   // std::cout<<"f_star: "<< f_star.transpose()<<std::endl;
   return true;
 }

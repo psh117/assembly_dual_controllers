@@ -17,7 +17,7 @@ void AssembleRetreatBoltActionServer::goalCallback()
 
   if ( mu_.find(goal_->arm_name) != mu_.end() ) 
   {
-    ROS_INFO("AssembleInsert goal has been received.");
+    ROS_INFO("AssembleRetreat goal has been received.");
   } 
   else 
   {
@@ -31,6 +31,7 @@ void AssembleRetreatBoltActionServer::goalCallback()
   
   retreat_force_ = goal_->retreat_force;
   retreat_distance_ = goal_->retreat_distance;
+  duration_ = goal_ ->duration;
   time_limit_ = goal_->time_limit;
 
   wiggle_motion_ = goal_->wiggle_motion;
@@ -44,18 +45,18 @@ void AssembleRetreatBoltActionServer::goalCallback()
   // std::cout<<"init_yaw_goal: "<<yawing_angle_<<std::endl;
   // std::cout<<"sum: "<<yawing_angle_ + init_yaw_angle_<<std::endl;
   
-  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
-  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
-  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
-  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
-  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
-  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
-  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  flange_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  flange_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  flange_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  flange_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  flange_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  flange_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  flange_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
-  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
-  T_EA_.translation() = ee_to_assembly_point_;
+  T_7A_.linear() = flange_to_assembly_quat_.toRotationMatrix();
+  T_7A_.translation() = flange_to_assembly_point_;
  
-  T_WA_ = origin_*T_EA_;
+  T_WA_ = origin_*T_7A_;
 
   wiggle_angular_vel_ = 4*M_PI; // 2pi / s
 
@@ -63,7 +64,27 @@ void AssembleRetreatBoltActionServer::goalCallback()
   else if(wiggle_motion_) std::cout<<"wiggle motion along x/y axis are activated"<<std::endl;
   else if(wiggle_motion_z_axis_) std::cout<<"wiggle motion along z axis is activated"<<std::endl;
   else  std::cout<<"no optional motions"<<std::endl;
+   // To define parameters of wiggle motion along z-axis
   
+  if(mu_[goal_->arm_name]->q_(6,0) + wiggle_angle_ >= rbdl_panda_.getJointLimit()(6,1))
+  {
+    wiggle_z_axis_param_.a = 1;
+    wiggle_z_axis_param_.b = mu_[goal_->arm_name]->q_(6,0) - wiggle_angle_;
+    wiggle_z_axis_param_.t_offset = 2*M_PI/wiggle_angular_vel_/4;
+  }
+  else if(mu_[goal_->arm_name]->q_(6,0) - wiggle_angle_ <= rbdl_panda_.getJointLimit()(6,0))
+  {
+    wiggle_z_axis_param_.a = -1;
+    wiggle_z_axis_param_.b = mu_[goal_->arm_name]->q_(6,0) + wiggle_angle_;
+    wiggle_z_axis_param_.t_offset = 2*M_PI/wiggle_angular_vel_/4;
+  }
+  else
+  {
+    wiggle_z_axis_param_.a = 0;
+    wiggle_z_axis_param_.b = 0;
+    wiggle_z_axis_param_.t_offset = 0;
+  }
+
   control_running_ = true;
 
 }
@@ -106,15 +127,19 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
 
   Eigen::Vector3d f_star, m_star, m_wig, m_wig_z;
   Eigen::Vector6d f_star_zero;
-  Eigen::Vector3d dp;
+  Eigen::Vector3d d;
 
   current_ = arm.transform_;
   
-  dp = T_WA_.inverse()*(current_*T_EA_).translation(); // displacement w.r.t {A} 
+  // dp = T_WA_.inverse()*(origin_*T_7A_ - current_*T_7A_).translation(); // displacement w.r.t {A} 
+
+  d = origin_.translation() - current_.translation();
+  d = T_WA_.linear().inverse()*d;
   
-  if(-dp(2) > retreat_distance_) // dp(2) is always negative 
+  if(abs(d(2)) > retreat_distance_) // dp(2) is always negative 
   {
     std::cout<<"Success retreat action"<<std::endl;
+    std::cout<<d<<std::endl;
     setSucceeded();
     return true;
   }
@@ -126,27 +151,34 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
     return true;
   }
 
-  f_star = -PegInHole::pressCubicEE(origin_, current_, xd, T_WA_, retreat_force_, time.toSec(), arm.task_start_time_.toSec(), time_limit_);
+  // f_star = PegInHole::pressCubicEE(origin_, current_, xd, T_WA_, -retreat_force_, time.toSec(), arm.task_start_time_.toSec(), duration_, 100.0, 0.0);
+  Eigen::Vector3d target;
+  target << 0.0, 0.0, -retreat_distance_*1.2;
+  f_star = PegInHole::threeDofMoveEE(origin_, current_, target, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), duration_, 1000.0, 20.0); 
   f_star = T_WA_.linear()*f_star;
   
   if(wiggle_motion_ && wiggle_motion_z_axis_)
   {
-    m_wig = PegInHole::generateWiggleMotionEE(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
-    m_wig_z = PegInHole::generateWiggleMotionEE_Zaxis(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
+    m_wig = PegInHole::generateWiggleMotionEE(origin_, current_, T_7A_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
+    m_wig_z = PegInHole::generateWiggleMotionEE_Zaxis(origin_, current_, T_7A_, xd, wiggle_angle_, wiggle_angular_vel_,
+                                                      wiggle_z_axis_param_.a, wiggle_z_axis_param_.b, wiggle_z_axis_param_.t_offset,
+                                                      time.toSec(), arm.task_start_time_.toSec());
     m_star = m_wig + m_wig_z;
     m_star = T_WA_.linear()*m_star;
   }
   else if(wiggle_motion_)
   {
-    m_star = PegInHole::generateWiggleMotionEE(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
+    m_star = PegInHole::generateWiggleMotionEE(origin_, current_, T_7A_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
     m_star = T_WA_.linear()*m_star;
   }
   else if(wiggle_motion_z_axis_)
   {
-    m_star = PegInHole::generateWiggleMotionEE_Zaxis(origin_, current_, T_EA_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec());
+        m_star = PegInHole::generateWiggleMotionEE_Zaxis(origin_, current_, T_7A_, xd, wiggle_angle_, wiggle_angular_vel_,
+                                                    wiggle_z_axis_param_.a, wiggle_z_axis_param_.b, wiggle_z_axis_param_.t_offset, 
+                                                    time.toSec(), arm.task_start_time_.toSec());
     m_star = T_WA_.linear()*m_star;
   }
-  else  m_star = keepCurrentOrientation(origin_, current_ , xd, 200, 5);
+  else  m_star = keepCurrentOrientation(origin_, current_ , xd, 2000, 15);
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
@@ -154,13 +186,13 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
   // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
   
-  // f_star_zero.setZero();
-  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
+  // f_star_zero.setZero();  
+  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_ * f_star_zero;
   arm.setTorque(desired_torque);
   
   // std::cout<<"f_star: "<< f_star.transpose()<<std::endl;
-  std::cout<<"--------------"<<std::endl;
-  std::cout<<"displacement: "<<dp.transpose()<<std::endl;
+  // std::cout<<"--------------"<<std::endl;
+  // std::cout<<"displacement: "<<dp.transpose()<<std::endl;
   return true;
 }
 

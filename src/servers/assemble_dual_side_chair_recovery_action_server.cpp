@@ -34,32 +34,32 @@ void AssembleDualSideChairRecoveryActionServer::goalCallback()
   mu_[goal_->task_arm]->task_start_time_ = ros::Time::now();
   mu_[goal_->assist_arm]->task_start_time_ = ros::Time::now();
   
-  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
-  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
-  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
-  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
-  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
-  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
-  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  flange_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  flange_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  flange_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  flange_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  flange_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  flange_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  flange_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
-  ee_to_pivot_point_(0) = goal_->ee_to_pivot.position.x;
-  ee_to_pivot_point_(1) = goal_->ee_to_pivot.position.y;
-  ee_to_pivot_point_(2) = goal_->ee_to_pivot.position.z;
-  ee_to_pivot_quat_.x() = goal_->ee_to_pivot.orientation.x;
-  ee_to_pivot_quat_.y() = goal_->ee_to_pivot.orientation.y;
-  ee_to_pivot_quat_.z() = goal_->ee_to_pivot.orientation.z;
-  ee_to_pivot_quat_.w() = goal_->ee_to_pivot.orientation.w;
+  flange_to_pivot_point_(0) = goal_->ee_to_pivot.position.x;
+  flange_to_pivot_point_(1) = goal_->ee_to_pivot.position.y;
+  flange_to_pivot_point_(2) = goal_->ee_to_pivot.position.z;
+  flange_to_pivot_quat_.x() = goal_->ee_to_pivot.orientation.x;
+  flange_to_pivot_quat_.y() = goal_->ee_to_pivot.orientation.y;
+  flange_to_pivot_quat_.z() = goal_->ee_to_pivot.orientation.z;
+  flange_to_pivot_quat_.w() = goal_->ee_to_pivot.orientation.w;
 
-  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
-  T_EA_.translation() = ee_to_assembly_point_;
+  T_7A_.linear() = flange_to_assembly_quat_.toRotationMatrix();
+  T_7A_.translation() = flange_to_assembly_point_;
 
-  T_ep_.linear() = ee_to_pivot_quat_.toRotationMatrix();
-  T_ep_.translation() = ee_to_pivot_point_;
+  T_7p_.linear() = flange_to_pivot_quat_.toRotationMatrix();
+  T_7p_.translation() = flange_to_pivot_point_;
 
-  T_WA_ = task_arm_origin_ * T_EA_;
-  T_wp_ = assist_arm_origin_*T_ep_;
+  T_WA_ = task_arm_origin_ * T_7A_;
+  T_wp_ = assist_arm_origin_*T_7p_;
 
-  tilt_axis_ = getTiltDirection(T_ep_);
+  tilt_axis_ = getTiltDirection(T_7p_);
 
   control_running_ = true;
 
@@ -143,9 +143,9 @@ bool AssembleDualSideChairRecoveryActionServer::computeTaskArm(ros::Time time, F
       else task_state_ = TASK_ARM_STATE::FAIL;
     }
 
-    f_star = PegInHole::threeDofMoveEE(task_arm_origin_, task_arm_current_, T_WA_.translation(), xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), duration);
+    f_star = PegInHole::threeDofMoveEE(task_arm_origin_, task_arm_current_, T_WA_.translation(), xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), duration);
     f_star = T_WA_.linear()*f_star;
-    m_star = PegInHole::rotateWithMat(task_arm_origin_, task_arm_current_, xd, T_WA_.linear()*T_EA_.linear().inverse(), time.toSec(), arm.task_start_time_.toSec(), duration);
+    m_star = PegInHole::rotateWithMat(task_arm_origin_, task_arm_current_, xd, T_WA_.linear()*T_7A_.linear().inverse(), time.toSec(), arm.task_start_time_.toSec(), duration);
     break;
   }
   // f_star.setZero();
@@ -205,8 +205,8 @@ bool AssembleDualSideChairRecoveryActionServer::computeAssistArm(ros::Time time,
       assist_state_ =  ASSIST_TASK_STATE::HOLD;
     }
 
-      f_star = PegInHole::tiltMotion(assist_arm_origin_, assist_arm_current_, xd, T_ep_, tilt_axis_, tilt_angle_, time.toSec(), task_start_time_.toSec(), tilt_duration_).head<3>();
-      m_star = PegInHole::tiltMotion(assist_arm_origin_, assist_arm_current_, xd, T_ep_, tilt_axis_, tilt_angle_, time.toSec(), task_start_time_.toSec(), tilt_duration_).tail<3>();
+      f_star = PegInHole::tiltMotion(assist_arm_origin_, assist_arm_current_, xd, T_7p_, tilt_axis_, tilt_angle_, time.toSec(), task_start_time_.toSec(), tilt_duration_).head<3>();
+      m_star = PegInHole::tiltMotion(assist_arm_origin_, assist_arm_current_, xd, T_7p_, tilt_axis_, tilt_angle_, time.toSec(), task_start_time_.toSec(), tilt_duration_).tail<3>();
       break;
   }
 
@@ -219,8 +219,8 @@ bool AssembleDualSideChairRecoveryActionServer::computeAssistArm(ros::Time time,
         assist_state_ =  ASSIST_TASK_STATE::FINISH;
       }
 
-      f_star = PegInHole::tiltMotion(assist_arm_origin_, assist_arm_current_, xd, T_ep_, -10*tilt_axis_, tilt_angle_, time.toSec(), task_start_time_.toSec(), 10*tilt_duration_).head<3>();
-      m_star = PegInHole::tiltMotion(assist_arm_origin_, assist_arm_current_, xd, T_ep_, -10*tilt_axis_, tilt_angle_, time.toSec(), task_start_time_.toSec(), 10*tilt_duration_).tail<3>();
+      f_star = PegInHole::tiltMotion(assist_arm_origin_, assist_arm_current_, xd, T_7p_, -10*tilt_axis_, tilt_angle_, time.toSec(), task_start_time_.toSec(), 10*tilt_duration_).head<3>();
+      m_star = PegInHole::tiltMotion(assist_arm_origin_, assist_arm_current_, xd, T_7p_, -10*tilt_axis_, tilt_angle_, time.toSec(), task_start_time_.toSec(), 10*tilt_duration_).tail<3>();
       break;
 
     case FINISH:

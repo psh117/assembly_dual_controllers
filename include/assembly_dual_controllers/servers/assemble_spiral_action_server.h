@@ -50,15 +50,16 @@ class AssembleSpiralActionServer : public ActionServerBase
   double range_;
   double twist_duration_;
 
-  Eigen::Vector3d ee_to_assembly_point_;
-  Eigen::Quaterniond ee_to_assembly_quat_;
+  Eigen::Vector3d flange_to_assembly_point_;
+  Eigen::Quaterniond flange_to_assembly_quat_;
 
-  Eigen::Isometry3d T_EA_, T_WA_;
+  Eigen::Isometry3d T_7A_, T_WA_;
   //--- parameters from .action file
 
   bool is_first_;
   bool is_mode_changed_;
   bool heavy_mass_;
+  bool set_tilt_;
   ASSEMBLY_STATE state_;
 
   int count_;

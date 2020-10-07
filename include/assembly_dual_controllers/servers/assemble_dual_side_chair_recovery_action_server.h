@@ -41,8 +41,8 @@ class AssembleDualSideChairRecoveryActionServer : public ActionServerBase
     Eigen::Isometry3d task_arm_current_;
     Eigen::Isometry3d assist_arm_origin_;
     Eigen::Isometry3d assist_arm_current_;
-    Eigen::Isometry3d T_EA_, T_WA_; //for Task Arm
-    Eigen::Isometry3d T_ep_, T_wp_; //for Assist Arm
+    Eigen::Isometry3d T_7A_, T_WA_; //for Task Arm
+    Eigen::Isometry3d T_7p_, T_wp_; //for Assist Arm
     Eigen::Vector3d tilt_axis_;
     
     TASK_ARM_STATE task_state_;
@@ -52,10 +52,10 @@ class AssembleDualSideChairRecoveryActionServer : public ActionServerBase
     bool is_assist_mode_changed_;
 
     // parameters from .action file ---
-    Eigen::Vector3d ee_to_assembly_point_;
-    Eigen::Quaterniond ee_to_assembly_quat_; // task arm to assembly point
-    Eigen::Vector3d ee_to_pivot_point_;
-    Eigen::Quaterniond ee_to_pivot_quat_; // assist arm to pivot point
+    Eigen::Vector3d flange_to_assembly_point_;
+    Eigen::Quaterniond flange_to_assembly_quat_; // task arm to assembly point
+    Eigen::Vector3d flange_to_pivot_point_;
+    Eigen::Quaterniond flange_to_pivot_quat_; // assist arm to pivot point
 
     double tilt_angle_;
     double tilt_duration_;

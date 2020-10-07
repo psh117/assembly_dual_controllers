@@ -30,10 +30,10 @@ class AssembleInsertActionServer : public ActionServerBase
     Eigen::Isometry3d origin_;
     Eigen::Isometry3d current_;
 
-    Eigen::Vector3d ee_to_assembly_point_;
-    Eigen::Quaterniond ee_to_assembly_quat_;
+    Eigen::Vector3d flange_to_assembly_point_;
+    Eigen::Quaterniond flange_to_assembly_quat_;
    
-    Eigen::Isometry3d T_EA_, T_WA_;
+    Eigen::Isometry3d T_7A_, T_WA_;
     
     bool wiggle_motion_;
     bool wiggle_motion_z_axis_;
@@ -54,7 +54,23 @@ class AssembleInsertActionServer : public ActionServerBase
     Eigen::Vector3d U_EA_;
     Eigen::Vector3d U_dir_; //w.r.t {E} 
 
+    int connector_type_;
+    double insertion_depth_, insertion_depth_prev_;
+    int count_;
+    
     std::ofstream insert_pose_data {"insert_pose_data.txt"};
+
+    struct wiggle_z_axis{
+      int a;
+      double b;
+      double t_offset;
+    }wiggle_z_axis_param_;
+
+    Eigen::Vector7d q_init_;
+    Eigen::Vector7d q_null_target_;
+    Eigen::Vector7d tau_null_cmd_;
+
+    double total_action_start_time_;
     
 public:
   AssembleInsertActionServer(std::string name, ros::NodeHandle &nh, 

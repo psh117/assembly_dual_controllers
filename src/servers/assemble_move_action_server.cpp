@@ -39,22 +39,22 @@ void AssembleMoveActionServer::goalCallback()
   
   std::cout<<"target w.r.t assemble frame: "<<target_pos_.transpose()<<std::endl;
 
-  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
-  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
-  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
-  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
-  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
-  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
-  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  flange_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  flange_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  flange_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  flange_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  flange_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  flange_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  flange_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
   target_.translation() = target_pos_; //start from {A} frame, T_AD(T_AA')
   target_.linear() = target_quat_.toRotationMatrix();
 
-  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
-  T_EA_.translation() = ee_to_assembly_point_;
-  T_WA_ = origin_*T_EA_;
+  T_7A_.linear() = flange_to_assembly_quat_.toRotationMatrix();
+  T_7A_.translation() = flange_to_assembly_point_;
+  T_WA_ = origin_*T_7A_;
 
-  // target_ = target_*T_EA_.inverse();
+  // target_ = target_*T_7A_.inverse();
 
   // Eigen::Vector3d relative_pose = target_pos_ - origin_.translation(); //P_we
   // Eigen::Matrix3d relative_rot = T_WA_.linear().inverse()*origin_.linear(); //R_ae
@@ -126,7 +126,7 @@ bool AssembleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &ar
   {
   case LIFT_UP: //move along z-axis w.r.t {A}   
     
-    f_star = PegInHole::oneDofMoveEE(origin_, current_, xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), duration, lift_up, 2);
+    f_star = PegInHole::oneDofMoveEE(origin_, current_, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), duration, lift_up, 2);
     f_star = T_WA_.linear()*f_star;
     m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
 
@@ -140,7 +140,7 @@ bool AssembleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &ar
     break;
   case MOVE: // move on X-Y plane w.r.t {A}
     
-    f_star = PegInHole::twoDofMoveEE(origin_, current_, xd, T_EA_, time.toSec(), arm.task_start_time_.toSec(), duration*2, target_.translation(), 2);
+    f_star = PegInHole::twoDofMoveEE(origin_, current_, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), duration*2, target_.translation(), 2);
     f_star = T_WA_.linear()*f_star;    
     m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
     // m_star = PegInHole::rotateWithMat(origin_, current_, xd,  T_WA_.linear()*target_quat_.toRotationMatrix(), time.toSec(), arm.task_start_time_.toSec(), duration);
@@ -158,7 +158,7 @@ bool AssembleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &ar
    
     // f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 6000, 200);
     // // m_star = PegInHole::rotateWithMat(origin_, current_, xd,  T_WA_.linear()*target_.linear(), time.toSec(), arm.task_start_time_.toSec(), duration);
-    // // rot_target = target_quat_.toRotationMatrix()*T_EA_.linear().inverse();
+    // // rot_target = target_quat_.toRotationMatrix()*T_7A_.linear().inverse();
     // m_star = PegInHole::rotateWithMat(origin_, current_, xd,  target_quat_.toRotationMatrix(), time.toSec(), arm.task_start_time_.toSec(), duration);
 
     // if (timeOut(time.toSec(), arm.task_start_time_.toSec(), duration + 0.1))

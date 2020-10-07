@@ -76,7 +76,7 @@ bool AssemblyTripleController::initArm(
   arm_data->q_out_file_.open(arm_id + "_q_out.txt");
   arm_data->x_out_file_.open(arm_id + "_x_out.txt");
 
-  arm_data->q_offset_.setZero();
+  // arm_data->q_offset_.setZero();
 
   arms_data_.emplace(std::make_pair(arm_id, arm_data));
   return true;
@@ -147,10 +147,30 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   bool left_success = initArm(robot_hw, left_arm_id_, left_joint_names);
   bool right_success = initArm(robot_hw, right_arm_id_, right_joint_names);
   bool top_success = initArm(robot_hw, top_arm_id_, top_joint_names);
-  arms_data_["panda_left"]->q_offset_ << -0.00209657, -0.0103961,-0.00302744,-0.00134568, 0.00393938, -0.0253182 -7.66409e-12;
+  Eigen::Matrix<double, 7, 4> calib_dh_left, calib_dh_right;
+  calib_dh_left << -0.00143634, 0.0392062, -0.00115552, -0.00304185,
+                   -0.000326658, -0.000137608, -0.00857803, 0.00248295, 
+                   9.32098e-05, -0.0045131, -0.000780235, -0.00249025, 
+                   0.00146636, 0.000473081, 0.000193528, 0.000903572, 
+                   -0.000881238, -0.00353094, 0.00778013, 0.000699071, 
+                   0.000450429, -0.000987945, -0.00378704, -0.00345825, 
+                   -0.0013828, 0.0414851, 0, 0.000106256;
+
+  calib_dh_right << -0.00132824, 0.0480551, -0.00387675, 0.00168824, 
+                    -0.000470529, 0.000101516, -0.00425589, 0.00200649, 
+                    0.000517718, -0.000735514, -0.00178362, -0.00336632, 
+                    -0.000195107, 0.000333496, -8.29645e-05, 0.00206581, 
+                    -0.00143737, 0.000159796, 0.013517, -0.00368535, 
+                    -0.000291216, 7.60754e-05, -0.00444792, -0.00478127,
+                     -0.00131139, 0.049067, 0, -1.03542e-05;
+                     
+  arms_data_["panda_left"]->rbdl_model_.initModel(calib_dh_left);
+  arms_data_["panda_right"]->rbdl_model_.initModel(calib_dh_right);
+  
+  // arms_data_["panda_left"]->q_offset_ << -0.00209657, -0.0103961,-0.00302744,-0.00134568, 0.00393938, -0.0253182 -7.66409e-12;
   // arms_data_["panda_right"]->q_offset_ << -0.00113419,  -0.00316993,  0.000600501,  -0.00200384,  0.000897991,  -0.00657346, -2.02488e-12;
-  arms_data_["panda_right"]->q_offset_ << -0.00130828, -0.00322306, 0.000850395, -0.00201338,  0.00523785,  -0.0057014, -0.00770664;
-  arms_data_["panda_top"]->q_offset_.setZero();
+  // arms_data_["panda_right"]->q_offset_ << -0.00130828, -0.00322306, 0.000850395, -0.00201338,  0.00523785,  -0.0057014, -0.00770664;
+  // arms_data_["panda_top"]->q_offset_.setZero();
     // Get the transformation from right_O_frame to left_O_frame
   // tf::StampedTransform transform;
   // tf::TransformListener listener;
@@ -186,8 +206,6 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_verify_completion_control", node_handle, arms_data_);
   joint_trajectory_action_server_ = std::make_unique<JointTrajectoryActionServer>
   ("/assembly_dual_controller/joint_trajectory_control", node_handle, arms_data_);
-  assemble_parallel_action_server_ = std::make_unique<AssembleParallelActionServer>
-  ("/assembly_dual_controller/assemble_parallel_control", node_handle, arms_data_);
   assemble_move_action_server_ = std::make_unique<AssembleMoveActionServer>
   ("/assembly_dual_controller/assemble_move_control", node_handle, arms_data_);
   assemble_press_action_server_ = std::make_unique<AssemblePressActionServer>
@@ -276,8 +294,6 @@ void AssemblyTripleController::update(const ros::Time& time, const ros::Duration
   assemble_insert_action_server_->compute(time);  
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_verify_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_parallel_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_move_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();

@@ -2,6 +2,7 @@
 
 #include <actionlib/server/simple_action_server.h>
 #include <assembly_dual_controllers/utils/model/franka_model_updater.h>
+#include <assembly_dual_controllers/robot_model/franka_panda_model.h>
 #include <Eigen/Dense>
 #include <map>
 
@@ -28,6 +29,7 @@ class ActionServerBase
     // std::shared_ptr<FrankaModelUpdater> mu_r_;
     // std::shared_ptr<FrankaModelUpdater> mu_l_;
     
+    FrankaPandaModel rbdl_panda_;
     
     ActionServerBase(std::string name, ros::NodeHandle &nh,
       std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu) :

@@ -30,10 +30,10 @@ class AssembleRetreatBoltActionServer : public ActionServerBase
     Eigen::Isometry3d origin_;
     Eigen::Isometry3d current_;
 
-    Eigen::Vector3d ee_to_assembly_point_;
-    Eigen::Quaterniond ee_to_assembly_quat_;
+    Eigen::Vector3d flange_to_assembly_point_;
+    Eigen::Quaterniond flange_to_assembly_quat_;
    
-    Eigen::Isometry3d T_EA_, T_WA_;
+    Eigen::Isometry3d T_7A_, T_WA_;
     
     bool wiggle_motion_;
     bool wiggle_motion_z_axis_;
@@ -45,10 +45,17 @@ class AssembleRetreatBoltActionServer : public ActionServerBase
     double wiggle_angle_;
     double wiggle_angular_vel_;
 
+
     CONTROL_TYPE mode_;
 
     Eigen::Vector3d U_EA_;
     Eigen::Vector3d U_dir_; //w.r.t {E} 
+
+    struct wiggle_z_axis{
+      int a;
+      double b;
+      double t_offset;
+    }wiggle_z_axis_param_;
     
 public:
   AssembleRetreatBoltActionServer(std::string name, ros::NodeHandle &nh, 

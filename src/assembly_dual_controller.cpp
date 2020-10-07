@@ -76,7 +76,7 @@ bool AssemblyDualController::initArm(
   arm_data->q_out_file_.open(arm_id + "_q_out.txt");
   arm_data->x_out_file_.open(arm_id + "_x_out.txt");
 
-  arm_data->q_offset_.setZero();
+  // arm_data->q_offset_.setZero();
 
   arms_data_.emplace(std::make_pair(arm_id, arm_data));
   return true;
@@ -129,9 +129,9 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   
   bool left_success = initArm(robot_hw, left_arm_id_, left_joint_names);
   bool right_success = initArm(robot_hw, right_arm_id_, right_joint_names);
-  arms_data_["panda_left"]->q_offset_ << -0.00209657, -0.0103961,-0.00302744,-0.00134568, 0.00393938, -0.0253182 -7.66409e-12;
+  // arms_data_["panda_left"]->q_offset_ << -0.00209657, -0.0103961,-0.00302744,-0.00134568, 0.00393938, -0.0253182 -7.66409e-12;
   // arms_data_["panda_right"]->q_offset_ << -0.00113419,  -0.00316993,  0.000600501,  -0.00200384,  0.000897991,  -0.00657346, -2.02488e-12;
-  arms_data_["panda_right"]->q_offset_ << -0.00130828, -0.00322306, 0.000850395, -0.00201338,  0.00523785,  -0.0057014, -0.00770664;
+  // arms_data_["panda_right"]->q_offset_ << -0.00130828, -0.00322306, 0.000850395, -0.00201338,  0.00523785,  -0.0057014, -0.00770664;
   // Get the transformation from right_O_frame to left_O_frame
   // tf::StampedTransform transform;
   // tf::TransformListener listener;
@@ -167,8 +167,6 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_verify_completion_control", node_handle, arms_data_);
   joint_trajectory_action_server_ = std::make_unique<JointTrajectoryActionServer>
   ("/assembly_dual_controller/joint_trajectory_control", node_handle, arms_data_);
-  assemble_parallel_action_server_ = std::make_unique<AssembleParallelActionServer>
-  ("/assembly_dual_controller/assemble_parallel_control", node_handle, arms_data_);
   assemble_move_action_server_ = std::make_unique<AssembleMoveActionServer>
   ("/assembly_dual_controller/assemble_move_control", node_handle, arms_data_);
   assemble_press_action_server_ = std::make_unique<AssemblePressActionServer>
@@ -260,8 +258,6 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   assemble_insert_action_server_->compute(time);  
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_verify_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_parallel_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_move_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();

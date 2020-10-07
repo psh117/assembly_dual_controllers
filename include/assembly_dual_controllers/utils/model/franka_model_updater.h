@@ -21,7 +21,7 @@
 struct FrankaModelUpdater
 {
   // calibration parameters ---
-  Eigen::Matrix<double, 7, 1> q_offset_;
+  // Eigen::Matrix<double, 7, 1> q_offset_;
   // arm parameters --
   Eigen::Matrix<double, 7, 7> mass_matrix_;
   Eigen::Matrix<double, 7, 7> modified_mass_matrix_;

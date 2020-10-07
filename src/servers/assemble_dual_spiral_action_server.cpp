@@ -43,29 +43,29 @@ void AssembleDualSpiralActionServer::goalCallback()
   mu_[goal_->assist_arm]->task_start_time_ = ros::Time::now();
   mu_[goal_->task_arm]->task_end_time_ = ros::Time(mu_[goal_->task_arm]->task_start_time_.toSec() + spiral_duration_);  
 
-  ee_to_assembly_point_task_(0) = goal_->ee_to_assemble_task.position.x;
-  ee_to_assembly_point_task_(1) = goal_->ee_to_assemble_task.position.y;
-  ee_to_assembly_point_task_(2) = goal_->ee_to_assemble_task.position.z;
-  ee_to_assembly_quat_task_.x() = goal_->ee_to_assemble_task.orientation.x;
-  ee_to_assembly_quat_task_.y() = goal_->ee_to_assemble_task.orientation.y;
-  ee_to_assembly_quat_task_.z() = goal_->ee_to_assemble_task.orientation.z;
-  ee_to_assembly_quat_task_.w() = goal_->ee_to_assemble_task.orientation.w;
+  flange_to_assembly_point_task_(0) = goal_->ee_to_assemble_task.position.x;
+  flange_to_assembly_point_task_(1) = goal_->ee_to_assemble_task.position.y;
+  flange_to_assembly_point_task_(2) = goal_->ee_to_assemble_task.position.z;
+  flange_to_assembly_quat_task_.x() = goal_->ee_to_assemble_task.orientation.x;
+  flange_to_assembly_quat_task_.y() = goal_->ee_to_assemble_task.orientation.y;
+  flange_to_assembly_quat_task_.z() = goal_->ee_to_assemble_task.orientation.z;
+  flange_to_assembly_quat_task_.w() = goal_->ee_to_assemble_task.orientation.w;
 
-  ee_to_assembly_point_assist_(0) = goal_->ee_to_assemble_assist.position.x;
-  ee_to_assembly_point_assist_(1) = goal_->ee_to_assemble_assist.position.y;
-  ee_to_assembly_point_assist_(2) = goal_->ee_to_assemble_assist.position.z;
-  ee_to_assembly_quat_assist_.x() = goal_->ee_to_assemble_assist.orientation.x;
-  ee_to_assembly_quat_assist_.y() = goal_->ee_to_assemble_assist.orientation.y;
-  ee_to_assembly_quat_assist_.z() = goal_->ee_to_assemble_assist.orientation.z;
-  ee_to_assembly_quat_assist_.w() = goal_->ee_to_assemble_assist.orientation.w;
+  flange_to_assembly_point_assist_(0) = goal_->ee_to_assemble_assist.position.x;
+  flange_to_assembly_point_assist_(1) = goal_->ee_to_assemble_assist.position.y;
+  flange_to_assembly_point_assist_(2) = goal_->ee_to_assemble_assist.position.z;
+  flange_to_assembly_quat_assist_.x() = goal_->ee_to_assemble_assist.orientation.x;
+  flange_to_assembly_quat_assist_.y() = goal_->ee_to_assemble_assist.orientation.y;
+  flange_to_assembly_quat_assist_.z() = goal_->ee_to_assemble_assist.orientation.z;
+  flange_to_assembly_quat_assist_.w() = goal_->ee_to_assemble_assist.orientation.w;
 
-  T_EA_task_.linear() = ee_to_assembly_quat_task_.toRotationMatrix();
-  T_EA_task_.translation() = ee_to_assembly_point_task_;
-  T_WA_task_ = task_arm_origin_ * T_EA_task_;
+  T_7A_task_.linear() = flange_to_assembly_quat_task_.toRotationMatrix();
+  T_7A_task_.translation() = flange_to_assembly_point_task_;
+  T_WA_task_ = task_arm_origin_ * T_7A_task_;
 
-  T_EA_assist_.linear() = ee_to_assembly_quat_assist_.toRotationMatrix();
-  T_EA_assist_.translation() = ee_to_assembly_point_assist_;
-  T_WA_assist_ = assist_arm_origin_ * T_EA_assist_;
+  T_7A_assist_.linear() = flange_to_assembly_quat_assist_.toRotationMatrix();
+  T_7A_assist_.translation() = flange_to_assembly_point_assist_;
+  T_WA_assist_ = assist_arm_origin_ * T_7A_assist_;
 
   std::cout << "sprial origin: " << task_arm_origin_.translation().transpose() << std::endl;
   if (mode_ == 1)
@@ -146,18 +146,18 @@ bool AssembleDualSpiralActionServer::computeTaskArm(ros::Time time, FrankaModelU
     setAborted();
   }
 
-  f_star = PegInHole::generateSpiralEE(task_arm_origin_, task_arm_current_, xd, pitch_, lin_vel_, pressing_force_, T_EA_task_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
+  f_star = PegInHole::generateSpiralEE(task_arm_origin_, task_arm_current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_task_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
   f_star = T_WA_task_.linear() * f_star;
 
   //signle peg in hole
   if (mode_ == 1)
-    m_star = PegInHole::keepCurrentOrientation(task_arm_origin_, task_arm_current_, xd, 250., 5.0);
+    m_star = PegInHole::keepCurrentOrientation(task_arm_origin_, task_arm_current_, xd, 2000., 15.0);
 
   //dual peg in hole
   if (mode_ == 2)
   {
     Eigen::Vector6d f_spiral;
-    f_spiral = PegInHole::generateTwistSpiralEE(task_arm_origin_, task_arm_current_, xd, pitch_, lin_vel_, pressing_force_, T_EA_task_, range_, time.toSec(), arm.task_start_time_.toSec(), spiral_duration_, twist_duration_);
+    f_spiral = PegInHole::generateTwistSpiralEE(task_arm_origin_, task_arm_current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_task_, range_, time.toSec(), arm.task_start_time_.toSec(), spiral_duration_, twist_duration_);
     f_star = T_WA_task_.linear() * (f_spiral.head<3>());
     m_star = T_WA_task_.linear() * f_spiral.tail<3>();
   }
@@ -166,7 +166,7 @@ bool AssembleDualSpiralActionServer::computeTaskArm(ros::Time time, FrankaModelU
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
 
-  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * f_star_zero;
+  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero;
   arm.setTorque(desired_torque);
 
   // save_sprial_data << f_ext.transpose() << std::endl;
@@ -199,16 +199,16 @@ bool AssembleDualSpiralActionServer::computeAssistArm(ros::Time time, FrankaMode
 
   if(assist_arm_action_ == 1) // hold
   {
-    f_star = PegInHole::keepCurrentPosition(assist_arm_origin_, assist_arm_current_, xd, 5000, 100);
+    f_star = PegInHole::keepCurrentPosition(assist_arm_origin_, assist_arm_current_, xd, 700, 40);
   }
   else if(assist_arm_action_ == 2) // press
   {
-    f_star = PegInHole::pressCubicEE(assist_arm_origin_, assist_arm_current_, xd, T_WA_assist_, 15.0, time.toSec(), arm.task_start_time_.toSec(), 2.0);
+    f_star = PegInHole::pressCubicEE(assist_arm_origin_, assist_arm_current_, xd, T_WA_assist_, 3.0, time.toSec(), arm.task_start_time_.toSec(), 2.0);
     f_star = T_WA_assist_.linear()*f_star;
   }
 
 
-  m_star = PegInHole::keepCurrentOrientation(assist_arm_origin_, assist_arm_current_, xd, 200, 5);  
+  m_star = PegInHole::keepCurrentOrientation(assist_arm_origin_, assist_arm_current_, xd, 2000, 15);  
   
   reaction_force = assist_arm_current_.linear().inverse()*f_ext.head<3>();
 
@@ -228,7 +228,7 @@ bool AssembleDualSpiralActionServer::computeAssistArm(ros::Time time, FrankaMode
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
 
-  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * f_star_zero;
+  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero;
   arm.setTorque(desired_torque);
 
   save_sprial_data << f_ext.transpose() << std::endl;

@@ -26,13 +26,13 @@ class AssembleRotationActionServer : public ActionServerBase
     Eigen::Isometry3d origin_;
     Eigen::Isometry3d current_;
 
-    Eigen::Vector3d ee_to_assembly_point_;
-    Eigen::Quaterniond ee_to_assembly_quat_;
+    Eigen::Vector3d flange_to_assembly_point_;
+    Eigen::Quaterniond flange_to_assembly_quat_;
 
-    Eigen::Vector3d ee_to_pivot_point_;
-    Eigen::Quaterniond ee_to_pivot_quat_;
+    Eigen::Vector3d flange_to_pivot_point_;
+    Eigen::Quaterniond flange_to_pivot_quat_;
 
-    Eigen::Isometry3d T_EA_, T_WA_, T_EP_, T_WP_;
+    Eigen::Isometry3d T_7A_, T_WA_, T_7P_, T_WP_;
 
     double f_threshold_;
     double range_; //5*M_PI/180
@@ -43,8 +43,10 @@ class AssembleRotationActionServer : public ActionServerBase
     Eigen::Vector3d asm_dir_;
     double duration_;
 
+    int count_;
+    Eigen::Vector6d accumulated_wrench_, accumulated_wrench_a_;
+
     std::ofstream fm_rotation_search {"fm_rotation_search.txt"};
-    std::ofstream fm_rotation_search_lpf {"fm_rotation_search_lpf.txt"};
     std::ofstream pr_rotation_search {"pr_rotation_search.txt"};
 
 public:

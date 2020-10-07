@@ -37,32 +37,35 @@ void AssembleRotationActionServer::goalCallback()
 
   origin_ = mu_[goal_->arm_name]->transform_;  
 
-  is_first_ = true;
+  is_first_ = false;
 
-  ee_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
-  ee_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
-  ee_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
-  ee_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
-  ee_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
-  ee_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
-  ee_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
+  flange_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
+  flange_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
+  flange_to_assembly_point_(2) = goal_->ee_to_assemble.position.z;
+  flange_to_assembly_quat_.x() = goal_->ee_to_assemble.orientation.x;
+  flange_to_assembly_quat_.y() = goal_->ee_to_assemble.orientation.y;
+  flange_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
+  flange_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
   
-  ee_to_pivot_point_(0) = goal_->ee_to_pivot.position.x;
-  ee_to_pivot_point_(1) = goal_->ee_to_pivot.position.y;
-  ee_to_pivot_point_(2) = goal_->ee_to_pivot.position.z;
-  ee_to_pivot_quat_.x() = goal_->ee_to_pivot.orientation.x;
-  ee_to_pivot_quat_.y() = goal_->ee_to_pivot.orientation.y;
-  ee_to_pivot_quat_.z() = goal_->ee_to_pivot.orientation.z;
-  ee_to_pivot_quat_.w() = goal_->ee_to_pivot.orientation.w;
+  flange_to_pivot_point_(0) = goal_->ee_to_pivot.position.x;
+  flange_to_pivot_point_(1) = goal_->ee_to_pivot.position.y;
+  flange_to_pivot_point_(2) = goal_->ee_to_pivot.position.z;
+  flange_to_pivot_quat_.x() = goal_->ee_to_pivot.orientation.x;
+  flange_to_pivot_quat_.y() = goal_->ee_to_pivot.orientation.y;
+  flange_to_pivot_quat_.z() = goal_->ee_to_pivot.orientation.z;
+  flange_to_pivot_quat_.w() = goal_->ee_to_pivot.orientation.w;
 
-  T_EA_.linear() = ee_to_assembly_quat_.toRotationMatrix();
-  T_EA_.translation() = ee_to_assembly_point_;
-  T_EP_.linear() = ee_to_pivot_quat_.toRotationMatrix();
-  T_EP_.translation() = ee_to_pivot_point_;
+  T_7A_.linear() = flange_to_assembly_quat_.toRotationMatrix();
+  T_7A_.translation() = flange_to_assembly_point_;
+  T_7P_.linear() = flange_to_pivot_quat_.toRotationMatrix();
+  T_7P_.translation() = flange_to_pivot_point_;
 
-  T_WA_ = origin_*T_EA_;
-  T_WP_ = origin_*T_EP_;
+  T_WA_ = origin_*T_7A_;
+  T_WP_ = origin_*T_7P_;
 
+  count_ = 0;
+  accumulated_wrench_.setZero();
+  accumulated_wrench_a_.setZero();
   control_running_ = true;
 }
 
@@ -97,25 +100,22 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
   if (!as_.isActive())
       return false; 
 
-  auto & mass = arm.mass_matrix_;
-  auto & rotation = arm.rotation_;
-  auto & position = arm.position_;
+  // auto & mass = arm.mass_matrix_;
+  // auto & rotation = arm.rotation_;
+  // auto & position = arm.position_;
   auto & jacobian = arm.jacobian_;
-  auto & tau_measured = arm.tau_measured_;
-  auto & gravity = arm.gravity_;
+  // auto & tau_measured = arm.tau_measured_;
+  // auto & gravity = arm.gravity_;
   auto & xd = arm.xd_; //velocity
   
   Eigen::Vector3d delphi_delta, f_star, m_star;
   Eigen::Vector6d f_ext, f_ext_a, f_star_zero;
-  Eigen::Vector3d moment_lpf_a;
   double dis;
   double run_time;  
   double friction, m_sum;
+  int cnt_max = 150;
+  int cnt_start = 50;
 
-  f_ext = arm.f_ext_;
-  f_ext_a.head<3>() = T_WA_.linear().inverse()*f_ext.head<3>();
-  f_ext_a.tail<3>() = T_WA_.linear().inverse()*f_ext.tail<3>();
-  moment_lpf_a = T_WA_.linear()*f_ext.tail<3>();
   current_ = arm.transform_;
 
   dis = origin_.translation()(2) - current_.translation()(2);
@@ -125,59 +125,71 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
   {
     arm.task_start_time_ = time;
     is_first_ = false;
+    origin_ = arm.transform_;
     std::cout<<"ROTATE TO SEARCH"<<std::endl;
   }
-  m_sum = sqrt(pow(f_ext(3),2) + pow(f_ext(4),2) + pow(f_ext(5),2));
-  friction = sqrt(pow(f_ext_a(0),2) + pow(f_ext_a(1),2));
 
-  // if(run_time > 0.05 && m_sum > f_threshold_)
-  if(run_time > 0.05 && friction >= 8.0 && m_sum > f_threshold_)
-  // if(Criteria::detectHole(origin_, current_, f_ext.tail<3>(), T_WA_, f_threshold_))
+  if(count_ < cnt_max)
+  { 
+    f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 700, 40, 2000, 15).head<3>(); //w.r.t {W}
+    m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 700, 40, 2000, 15).tail<3>();
+
+    if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, arm.f_ext_, cnt_start, count_, cnt_max);    
+    count_++;
+    if(count_ >= cnt_max)
+    {
+      count_ = cnt_max;
+      accumulated_wrench_a_.head<3>() = T_WA_.linear().inverse() * accumulated_wrench_.head<3>();
+      accumulated_wrench_a_.tail<3>() = T_WA_.linear().inverse() * accumulated_wrench_.tail<3>();
+      std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
+      // heavy_mass_ = Criteria::holdHeavyMass(accumulated_wrench_.head<3>(), 8.0);
+      is_first_ = true;
+    } 
+  }
+  else
   {
-    std::cout<<"HOLE IS DETECTED"<<std::endl;
-    std::cout<<"m_sum(2): "<<m_sum<<std::endl;
-    setSucceeded();
+    f_ext = arm.f_ext_ - accumulated_wrench_;
+    f_ext_a.head<3>() = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_a_.head<3>();
+    f_ext_a.tail<3>() = T_WA_.linear().inverse() * f_ext.tail<3>() - accumulated_wrench_a_.tail<3>();
+
+    m_sum = sqrt(pow(f_ext_a(3), 2) + pow(f_ext_a(4), 2) + pow(f_ext_a(5), 2));
+    friction = sqrt(pow(f_ext_a(0), 2) + pow(f_ext_a(1), 2));
+
+    if(run_time > 0.05 && friction >= 5.0 && m_sum > f_threshold_)
+    //if(run_time > 0.05 && m_sum > f_threshold_)
+    {
+      std::cout<<"HOLE IS DETECTED"<<std::endl;
+      std::cout<<"m_sum(2): "<<m_sum<<std::endl;
+      std::cout<<"friction(2): "<<friction<<std::endl;
+      setSucceeded();
+    }
+    if (timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_)) //duration wrong??
+    {
+      std::cout << "Time out" << std::endl;
+      setAborted();
+    }
+    Eigen::Vector3d rot_axis, f_press, m_press;
+    rot_axis << 0, 0, 1.0;
+
+    f_press << 0, 0, pressing_force_;
+    f_star = PegInHole::tiltMotion(origin_, current_, xd, T_7P_, rot_axis, range_, time.toSec(), arm.task_start_time_.toSec(), duration_).head<3>();
+    f_star = f_star + T_WA_.linear() * f_press;
+
+    m_press = T_7A_.translation().cross(f_press);
+    m_star = PegInHole::tiltMotion(origin_, current_, xd, T_7P_, rot_axis, range_, time.toSec(), arm.task_start_time_.toSec(), duration_).tail<3>();
+    m_star = 0.5*m_star + current_.linear() * m_press;
   }
 
-  // if(dis >= 0.005 && abs(moment_lpf_a(2)) < f_threshold_)
-  // { 
-  //   std::cout<<"dis: "<<dis<<std::endl;
-  //   std::cout<<"Deviating"<<std::endl;
-  //   setAborted();
-  // }
-
-  if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_)) //duration wrong??
-  { 
-    std::cout<<"Time out"<<std::endl;
-    setAborted();
-  } 
-
-  Eigen::Vector3d rot_axis, f_press, m_press;
-  rot_axis << 0, 0, 1.0;
-
-  f_press << 0, 0, pressing_force_;
-  f_star = PegInHole::tiltMotion(origin_, current_, xd, T_EP_, rot_axis, range_, time.toSec(), arm.task_start_time_.toSec(), duration_).head<3>();
-  f_star = f_star + T_WA_.linear()*f_press;
-
-  m_press = T_EA_.translation().cross(f_press);
-  m_star = PegInHole::tiltMotion(origin_, current_, xd, T_EP_, rot_axis, range_, time.toSec(), arm.task_start_time_.toSec(), duration_).tail<3>();
-  m_star = 0.60*m_star + current_.linear()*m_press;
-  
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
   
-  // std::cout<<"dis: "<<dis<<std::endl;
-  // std::cout<<"f_reaction: "<<f_measured_(5)<<std::endl;
-  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
+  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero;
   // f_star_zero.setZero();
 
-  arm.setTorque(desired_torque);
-  
+  arm.setTorque(desired_torque);  
 
-  fm_rotation_search << f_measured_.transpose() << std::endl;
-  fm_rotation_search_lpf << f_ext_a.transpose() << std::endl;
-  pr_rotation_search << position.transpose() << std::endl;  
-
+  fm_rotation_search << f_ext_a.transpose() << std::endl;
+  pr_rotation_search << current_.translation().transpose() << std::endl;  
 
   return true;
 }
