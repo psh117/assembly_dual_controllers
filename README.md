@@ -1,17 +1,16 @@
 # Assembly Dual Controller Package
 It contains ros control modules for controlling Franka-Emika panda robots. This package provides not only dual controllers but also single and triple controllers. (The name is just a legacy thing)
 
-**DO NOT UPGRADE TO 4.0.X version**
-(one of the controller cannot be upgraded to 4.0.X version, the oldest controller box)
+**Required FCI version: 4.0.X**
 
 
 ## Prerequisite
-* libfranka 0.7.1 (https://github.com/frankaemika/libfranka)
+* libfranka 0.8.0 (https://github.com/frankaemika/libfranka)
 ```sh
 # go to the home directory
 cd ~/ 
 # git clone
-git clone --recursive https://github.com/frankaemika/libfranka -b 0.7.1
+git clone --recursive https://github.com/frankaemika/libfranka -b 0.8.0
 # enter the directory
 cd libfranka
 # update submodules
@@ -24,12 +23,12 @@ cmake .. -DCMAKE_BUILD_TYPE=RELEASE
 make -j9
 ```
 
-* franka_ros 0.7.0 (https://github.com/frankaemika/franka_ros)
+* franka_ros **develop branch** (https://github.com/psh117/franka_ros)
 ```sh
 # go to the catkin source directory
 cd catkin_ws/src
 # git clone
-git clone --recursive https://github.com/frankaemika/franka_ros -b 0.7.0
+git clone --recursive https://github.com/psh117/franka_ros -b develop
 # build
 catkin build franka_ros -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=~/libfranka/build
 source devel/setup.sh
