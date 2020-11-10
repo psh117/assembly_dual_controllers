@@ -25,8 +25,8 @@
 #include <assembly_dual_controllers/servers/assemble_spiral_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_verify_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_move_action_server.h>
-#include <assembly_dual_controllers/servers/assemble_press_action_server.h>
-#include <assembly_dual_controllers/servers/assemble_side_chair_action_server.h>
+// #include <assembly_dual_controllers/servers/assemble_press_action_server.h>
+// #include <assembly_dual_controllers/servers/assemble_side_chair_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_rotation_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_triple_recovery_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_dual_spiral_action_server.h>
@@ -37,6 +37,10 @@
 #include <assembly_dual_controllers/servers/idle_control_server.h>
 #include <assembly_dual_controllers/servers/assemble_probe_edge_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_triple_move_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_approach_hip_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_kitting_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_back_forth_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_bolting_ready_action_server.h>
 
 
 // #include <assembly_dual_controllers/single_peginhole_action_server.h>
@@ -72,8 +76,8 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   std::unique_ptr<AssembleVerifyActionServer> assemble_verify_action_server_;
   std::unique_ptr<JointTrajectoryActionServer> joint_trajectory_action_server_;
   std::unique_ptr<AssembleMoveActionServer> assemble_move_action_server_;
-  std::unique_ptr<AssemblePressActionServer> assemble_press_action_server_;
-  std::unique_ptr<AssembleSideChairActionServer> assemble_side_chair_action_server_;
+  // std::unique_ptr<AssemblePressActionServer> assemble_press_action_server_;
+  // std::unique_ptr<AssembleSideChairActionServer> assemble_side_chair_action_server_;
   std::unique_ptr<AssembleRotationActionServer> assemble_rotation_action_server_;
   std::unique_ptr<AssembleTripleRecoveryActionServer> assemble_triple_recovery_action_server_;
   std::unique_ptr<AssembleDualSpiralActionServer> assemble_dual_spiral_action_server_;
@@ -83,6 +87,10 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   std::unique_ptr<TaskSpaceMoveActionServer> task_space_move_action_server_;
   std::unique_ptr<AssembleProbeEdgeActionServer> assemble_probe_edge_action_server_;
   std::unique_ptr<AssembleTripleMoveActionServer> assemble_triple_move_action_server_;
+  std::unique_ptr<AssembleApproachHipActionServer> assemble_approach_hip_action_server_;
+  std::unique_ptr<AssembleKittingActionServer> assemble_kitting_action_server_;
+  std::unique_ptr<AssembleBackForthActionServer> assemble_back_forth_action_server_;
+  std::unique_ptr<AssembleBoltingReadyActionServer> assemble_bolting_ready_action_server_;
   std::unique_ptr<IdleControlServer> idle_control_server_;
   
   std::map<std::string, std::shared_ptr<FrankaModelUpdater> >  arms_data_; ///< Holds all relevant data for both arms.

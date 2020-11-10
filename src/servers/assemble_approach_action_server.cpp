@@ -65,7 +65,8 @@ void AssembleApproachActionServer::goalCallback()
   std::cout<<"set tilt: "<<set_tilt_<<std::endl;
   std::cout<<"T_7A_: \n"<< T_7A_.matrix()<<std::endl;
   std::cout<<"contact_threshold: "<<contact_force_<<std::endl;
-  
+  std::cout<<"tilt_back_threshold: "<<tilt_back_threshold_<<std::endl;
+  std::cout<<goal_->arm_name<<std::endl;
   accumulated_wrench_.setZero();
   count_ = 0;
 
@@ -127,11 +128,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   { 
     f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 700, 10, 2000, 15).head<3>(); //w.r.t {W}
     m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 700, 10, 2000, 15).tail<3>();
-    if(count_ == 0)
-    {
-      std::cout<<"command force: "<< f_star.transpose()<<std::endl;
-      std::cout<<"command moment: "<< m_star.transpose()<<std::endl;
-    }
+    
     if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, f_ext, cnt_start, count_, cnt_max);    
     count_++;
     if(count_ >= cnt_max)
@@ -139,15 +136,15 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
       count_ = cnt_max;
       accumulated_wrench_a_.head<3>() = T_WA_.linear().inverse() * accumulated_wrench_.head<3>();
       accumulated_wrench_a_.tail<3>() = T_WA_.linear().inverse() * accumulated_wrench_.tail<3>();
-      std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
-      wrench_rtn_.force.x = accumulated_wrench_a_(0);
-      wrench_rtn_.force.y = accumulated_wrench_a_(1);
-      wrench_rtn_.force.z = accumulated_wrench_a_(2);
-      wrench_rtn_.torque.x = accumulated_wrench_a_(3);
-      wrench_rtn_.torque.y = accumulated_wrench_a_(4);
-      wrench_rtn_.torque.z = accumulated_wrench_a_(5);
-      result_.compensation = wrench_rtn_;
-      heavy_mass_ = Criteria::holdHeavyMass(accumulated_wrench_.head<3>(), 8.0);
+      // std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
+      // wrench_rtn_.force.x = accumulated_wrench_a_(0);
+      // wrench_rtn_.force.y = accumulated_wrench_a_(1);
+      // wrench_rtn_.force.z = accumulated_wrench_a_(2);
+      // wrench_rtn_.torque.x = accumulated_wrench_a_(3);
+      // wrench_rtn_.torque.y = accumulated_wrench_a_(4);
+      // wrench_rtn_.torque.z = accumulated_wrench_a_(5);
+      // result_.compensation = wrench_rtn_;
+      // heavy_mass_ = Criteria::holdHeavyMass(accumulated_wrench_.head<3>(), 8.0);
     } 
   }
   else
@@ -170,7 +167,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         std::cout << "TILT DONE" << std::endl;
       }
       
-      f_tilt = PegInHole::tiltMotion(origin_, current_, xd, T_7A_, tilt_axis_, tilt_angle_, time.toSec(), tilt_start_time_, tilt_duration_, 800.0, 20.0);
+      f_tilt = PegInHole::tiltMotion(origin_, current_, xd, T_7A_, tilt_axis_, tilt_angle_, time.toSec(), tilt_start_time_, tilt_duration_, 600.0, 20.0);
       f_star = f_tilt.head<3>();
       m_star = f_tilt.tail<3>();
       
@@ -193,9 +190,9 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         std::cout << "Time out" << std::endl;
         setAborted();
         break;
-      }      
+      }
 
-      if (run_time > 0.05 && Criteria::checkContact(force, T_WA_, contact_force_))
+      if (run_time > 0.5 && Criteria::checkContact(force, T_WA_, contact_force_))
       {
         if (set_tilt_back_) state_ = TILT_BACK;
         else                state_ = IGNORE;
@@ -204,20 +201,20 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         break;
       }
 
-      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 800, 20);
+      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 600, 20);
+      f_star = T_WA_.linear() * (f_star);
       m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
       
-      if(heavy_mass_)
-      {
-        f_star = T_WA_.linear() * (f_star);// + accumulated_wrench_.head<3>();
-        m_star = m_star + 1.2*accumulated_wrench_.tail<3>();
-      }
-      else
-      {
-        f_star = T_WA_.linear() * (f_star);
-      }
+      // if(heavy_mass_)
+      // {
+      //   f_star = T_WA_.linear() * (f_star);// + accumulated_wrench_.head<3>();
+      //   m_star = m_star + 1.2*accumulated_wrench_.tail<3>();
+      // }
+      // else
+      // {
+      //   f_star = T_WA_.linear() * (f_star);
+      // }
       
-
       break;
 
     case TILT_BACK:
@@ -231,20 +228,20 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         std::cout << "TILT BACK" << std::endl;
       }
       
-      if (timeOut(time.toSec(), tilt_start_time_, tilt_duration_))
+      if (timeOut(time.toSec(), tilt_start_time_, tilt_duration_ + 1.5))
       {
         std::cout << "TILT BACK DONE" << std::endl;
         setSucceeded();
       }
       // if (run_time > 0.5 && Criteria::checkForceLimit(f_contact, tilt_back_threshold_))
-      if (run_time > 0.05 && Criteria::checkContact(f_ext.head<3>() - accumulated_wrench_.head<3>(), T_WA_, tilt_back_threshold_))
+      if (run_time > 0.5 && Criteria::checkContact(f_ext.head<3>() - accumulated_wrench_.head<3>(), T_WA_, tilt_back_threshold_))
       {
         std::cout << "TILT BACK REACHED FORCE LIMIT" << std::endl;
         std::cout<<"tilt_back_threshold_: "<<tilt_back_threshold_<<std::endl;
         setSucceeded();
       }
 
-      f_tilt = PegInHole::tiltMotion(origin_, current_, xd, T_7A_, tilt_axis_, -(tilt_angle_*1.5), time.toSec(), tilt_start_time_, tilt_duration_+1.0, 700.0, 40.0);
+      f_tilt = PegInHole::tiltMotion(origin_, current_, xd, T_7A_, tilt_axis_, -(tilt_angle_*1.5), time.toSec(), tilt_start_time_, tilt_duration_+0.5, 700.0, 40.0);
       f_star = f_tilt.head<3>();
       m_star = f_tilt.tail<3>();
 
@@ -297,13 +294,15 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
 
 void AssembleApproachActionServer::setSucceeded()
 {
-  result_.is_completed = true;
+  // result_.is_completed = true;
+  // as_.setSucceeded(result_);
   as_.setSucceeded(result_);
   control_running_ = false;
 }
 void AssembleApproachActionServer::setAborted()
 {
-  result_.is_completed = false;
-  as_.setAborted(result_);
+  // result_.is_completed = false;
+  // as_.setAborted(result_);
+  as_.setAborted();
   control_running_ = false;
 }

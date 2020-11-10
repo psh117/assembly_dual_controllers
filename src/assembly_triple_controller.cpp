@@ -147,25 +147,133 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   bool left_success = initArm(robot_hw, left_arm_id_, left_joint_names);
   bool right_success = initArm(robot_hw, right_arm_id_, right_joint_names);
   bool top_success = initArm(robot_hw, top_arm_id_, top_joint_names);
-  Eigen::Matrix<double, 7, 4> calib_dh_left, calib_dh_right;
-  calib_dh_left << -0.00143634, 0.0392062, -0.00115552, -0.00304185,
-                   -0.000326658, -0.000137608, -0.00857803, 0.00248295, 
-                   9.32098e-05, -0.0045131, -0.000780235, -0.00249025, 
-                   0.00146636, 0.000473081, 0.000193528, 0.000903572, 
-                   -0.000881238, -0.00353094, 0.00778013, 0.000699071, 
-                   0.000450429, -0.000987945, -0.00378704, -0.00345825, 
-                   -0.0013828, 0.0414851, 0, 0.000106256;
+  Eigen::Matrix<double, 7, 4> calib_dh_left, calib_dh_right, calib_dh_top;
+  // calib_dh_left << -0.00143634, 0.0392062, -0.00115552, -0.00304185,
+  //                  -0.000326658, -0.000137608, -0.00857803, 0.00248295, 
+  //                  9.32098e-05, -0.0045131, -0.000780235, -0.00249025, 
+  //                  0.00146636, 0.000473081, 0.000193528, 0.000903572, 
+  //                  -0.000881238, -0.00353094, 0.00778013, 0.000699071, 
+  //                  0.000450429, -0.000987945, -0.00378704, -0.00345825, 
+  //                  -0.0013828, 0.0414851, 0, 0.000106256;
 
-  calib_dh_right << -0.00132824, 0.0480551, -0.00387675, 0.00168824, 
-                    -0.000470529, 0.000101516, -0.00425589, 0.00200649, 
-                    0.000517718, -0.000735514, -0.00178362, -0.00336632, 
-                    -0.000195107, 0.000333496, -8.29645e-05, 0.00206581, 
-                    -0.00143737, 0.000159796, 0.013517, -0.00368535, 
-                    -0.000291216, 7.60754e-05, -0.00444792, -0.00478127,
-                     -0.00131139, 0.049067, 0, -1.03542e-05;
-                     
+  // calib_dh_right << -0.00132824, 0.0480551, -0.00387675, 0.00168824, 
+  //                   -0.000470529, 0.000101516, -0.00425589, 0.00200649, 
+  //                   0.000517718, -0.000735514, -0.00178362, -0.00336632, 
+  //                   -0.000195107, 0.000333496, -8.29645e-05, 0.00206581, 
+  //                   -0.00143737, 0.000159796, 0.013517, -0.00368535, 
+  //                   -0.000291216, 7.60754e-05, -0.00444792, -0.00478127, 
+  //                    -0.00131139, 0.049067, 0, -1.03542e-05;
+
+
+  // // Calib dasta with 30k
+  // calib_dh_left << 0.000540746250601151,	-0.000222551552355999,	 -0.00277793951052244,	 0.000844588438659563,
+  //                 -4.97040526222079E-05,	-0.000509692151550602,	 -0.00789475906342737,	   0.0042426608859909,
+  //                 -0.000102299237124574,	-0.000928166811547355,	 0.000515513982174587,	  -0.0038264870280442,
+  //                 -0.000352436759011317,	 0.000721483809756229,	 -0.00631103844569646,	 0.000963423536246296,
+  //                 -0.000190326952386907,	-0.000444144452174211,	  0.00998496188770845,	 0.000959572582040312,
+  //                 -0.000789947947519676,	-0.000267151345711696,	  -0.0151345960265135,	 -0.00517021174194495,
+  //                 -0.000523379357159486,	 1.03321081536609E-05,	   0.0231633152784359,	  0.00104263137358886;
+
+  // calib_dh_right << -0.00140633066541627,	0.000110753546471257,	-0.00347512488622924,	-0.00382753804075078,
+  //     0.00013844549683204,	-0.000212866764674761,	 -0.00447205653387941,	   0.0020609965711085,
+  //     -0.000112296758878324,	-0.00107223972275933,	 0.00268994416750297,	-0.00298687830249312,
+  //     -2.81088273319779E-05,	  0.00144327970495369,	 0.000260683084451204,	  0.00288767899612705,
+  //     -0.000941617578740498,	 -0.00011000224447067,	   0.0137565696997384,	-0.000977122744254999,
+  //     -0.0010075512018736,	 0.00047178225542559,	 -0.0133612927923467,	-0.00348189317285152,
+  //     -0.00120499781917066,	 2.17966690332205E-05,	-0.000223974534326366,	-0.000113886804504759;
+  
+  // calib_dh_top << -7.95986087035948E-05,	 7.43695131967947E-05,	  0.00106520123664394,	  -0.0041949770968857,
+  //     -0.000318719210519893,	-0.000112054216472271,	 0.000572935638052752,	  0.00139592643451262,
+  //     -0.000327305308487304,	 -0.00073696399814617,	  0.00236332200338907,	 -0.00217657846953025,
+  //     -0.000202035105200611,	  0.00073877634121057,	 -0.00520396129993958,	 0.000289536084428593,
+  //     0.000120175829418395,	-0.000709615556852372,	  0.00425101581002266,	 -0.00154771190193392,
+  //      -0.00031795272737588,	-0.000335279426667158,	 3.00797569860408E-05,	 -0.00367310742445092,
+  //     -0.000499216401243057,	 6.80647060261321E-06,	  -0.0197035335601325,	 0.000464371902981031;
+
+  // Calib dasta with closed chain calibration with 2.09e-5 eval
+  calib_dh_left << 0.000474560429981023,	 0.000483166682165302,	 -0.00304883355188383,	  0.00148667086907321,
+                  -3.69828865924539e-05,	-0.000288069909956647,	 -0.00812428761844092,	  0.00421567136144437,
+                  -0.000154357131719552,	  -0.0010921364777817,	  0.00031894496234845,	  -0.0030474925191138,
+                  -0.000117600404870226,	 0.000712982958085577,	 -0.00571261767823764,	  0.00176867969486185,
+                  -0.00058993701921134,	-0.000326649645213642,	  0.00939394386245098,	  0.00123723772258799,
+                  -0.000433705606644922,	-0.000293762477507038,	  -0.0156742348127345,	 -0.00529320945025931,
+                  -0.000589815315429364,	  6.2389274666678e-05,	   0.0291501803388187,	  0.00113202442328629;
+
+  calib_dh_right << -0.00153055068483914,	-0.000772485919009139,	 -0.00374187596482555,	 -0.00183369895482027,
+                    0.000163834922530543,	-0.000212890734425727,	  -0.0041768339596184,	  0.00292223805919776,
+                    -2.60271767179549e-05,	 -0.00100930869860036,	  0.00208915153420725,	 -0.00362801030623702,
+                      0.0002126348171224,	  0.00108679894872676,	 9.81965015663654e-05,	  0.00292912798333623,
+                    -0.00136529072609946,	-5.62799006356164e-05,	   0.0139799357258803,	 -0.00122374898174726,
+                    -0.000502587880406569,	 0.000336192838117574,	  -0.0139808833528828,	 -0.00268675457630875,
+                    -0.00104647166032287,	 0.000135297170834114,	  0.00498364620994882,	 0.000349775306996936;
+
+  calib_dh_top << -0.000171539356569936,	 0.000591551783574421,	  0.00119525002639617,	 -0.00650097874689066,
+                  -0.000330274824097498,	-0.000124214443868683,	 7.10962210595555e-05,	  0.00166835357174836,
+                  -0.00027921463294522,	-0.000683991542242173,	  0.00203760570771006,	  -0.0018819778569208,
+                  -0.000355247972007034,	 0.000891508331427601,	 -0.00513318787489872,	 0.000168196477584221,
+                  0.000190817101859644,	-0.000635118518697479,	  0.00445732420517835,	 -0.00167223312645046,
+                  -0.000244350284995939,	-0.000209543585115151,	 0.000118913154576129,	 -0.00356076901549127,
+                  -0.000484192538997231,	 4.41640702632187e-05,	  -0.0155483388661319,	 0.000602582057747216;
+
+  //KETI theta7 =0
+  // calib_dh_left << 
+  // -0.0013412, -0.0003918, -0.001096066770249, -0.001989675347267,
+  // -0.0002564, -0.0001278, -0.008594001236793, 0.002752384230387,
+  // -1.55E-05, 0.0006677, 0.00064926248174, -0.002103121748647,
+  // 0.0009512, 0.0001758, -0.00371231531898, 0.000694641042292,
+  // -0.000307, 0.0003903, 0.008051203839425, 0.002471386220816,
+  // -0.000198, -0.0004224, -0.016758651477597, -0.005904448859478,
+  // 0.0002232, -0.0011991, -0.01, 0.001268854366196;
+
+  // calib_dh_right <<           
+  // -0.0012854, -0.0014064, -0.00086917396749, -0.00093026049131,
+  // 5.57E-05, -0.0001631, -0.003710569989728, 0.003317870908031,
+  // -9.06E-05, 0.0006887, 0.00409803308367, -0.002958333082121,
+  // 0.0010734, 0.0011147, -5.23598775596667E-06, 0.002099631090143,
+  // -0.0003737, 0.0003613, 0.012063715789747, 0.001898918226164,
+  // -0.0004362, 0.0003637, -0.011492993124347, -0.005555383009081,
+  // 2.74000000000001E-05, -7.46E-05, 0.0, 0.002607521902471;
+
+  // calib_dh_top <<
+  // -0.0001923, -0.0029379, 0.000123918376891, -0.000776671517135,
+  // 8.49E-05, -0.0002109, -0.004572762640211, 0.00317649923862,
+  // -3.26E-05, 0.0006541, -0.001012290966154, -0.002075196480615,
+  // 0.0004254, -0.0001784, -0.000457276264021, -0.001019272283162,
+  // -0.0004222, 0.0009502, 0.009377654070936, 0.004321435227925,
+  // -3E-06, -0.0003776, -0.006679375047361, -0.005880014249951,
+  // 0.0004182, 0.0001634, 0.0, 0.000890117918514;
+
+  //original KETI
+  // calib_dh_left << 
+  // -0.0013412, -0.0003918, -0.001096066770249, -0.001989675347267,
+  // -0.0002564, -0.0001278, -0.008594001236793, 0.002752384230387,
+  // -1.55E-05, 0.0006677, 0.00064926248174, -0.002103121748647,
+  // 0.0009512, 0.0001758, -0.00371231531898, 0.000694641042292,
+  // -0.000307, 0.0003903, 0.008051203839425, 0.002471386220816,
+  // -0.000198, -0.0004224, -0.016758651477597, -0.005904448859478,
+  // 0.0002232, -0.0011991, -0.032421236184946, 0.001268854366196;
+
+  // calib_dh_right <<           
+  // -0.0012854, -0.0014064, -0.00086917396749, -0.00093026049131,
+  // 5.57E-05, -0.0001631, -0.003710569989728, 0.003317870908031,
+  // -9.06E-05, 0.0006887, 0.00409803308367, -0.002958333082121,
+  // 0.0010734, 0.0011147, -5.23598775596667E-06, 0.002099631090143,
+  // -0.0003737, 0.0003613, 0.012063715789747, 0.001898918226164,
+  // -0.0004362, 0.0003637, -0.011492993124347, -0.005555383009081,
+  // 2.74000000000001E-05, -7.46E-05, -0.02926568089735, 0.002607521902471;
+
+  // calib_dh_top <<
+  // -0.0001923, -0.0029379, 0.000123918376891, -0.000776671517135,
+  // 8.49E-05, -0.0002109, -0.004572762640211, 0.00317649923862,
+  // -3.26E-05, 0.0006541, -0.001012290966154, -0.002075196480615,
+  // 0.0004254, -0.0001784, -0.000457276264021, -0.001019272283162,
+  // -0.0004222, 0.0009502, 0.009377654070936, 0.004321435227925,
+  // -3E-06, -0.0003776, -0.006679375047361, -0.005880014249951,
+  // 0.0004182, 0.0001634, -0.035850808165104, 0.000890117918514;
+
   arms_data_["panda_left"]->rbdl_model_.initModel(calib_dh_left);
   arms_data_["panda_right"]->rbdl_model_.initModel(calib_dh_right);
+  arms_data_["panda_top"]->rbdl_model_.initModel(calib_dh_top);
   
   // arms_data_["panda_left"]->q_offset_ << -0.00209657, -0.0103961,-0.00302744,-0.00134568, 0.00393938, -0.0253182 -7.66409e-12;
   // arms_data_["panda_right"]->q_offset_ << -0.00113419,  -0.00316993,  0.000600501,  -0.00200384,  0.000897991,  -0.00657346, -2.02488e-12;
@@ -208,10 +316,10 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/joint_trajectory_control", node_handle, arms_data_);
   assemble_move_action_server_ = std::make_unique<AssembleMoveActionServer>
   ("/assembly_dual_controller/assemble_move_control", node_handle, arms_data_);
-  assemble_press_action_server_ = std::make_unique<AssemblePressActionServer>
-  ("/assembly_dual_controller/assemble_press_control", node_handle, arms_data_);
-  assemble_side_chair_action_server_ = std::make_unique<AssembleSideChairActionServer>
-  ("/assembly_dual_controller/assemble_side_chair_control", node_handle, arms_data_);
+  // assemble_press_action_server_ = std::make_unique<AssemblePressActionServer>
+  // ("/assembly_dual_controller/assemble_press_control", node_handle, arms_data_);
+  // assemble_side_chair_action_server_ = std::make_unique<AssembleSideChairActionServer>
+  // ("/assembly_dual_controller/assemble_side_chair_control", node_handle, arms_data_);
   assemble_dual_spiral_action_server_ = std::make_unique<AssembleDualSpiralActionServer>
   ("/assembly_dual_controller/assemble_dual_spiral_control", node_handle, arms_data_);
   assemble_dual_approach_action_server_ = std::make_unique<AssembleDualApproachActionServer>
@@ -230,6 +338,14 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_probe_edge_control", node_handle, arms_data_);
   assemble_triple_move_action_server_ = std::make_unique<AssembleTripleMoveActionServer>
   ("/assembly_dual_controller/assemble_triple_move_control", node_handle, arms_data_);
+  assemble_approach_hip_action_server_ = std::make_unique<AssembleApproachHipActionServer>
+  ("/assembly_dual_controller/assemble_approach_hip_control", node_handle, arms_data_);
+  assemble_kitting_action_server_ = std::make_unique<AssembleKittingActionServer>
+  ("/assembly_dual_controller/assemble_kitting_control", node_handle, arms_data_);
+  assemble_back_forth_action_server_ = std::make_unique<AssembleBackForthActionServer>
+  ("/assembly_dual_controller/assemble_back_forth_control", node_handle, arms_data_);
+  assemble_bolting_ready_action_server_ = std::make_unique<AssembleBoltingReadyActionServer>
+  ("/assembly_dual_controller/assemble_bolting_ready_control", node_handle, arms_data_);
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
 
@@ -278,10 +394,16 @@ void AssemblyTripleController::update(const ros::Time& time, const ros::Duration
   // std::cout << period.toSec() << std::endl;
   double t[30];
   t[0] = sb_.elapsedAndReset();
+  // Eigen::Matrix<double, 21, 1> q_total;
+  // Eigen::IOFormat tab_format(Eigen::FullPrecision, 0, "\t", "\n");
+  // int q_num = 0;
   for (auto& arm : arms_data_) {
     arm.second->updateModel();
     arm.second->target_updated_ = false;
+    // q_total.segment<7>(q_num * 7) = arm.second->q_;
+    // q_num++;
   }
+  // debug_file_q << q_total.transpose().format(tab_format) << std::endl;
   t[1] = sb_.elapsedAndReset();
 
   int ctr_index = 2;
@@ -297,10 +419,10 @@ void AssemblyTripleController::update(const ros::Time& time, const ros::Duration
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_move_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_press_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_side_chair_action_server_ ->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
+  // assemble_press_action_server_->compute(time);
+  // t[ctr_index++] = sb_.elapsedAndReset();
+  // assemble_side_chair_action_server_ ->compute(time);
+  // t[ctr_index++] = sb_.elapsedAndReset();
   assemble_rotation_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_triple_recovery_action_server_->compute(time);
@@ -318,6 +440,14 @@ void AssemblyTripleController::update(const ros::Time& time, const ros::Duration
   assemble_triple_move_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_retreat_bolt_action_server_->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+  assemble_approach_hip_action_server_ ->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+  assemble_kitting_action_server_ ->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+  assemble_back_forth_action_server_ ->compute(time);
+  t[ctr_index++] = sb_.elapsedAndReset();
+  assemble_bolting_ready_action_server_ ->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
 
   // add normal action server above ----------

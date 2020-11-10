@@ -85,4 +85,5 @@ namespace Criteria
 
     bool holdHeavyMass(const Eigen::Vector3d &input_force,
                        const double threshold);
+    
 }; // namespace Criteria

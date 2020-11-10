@@ -54,6 +54,9 @@ void AssembleVerifyActionServer::goalCallback()
   cnt_ = 0;
   state_ = STATE::READY;
   //--------------------------------
+  
+  
+  
   threshold_ = goal_ ->threshold;
   search_range_ = goal_->search_range;
   search_duration_ = goal_->search_duration;

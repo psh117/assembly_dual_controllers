@@ -517,7 +517,9 @@ Eigen::Vector3d PegInHole::straightMotionEE(const Eigen::Isometry3d &origin,
                                             const Eigen::Vector3d &target_dir,
                                             const double speed,
                                             const double t,
-                                            const double t_0)
+                                            const double t_0,
+                                            const double kp,
+                                            const double kv)
 {
   Eigen::Matrix3d K_p, K_v;
   Eigen::Vector3d p_init_a;
@@ -526,12 +528,8 @@ Eigen::Vector3d PegInHole::straightMotionEE(const Eigen::Isometry3d &origin,
   Eigen::Vector3d f_a;
   K_p.setIdentity();
   K_v.setIdentity();
-  K_p = Eigen::Matrix3d::Identity() * 700;
-  K_v = Eigen::Matrix3d::Identity() * 10;
-  // K_p.diagonal() << 000, 5000, 5000;
-  // K_v.diagonal() << 200, 200, 200;
-  // K_p << 5000, 0, 0, 0, 5000, 0, 0, 0, 5000;
-  // K_v << 200, 0, 0, 0, 200, 0, 0, 0, 200;
+  K_p = Eigen::Matrix3d::Identity() * kp;
+  K_v = Eigen::Matrix3d::Identity() * kv;
 
   T_wa = origin * T_7a; //T_WA
 
@@ -551,8 +549,50 @@ Eigen::Vector3d PegInHole::straightMotionEE(const Eigen::Isometry3d &origin,
   // std::cout<<"current: "<<current.translation().transpose()<<std::endl;
   // std::cout<<"run time: "<<t - t_0<<std::endl;
   // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
-  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
-  // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
+  // std::cout << "p_cmd_a: " << p_cmd_a.transpose() << std::endl;
+  // std::cout << "p_cur_a: " << p_cur_a.transpose() << std::endl;
+  // std::cout << "f_a: " << f_a.transpose() << std::endl;
+
+  return f_a;
+}
+
+Eigen::Vector3d PegInHole::straightMotion(const Eigen::Isometry3d &origin,
+                                          const Eigen::Isometry3d &current,
+                                          const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                          const Eigen::Vector3d &target_dir,
+                                          const double speed,
+                                          const double t,
+                                          const double t_0,
+                                          const double kp,
+                                          const double kv)
+{
+  Eigen::Matrix3d K_p, K_v;
+  Eigen::Vector3d p_init, p_cmd, p_cur, v_cmd, v_cur;
+  
+  Eigen::Vector3d f_a;
+  K_p.setIdentity();
+  K_v.setIdentity();
+  K_p = Eigen::Matrix3d::Identity() * kp;
+  K_v = Eigen::Matrix3d::Identity() * kv;
+
+  p_init = origin.translation();
+
+  v_cmd = speed * target_dir;
+  p_cmd = p_init + speed * (t - t_0) * target_dir;
+
+  v_cur = xd.head<3>();
+  p_cur = current.translation();
+
+  // f_a = K_v * (v_cmd_a - v_cur_a)
+  f_a = K_p * (p_cmd - p_cur) + K_v * (v_cmd - v_cur); // <fx, fy, fz>
+
+  // std::cout<<"----------------------"<<std::endl;
+  // std::cout<<"origin: "<<origin.translation().transpose()<<std::endl;
+  // std::cout<<"current: "<<current.translation().transpose()<<std::endl;
+  // std::cout<<"run time: "<<t - t_0<<std::endl;
+  // std::cout<<"p_init: "<<p_init.transpose()<<std::endl;
+  // std::cout<<"p_cmd: "<<p_cmd.transpose()<<std::endl;
+  // std::cout<<"p_cur: "<<p_cur.transpose()<<std::endl;
   // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
 
   return f_a;
@@ -592,7 +632,7 @@ Eigen::Vector3d PegInHole::approachComponentEE(const Eigen::Isometry3d &origin,
   p_cur_a = (T_wa.inverse() * current).translation();
 
   f_a = K_p * (p_cmd_a - p_cur_a) + K_v * (v_cmd_a - v_cur_a); // <fx, fy, fz>
-  
+
   Eigen::Vector3d p_cmd_w;
   p_cmd_w = T_wa.translation() + T_wa.linear()*p_cmd_a;
 
@@ -717,12 +757,17 @@ Eigen::Vector3d PegInHole::threeDofMove(const Eigen::Isometry3d &origin,
   K_p = Eigen::Matrix3d::Identity()*kp;
   K_v = Eigen::Matrix3d::Identity()*kv;
 
+  // for (int i = 0; i < 3; i++)
+  // {
+  //   desired_position(i) = dyros_math::cubic(t, t_0, t_0 + duration, origin.translation()(i), target(i), 0.0, 0.0);
+  // }
+
   for (int i = 0; i < 3; i++)
   {
-    desired_position(i) = dyros_math::cubic(t, t_0, t_0 + duration, origin.translation()(i), target(i), 0.0, 0.0);
+    desired_position(i) = dyros_math::cubic(t, t_0, t_0 + duration, 0, target(i) - origin.translation()(i), 0.0, 0.0);
   }
 
-  f_star = K_p * (desired_position - current.translation()) + K_v * (-xd.head<3>());
+  f_star = K_p * (origin.translation() + desired_position - current.translation()) + K_v * (-xd.head<3>());
 
   // std::cout<<"-----------------"<<std::endl;
   // std::cout<<"origin: "<<origin.translation().transpose()<<std::endl;
@@ -791,7 +836,7 @@ Eigen::Vector3d PegInHole::keepCurrentPosition(const Eigen::Isometry3d &origin,
 }
 
 Eigen::Vector3d PegInHole::pressEE(const double force, 
-                                    const Eigen::Vector6d &xd,
+                                    const Eigen::Ref<const Eigen::Vector6d> &xd,
                                     const Eigen::Isometry3d &T_wa,
                                     const double speed, 
                                     const double kp)
@@ -815,7 +860,7 @@ Eigen::Vector3d PegInHole::pressEE(const double force,
 
 Eigen::Vector3d PegInHole::pressCubicEE(const Eigen::Isometry3d &origin,
                                         const Eigen::Isometry3d &current,
-                                        const Eigen::Vector6d &xd,
+                                        const Eigen::Ref<const Eigen::Vector6d> &xd,
                                         const Eigen::Isometry3d &T_wa,
                                         const double force,
                                         const double t,
@@ -1008,7 +1053,7 @@ Eigen::Vector3d PegInHole::generateSpiralEE(const Eigen::Isometry3d &origin,
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d asm_dir;
 
-  K_p = Eigen::Matrix3d::Identity() * 700;
+  K_p = Eigen::Matrix3d::Identity() * 600;
   K_v = Eigen::Matrix3d::Identity() * 20;
   asm_dir = T_7a.linear().col(2); //w.r.t {E}
 
@@ -1182,7 +1227,8 @@ Eigen::Vector3d PegInHole::generateWiggleMotionEE(const Eigen::Isometry3d &origi
                                                   const double angle,
                                                   const double w, //rad/s
                                                   const double t,
-                                                  const double t_0)
+                                                  const double t_0,
+                                                  const double kp)
 {
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d x_axis, y_axis, z_axis;
@@ -1217,7 +1263,7 @@ Eigen::Vector3d PegInHole::generateWiggleMotionEE(const Eigen::Isometry3d &origi
 
   delphi_delta = -0.5 * dyros_math::getPhi(rot, target_rot);
 
-  m_a = (1.0) * 500.0 * delphi_delta + 0.1 * (-v_cur_a);
+  m_a = (1.0) * kp * delphi_delta + 0.1 * (-v_cur_a);
 
   // std::cout<<"-------------------------------------"<<std::endl;
   // std::cout<<"rot_init: \n"<<rot_init<<std::endl;
@@ -1240,7 +1286,8 @@ Eigen::Vector3d PegInHole::generateWiggleMotionEE_Zaxis(const Eigen::Isometry3d 
                                                         const double b,
                                                         const double t_offset,
                                                         const double t,
-                                                        const double t_0)
+                                                        const double t_0,
+                                                        const double kp)
 {
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d z_axis;
@@ -1267,7 +1314,7 @@ Eigen::Vector3d PegInHole::generateWiggleMotionEE_Zaxis(const Eigen::Isometry3d 
 
   delphi_delta = -0.5 * dyros_math::getPhi(rot, target_rot);
 
-  m_a = (1.0) * 1000.0 * delphi_delta + 2.5 * (-v_cur_a);
+  m_a = (1.0) * kp * delphi_delta + 2.5 * (-v_cur_a);
 
   // std::cout<<"-------------------------------------"<<std::endl;
   // std::cout<<"theta: "<<theta*RAD2DEG<< std::endl;
@@ -1470,7 +1517,7 @@ Eigen::Vector3d PegInHole::getNormalForce(const Eigen::Vector3d &normal_vector, 
   return f;
 }
 
-void PegInHole::getCompensationWrench(Eigen::Vector6d &accumulated_wrench, const Eigen::Vector6d &measured_wrench, const int num_start, const int num, const int num_max)
+void PegInHole::getCompensationWrench(Eigen::Vector6d &accumulated_wrench, const Eigen::Ref<const Eigen::Vector6d> &measured_wrench, const int num_start, const int num, const int num_max)
 {
   for (int i = 0; i < 6; i++)
   {
@@ -1604,7 +1651,7 @@ Eigen::Vector7d PegInHole::getNullSpaceJointTarget(const Eigen::Matrix<double, 7
 Eigen::Vector3d PegInHole::followSphericalCoordinateEE(const Eigen::Isometry3d &origin,
                                                        const Eigen::Isometry3d &current,
                                                        const Eigen::Isometry3d &target,
-                                                       const Eigen::Vector6d &xd,
+                                                       const Eigen::Ref<const Eigen::Vector6d> &xd,
                                                        const Eigen::Isometry3d &T_7a,
                                                        const double t,
                                                        const double t_0,
@@ -1668,7 +1715,7 @@ Eigen::Vector3d PegInHole::followSphericalCoordinateEE(const Eigen::Isometry3d &
 Eigen::Vector3d PegInHole::generateMoment(const Eigen::Isometry3d &origin,
                                             const Eigen::Isometry3d &current,
                                             const Eigen::Isometry3d &T_7a,
-                                            const Eigen::Vector6d &xd,
+                                            const Eigen::Ref<const Eigen::Vector6d> &xd,
                                             const double angle,
                                             const double t,
                                             const double t_0,
@@ -1717,4 +1764,90 @@ Eigen::Vector3d PegInHole::generateMoment(const Eigen::Isometry3d &origin,
   // std::cout << "init_rot : \n"<<origin.linear()<<std::endl;
   
   return m_star;
+}
+
+Eigen::Vector3d PegInHole::oneDofRotation(const Eigen::Isometry3d &origin,
+                                          const Eigen::Isometry3d &current,
+                                          const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                          const Eigen::Vector3d &m,
+                                          const double speed, // + : positive, - : negative/ deg/s
+                                          const double dir,    // 0 : x, 1 : y, 2 : z w.r.t global frame
+                                          const double t,
+                                          const double t_0,                                          
+                                          const double kp,
+                                          const double kv)
+{
+  Eigen::Vector3d m_star, delphi_delta;
+  Eigen::Vector3d axis;
+  Eigen::Matrix3d rot_target;
+  double theta;
+
+  theta = speed*(t - t_0)*DEG2RAD;
+  axis.setZero();
+  axis(dir) = 1.0;
+
+  rot_target = origin.linear() * dyros_math::angleaxis2rot(axis, theta);
+  delphi_delta = -0.5 * dyros_math::getPhi(current.linear(), rot_target);
+  
+  m_star = kp * delphi_delta + kv * (-xd.tail<3>());
+  
+  // std::cout<<"------------"<<std::endl;
+  // std::cout<<"run time: "<<t - t_0 << std::endl;
+  // std::cout<<"axis   : "<<axis.transpose()<<std::endl;
+  // std::cout<<"theta  : "<<theta*RAD2DEG<<std::endl;
+  // std::cout<<"m_star : "<<m_star.transpose()<<std::endl;
+  
+  return m_star;
+}
+
+Eigen::Vector3d PegInHole::generatePartialSpiralEE(const Eigen::Isometry3d &origin,
+                                                   const Eigen::Isometry3d &current,
+                                                   const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                                   const double pitch,
+                                                   const double lin_vel,
+                                                   const double force,
+                                                   const Eigen::Isometry3d &T_7a, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                                   const double search_dir,       // 0 : x axis, 1 : y axis / z is fixed as an assembly dir.
+                                                   const double t,
+                                                   const double t_0,
+                                                   const double duration,
+                                                   const double kp,
+                                                   const double kv)
+{
+  Eigen::Vector2d start_point, traj;
+  Eigen::Vector3d f_motion, f_asm, f_a; //wrt {A}
+  Eigen::Vector3d p_init_a, p_cmd_a, p_cur_a;
+  Eigen::Vector3d v_cur_a;
+  Eigen::Matrix3d K_p, K_v;
+  Eigen::Isometry3d T_wa;
+  
+  K_p = Eigen::Matrix3d::Identity() * kp;
+  K_v = Eigen::Matrix3d::Identity() * kv;
+  T_wa = origin * T_7a; //T_WA
+
+  start_point.setZero();
+  traj.setZero();
+  traj(search_dir) = dyros_math::spiral(t, t_0, t_0 + duration, start_point, lin_vel, pitch)(search_dir);
+
+  p_init_a = T_7a.inverse().translation();
+  
+  p_cmd_a << traj(0), traj(1), 0.0; //w.r.t {A}
+  p_cmd_a = p_init_a + p_cmd_a;
+  p_cur_a = (T_wa.inverse() * current).translation(); // {E} w.r.t {A}
+  v_cur_a = T_wa.linear().transpose() * xd.head<3>();
+
+  f_motion = K_p * (p_cmd_a - p_cur_a) + K_v * (-v_cur_a); // <fx, fy, fz>
+  f_asm = PegInHole::pressEE(force, xd, T_wa, 0.01, 5.0);
+  f_a.head<2>() = f_motion.head<2>();
+  f_a(2) = f_asm(2);
+  // std::cout<<"----------------------"<<std::endl;
+  // std::cout<<"origin: "<<origin.translation().transpose()<<std::endl;
+  // std::cout<<"current: "<<current.translation().transpose()<<std::endl;
+  // std::cout<<"run time: "<<t - t_0<<std::endl;
+  // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
+  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
+  // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
+  // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
+
+  return f_a;
 }

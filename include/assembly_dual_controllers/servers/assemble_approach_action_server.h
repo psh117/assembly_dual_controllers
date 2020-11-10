@@ -60,7 +60,7 @@ class AssembleApproachActionServer : public ActionServerBase
   bool is_ready_first_;
   bool is_approach_first_;
   bool is_tilt_back_first_;
-  bool heavy_mass_;
+  // bool heavy_mass_;
 
   int count_;
   Eigen::Vector6d accumulated_wrench_;

@@ -55,10 +55,14 @@ class AssembleInsertActionServer : public ActionServerBase
     Eigen::Vector3d U_dir_; //w.r.t {E} 
 
     int connector_type_;
-    double insertion_depth_, insertion_depth_prev_;
+    double insertion_depth_;
     int count_;
-    
-    std::ofstream insert_pose_data {"insert_pose_data.txt"};
+    int bolting_stop_count_;
+    double bolting_minimum_depth_;
+    double bolting_vel_threshold_;  
+
+    std::ofstream save_insert_pose_data {"insert_pose_data.txt"};
+    std::ofstream save_insertion_vel{"insertion_vel_data.txt"};
 
     struct wiggle_z_axis{
       int a;

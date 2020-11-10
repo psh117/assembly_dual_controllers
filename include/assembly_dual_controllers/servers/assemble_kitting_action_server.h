@@ -28,14 +28,12 @@ class AssembleKittingActionServer : public ActionServerBase
   Eigen::Isometry3d origin_;
   Eigen::Isometry3d current_;
 
-  double descent_speed_;
+  double speed_;
   double contact_force_;
-  double time_limit_;
-  bool sign_; // true : + / false : -
-  
-  bool is_ready_first_;
-
-  std::ofstream kitting_pr_data {"kitting_pr_data.txt"};
+  int dir_;
+  int count_;
+  Eigen::Vector3d kitting_dir_;
+  Eigen::Vector6d accumulated_wrench_;
   std::ofstream kitting_fm_data {"kitting_fm_data.txt"};
 
 public:

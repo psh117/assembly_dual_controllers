@@ -1,6 +1,6 @@
 #include <assembly_dual_controllers/utils/model/franka_model_updater.h>
 
-const double FrankaModelUpdater::PRINT_RATE = 0.001;
+const double FrankaModelUpdater::PRINT_RATE = 0.001;//0.5;//10.0;
 
 FrankaModelUpdater::FrankaModelUpdater() {
   initialize();
@@ -34,6 +34,9 @@ void FrankaModelUpdater::initialize()
                                         0, 0, 1 ,0,
                                         0, 0, 0, 1;
   Eigen::Matrix4d::Map(EE_T_K_.data()) = Eigen::Matrix4d::Identity();
+  xd_lpf_.setZero();
+  xd_lpf_.head<3>() = 0.1*xd_lpf_.head<3>().setOnes();
+  position_lpf_.setZero();
 }
 
 void FrankaModelUpdater::updateModel()
@@ -113,14 +116,14 @@ void FrankaModelUpdater::updateModel()
   t[debug_index++] = sb_.elapsedAndReset();
   manipulability_ = jacobian_ * jacobian_.transpose();
   manipulability_measure_ = std::sqrt(manipulability_.determinant());
-  // for(int i=0; i<6; i++)
-  // {
-  //   f_measured_filtered_(i) = franka::lowpassFilter(0.001, f_measured_(i), f_measured_filtered_(i), 10.0);
-  // }
+
+  for (int i = 0; i < 6; i++) xd_lpf_(i) = franka::lowpassFilter(0.001, xd_(i), xd_lpf_(i), 1.0);
+  for (int i = 0; i < 3; i++) position_lpf_(i) = franka::lowpassFilter(0.001, position_(i), position_lpf_(i), 1.0);
+
   target_updated_ = false;
 
-  // q_out_file_ << q_.transpose() << std::endl;
-  // x_out_file_ << transform_.translation().transpose() << std::endl;
+  q_out_file_ << q_.transpose() << std::endl;
+  x_out_file_ << transform_.translation().transpose() << std::endl;
   
   printState();
   t[debug_index++] = sb_.elapsedAndReset();
@@ -201,14 +204,14 @@ void FrankaModelUpdater::printState()
   << "---------------------------------------------------------------------------------------\n"
   << "# name         : " << arm_name_ << std::endl
   << "  - q          : " << q_.transpose().format(clean_fmt) << std::endl
-  << "  - gravity    : " << gravity_.transpose().format(clean_fmt) << std::endl
-  << "  - torque     : " << tau_measured_.transpose().format(clean_fmt) << std::endl
-  << "  - manip_msr  : " << manipulability_measure_ << std::endl
-  << "  - manip_jjt  : " << manipulability_.format(clean_fmt_space) << std::endl
+  // << "  - gravity    : " << gravity_.transpose().format(clean_fmt) << std::endl
+  // << "  - torque     : " << tau_measured_.transpose().format(clean_fmt) << std::endl
+  // << "  - manip_msr  : " << manipulability_measure_ << std::endl
+  // << "  - manip_jjt  : " << manipulability_.format(clean_fmt_space) << std::endl
   // << "  - f_measured : " << f_measured_filtered_.transpose().format(clean_fmt) << std::endl
-  << "  - mass       : " << mass_matrix_.format(clean_fmt_space) << std::endl
+  // << "  - mass       : " << mass_matrix_.format(clean_fmt_space) << std::endl
   // << "  - lambda     : " << std::endl << lambda_matrix_.format(clean_fmt) << std::endl
-  << "  - mod_lambda : " << modified_lambda_matrix_.format(clean_fmt_space) << std::endl
+  // << "  - mod_lambda : " << modified_lambda_matrix_.format(clean_fmt_space) << std::endl
   << "  - angle err  : " << qt_init.angularDistance(qt_cur) << std::endl
   << "  - trans err  : " << (initial_transform_.translation() - position_).norm() << std::endl
   << "  - transform 0: " << (initial_transform_).matrix().format(clean_fmt_space) << std::endl

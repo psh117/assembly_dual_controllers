@@ -61,16 +61,27 @@ bool Criteria::checkContact(const Eigen::Vector3d &force,
     f_a = T_wa.linear().inverse() * force;
     // contact_force = abs(f_a(2)); // z- axis is always assembly direction wrt {A}
     contact_force = f_a(2);
-    if (contact_force >= threshold)
+    
+    if(threshold < 0)
     {
-        std::cout << "contact_force: " << contact_force << std::endl;
-
-        result = true; //detect contact!
+        if (contact_force <= threshold)
+        {
+            std::cout << "contact_force: " << contact_force << std::endl;
+            result = true; //detect contact!
+        }
+        else
+            result = false;    
     }
-
     else
-        result = false;
-
+    {
+        if (contact_force >= threshold)
+        {
+            std::cout << "contact_force: " << contact_force << std::endl;
+            result = true; //detect contact!
+        }
+        else
+            result = false;
+    }
     return result;
 }
 

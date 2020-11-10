@@ -114,8 +114,7 @@ bool AssembleDualSpiralActionServer::compute(ros::Time time)
   {
     ROS_ERROR("[AssembleSideChairActionServer::compute] the name %s and %s are not in the arm list.", goal_->assist_arm.c_str(), goal_ ->task_arm.c_str());
   }
-  
-  
+    
   return false;
 }
 

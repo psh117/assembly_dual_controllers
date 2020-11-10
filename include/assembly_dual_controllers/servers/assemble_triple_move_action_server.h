@@ -6,6 +6,8 @@
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 #include <assembly_dual_controllers/utils/control/criteria.h>
 #include <geometry_msgs/Wrench.h>
+#include <geometry_msgs/Point.h>
+#define TEST_PRINT
 
 using namespace dyros_math;
 using namespace Criteria;
@@ -16,44 +18,65 @@ class AssembleTripleMoveActionServer : public ActionServerBase
   enum MOVE_STATE : int
   {
     KEEPCURRENT = 0,
-    EXEC = 1
+    EXEC = 1,
+    EXERTREADY = 2,
+    EXERTFORCE = 3,
+    FINISHER = 4
+  };
+  struct a_state_
+  {
+    int count_{0};
+    int wait_{0};
+    double motion_start_time_;
+    bool heavy_mass_;
+    bool is_upper_arm_{false};
+    bool is_mode_changed_{true};
+    MOVE_STATE move_state_;
+    Eigen::Isometry3d origin_;
+    Eigen::Vector3d target_;
+    Eigen::Vector6d accumulated_wrench_;
   };
 
   actionlib::SimpleActionServer<assembly_msgs::AssembleTripleMoveAction> as_;
-
   assembly_msgs::AssembleTripleMoveFeedback feedback_;
   assembly_msgs::AssembleTripleMoveResult result_;
   assembly_msgs::AssembleTripleMoveGoalConstPtr goal_;
-  
   void goalCallback() override;
   void preemptCallback() override;
 
-  Eigen::Matrix<double, 6, 1> f_measured_;
-
-  Eigen::Isometry3d left_arm_origin_, right_arm_origin_, top_arm_origin_;
-  Eigen::Vector3d left_target, right_target, top_target;
-
+  std::map<std::string, std::shared_ptr<a_state_>> hc_;
+  a_state_ left_states;
+  a_state_ right_states;
+  a_state_ top_states;
+  std::string upper_arm_;
+  Eigen::Vector3d dir_;
+  Eigen::Matrix3d top_arm_rot_;
   double duration_;
   double contact_force_;
-  double motion_start_time_;
-
-  bool first_{true};
-  std::ofstream force_moment;
+  bool is_test_;
+  bool control_running_;
   int succeed_flag{0};
-  int count_{0};
-  
-  MOVE_STATE left_state_, right_state_;
+  double upper_more_;
+  double stop_speed_;
 
-  Eigen::Vector6d accumulated_wrench_;
-  geometry_msgs::Wrench wrench_rtn_;
-  bool is_mode_changed_{false};
+  double ER_time_;
+  double ER_turn_;
+  double ER_up_;
+  
+  double EF_linear_vel_;
+  double EF_pitch_;
+  double EF_limit_;
+  double EF_time_;
+  double EF_turn_;
+  double EF_down_;
+  double EF_contact_force_;
 
 public:
   AssembleTripleMoveActionServer(std::string name, ros::NodeHandle &nh,
                                  std::map<std::string, std::shared_ptr<FrankaModelUpdater>> &mu);
 
   bool compute(ros::Time time) override;
-  bool computeArm(ros::Time time, FrankaModelUpdater &arm, Eigen::Isometry3d origin, Eigen::Vector3d target_pos, MOVE_STATE &state_);
+  bool computeArm(ros::Time time, FrankaModelUpdater &arm, a_state_ &khc);
 
 private:
   void setSucceeded();

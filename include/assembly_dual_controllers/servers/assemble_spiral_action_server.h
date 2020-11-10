@@ -33,8 +33,8 @@ class AssembleSpiralActionServer : public ActionServerBase
   Eigen::Isometry3d origin_;
   Eigen::Isometry3d current_;
 
-  Eigen::Vector3d force_compensation_;
-  Eigen::Vector3d moment_compensation_;
+  // Eigen::Vector3d force_compensation_;
+  // Eigen::Vector3d moment_compensation_;
 
   Eigen::Vector6d twist_pos_save_;
   Eigen::Vector6d spiral_pos_save_;
@@ -43,6 +43,7 @@ class AssembleSpiralActionServer : public ActionServerBase
   double pitch_;
   int mode_;
   int assemble_dir_;
+  int partial_search_dir_;
   double depth_;
   double friction_;
   double pressing_force_;
@@ -58,7 +59,7 @@ class AssembleSpiralActionServer : public ActionServerBase
 
   bool is_first_;
   bool is_mode_changed_;
-  bool heavy_mass_;
+  // bool heavy_mass_;
   bool set_tilt_;
   ASSEMBLY_STATE state_;
 

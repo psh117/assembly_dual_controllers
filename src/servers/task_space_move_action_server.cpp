@@ -23,7 +23,10 @@ void TaskSpaceMoveActionServer::goalCallback()
   ROS_INFO("[TaskSpaceMoveActionServer::goalCallback] Joint trajectory goal has been received.");
   Eigen::Isometry3d target_relative_pose;
   tf::poseMsgToEigen(goal_->target_pose, target_relative_pose);
-
+  std::cout<<goal_->target_pose.orientation.x<<std::endl;
+  std::cout<<goal_->target_pose.orientation.y<<std::endl;
+  std::cout<<goal_->target_pose.orientation.z<<std::endl;
+  std::cout<<goal_->target_pose.orientation.w<<std::endl;
   if (target_relative_pose.translation().norm() > 0.1)
   {
     ROS_WARN("[TaskSpaceMoveActionServer::goalCallback] DO NOT USE THIS ACTION with over 10 cm movement goal. Just passing it.");

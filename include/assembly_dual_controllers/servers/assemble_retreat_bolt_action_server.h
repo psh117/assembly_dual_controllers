@@ -12,14 +12,7 @@ using namespace PegInHole;
 
 class AssembleRetreatBoltActionServer : public ActionServerBase
 {
-    enum CONTROL_TYPE : int
-    {
-      SIMPLE = 1,
-      COMPLEX = 2
-    };
-
     actionlib::SimpleActionServer<assembly_msgs::AssembleRetreatBoltAction> as_;
-
     assembly_msgs::AssembleRetreatBoltFeedback feedback_;
     assembly_msgs::AssembleRetreatBoltResult result_;
     assembly_msgs::AssembleRetreatBoltGoalConstPtr goal_;
@@ -37,6 +30,7 @@ class AssembleRetreatBoltActionServer : public ActionServerBase
     
     bool wiggle_motion_;
     bool wiggle_motion_z_axis_;
+    bool zero_moment_;
     
     double duration_;
     double retreat_force_;
@@ -45,18 +39,18 @@ class AssembleRetreatBoltActionServer : public ActionServerBase
     double wiggle_angle_;
     double wiggle_angular_vel_;
 
-
-    CONTROL_TYPE mode_;
-
-    Eigen::Vector3d U_EA_;
-    Eigen::Vector3d U_dir_; //w.r.t {E} 
-
     struct wiggle_z_axis{
       int a;
       double b;
       double t_offset;
     }wiggle_z_axis_param_;
     
+    Eigen::Matrix3d compliant_translation_ee_select_mtx_;
+    
+    int mode_;
+
+    std::ofstream reaction_force {"reaction_force.txt"};
+
 public:
   AssembleRetreatBoltActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);

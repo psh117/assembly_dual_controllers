@@ -169,10 +169,10 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/joint_trajectory_control", node_handle, arms_data_);
   assemble_move_action_server_ = std::make_unique<AssembleMoveActionServer>
   ("/assembly_dual_controller/assemble_move_control", node_handle, arms_data_);
-  assemble_press_action_server_ = std::make_unique<AssemblePressActionServer>
-  ("/assembly_dual_controller/assemble_press_control", node_handle, arms_data_);
-  assemble_side_chair_action_server_ = std::make_unique<AssembleSideChairActionServer>
-  ("/assembly_dual_controller/assemble_side_chair_control", node_handle, arms_data_);
+  // assemble_press_action_server_ = std::make_unique<AssemblePressActionServer>
+  // ("/assembly_dual_controller/assemble_press_control", node_handle, arms_data_);
+  // assemble_side_chair_action_server_ = std::make_unique<AssembleSideChairActionServer>
+  // ("/assembly_dual_controller/assemble_side_chair_control", node_handle, arms_data_);
   assemble_dual_spiral_action_server_ = std::make_unique<AssembleDualSpiralActionServer>
   ("/assembly_dual_controller/assemble_dual_spiral_control", node_handle, arms_data_);
   assemble_dual_approach_action_server_ = std::make_unique<AssembleDualApproachActionServer>
@@ -261,10 +261,10 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_move_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_press_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_side_chair_action_server_ ->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
+  // assemble_press_action_server_->compute(time);
+  // t[ctr_index++] = sb_.elapsedAndReset();
+  // // assemble_side_chair_action_server_ ->compute(time);
+  // t[ctr_index++] = sb_.elapsedAndReset();
   assemble_rotation_action_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
   assemble_triple_recovery_action_server_->compute(time);

@@ -153,7 +153,6 @@ Eigen::Vector2d spiral(double time,                     ///< Current time
   }
   else
   {
-
     double elapsed_time = time - time_0;
 
     double a = 0.0;

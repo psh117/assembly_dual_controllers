@@ -103,7 +103,19 @@ namespace PegInHole
                                      const Eigen::Vector3d &target_dir,
                                      const double speed,
                                      const double t,
-                                     const double t_0);
+                                     const double t_0,
+                                     const double kp = 700,
+                                     const double kv = 20);
+
+    Eigen::Vector3d straightMotion(const Eigen::Isometry3d &origin,
+                                   const Eigen::Isometry3d &current,
+                                   const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                   const Eigen::Vector3d &target_dir,
+                                   const double speed,
+                                   const double t,
+                                   const double t_0,
+                                   const double kp = 700,
+                                   const double kv = 20);
 
     Eigen::Vector3d approachComponentEE(const Eigen::Isometry3d &origin,
                                         const Eigen::Isometry3d &current,
@@ -158,14 +170,14 @@ namespace PegInHole
                                            const double kv = 15);
 
     Eigen::Vector3d pressEE(const double force, 
-                            const Eigen::Vector6d &xd,
+                            const Eigen::Ref<const Eigen::Vector6d> &xd,
                             const Eigen::Isometry3d &T_wa,
                             const double speed, 
                             const double kp = 100);
 
     Eigen::Vector3d pressCubicEE(const Eigen::Isometry3d &origin,
                                 const Eigen::Isometry3d &current,
-                                const Eigen::Vector6d &xd,
+                                const Eigen::Ref<const Eigen::Vector6d> &xd,
                                 const Eigen::Isometry3d &T_wa,
                                 const double force,
                                 const double t,
@@ -250,7 +262,8 @@ namespace PegInHole
                                            const double angle,
                                            const double w, //rad/s
                                            const double t,
-                                           const double t_0);
+                                           const double t_0,
+                                           const double kp = 500.0);
 
     Eigen::Vector3d generateWiggleMotionEE_Zaxis(const Eigen::Isometry3d &origin,
                                                  const Eigen::Isometry3d &current,
@@ -262,7 +275,8 @@ namespace PegInHole
                                                  const double b,
                                                  const double t_offset,
                                                  const double t,
-                                                 const double t_0);
+                                                 const double t_0,
+                                                 const double k_p = 1000);
 
     Eigen::Vector3d generateYawingMotionEE(const Eigen::Isometry3d &origin,
                                            const Eigen::Isometry3d &current,
@@ -293,7 +307,7 @@ namespace PegInHole
                                                     const double pressing_force);
 
     void getCompensationWrench(Eigen::Vector6d &accumulated_wrench,
-                               const Eigen::Vector6d &measured_wrench,
+                               const Eigen::Ref<const Eigen::Vector6d> &measured_wrench,
                                const int num_start,
                                const int num,
                                const int num_max);
@@ -325,7 +339,7 @@ namespace PegInHole
     Eigen::Vector3d followSphericalCoordinateEE(const Eigen::Isometry3d &origin,
                                                 const Eigen::Isometry3d &current,
                                                 const Eigen::Isometry3d &target,
-                                                const Eigen::Vector6d &xd,
+                                                const Eigen::Ref<const Eigen::Vector6d> &xd,
                                                 const Eigen::Isometry3d &T_7a,
                                                 const double t,
                                                 const double t_0,
@@ -337,12 +351,37 @@ namespace PegInHole
     Eigen::Vector3d generateMoment(const Eigen::Isometry3d &origin,
                                    const Eigen::Isometry3d &current,
                                    const Eigen::Isometry3d &T_7a,
-                                   const Eigen::Vector6d &xd,
+                                   const Eigen::Ref<const Eigen::Vector6d> &xd,
                                    const double angle,
                                    const double t,
                                    const double t_0,
                                    const double duration,
                                    const double kp = 2000,
                                    const double kv = 15);
+
+    Eigen::Vector3d oneDofRotation(const Eigen::Isometry3d &origin,
+                                   const Eigen::Isometry3d &current,
+                                   const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                   const Eigen::Vector3d &m,
+                                   const double speed, // + : positive, - : negative
+                                   const double dir,    // 0 : x, 1 : y, 2 : z w.r.t flange frame
+                                   const double t,
+                                   const double t_0,
+                                   const double kp = 2000,
+                                   const double kv = 15);
+
+    Eigen::Vector3d generatePartialSpiralEE(const Eigen::Isometry3d &origin,
+                                            const Eigen::Isometry3d &current,
+                                            const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                            const double pitch,
+                                            const double lin_vel,
+                                            const double force,
+                                            const Eigen::Isometry3d &T_7a, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                            const double search_dir,
+                                            const double t,
+                                            const double t_0,
+                                            const double duration,
+                                            const double kp = 700,
+                                            const double kv = 15);
 
 }; // namespace PegInHole

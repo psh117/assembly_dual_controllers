@@ -77,8 +77,8 @@ add_library(assembly_controller_common_lib
   src/servers/assemble_verify_action_server.cpp
   src/servers/idle_control_server.cpp
   src/servers/assemble_move_action_server.cpp
-  src/servers/assemble_press_action_server.cpp
-  src/servers/assemble_side_chair_action_server.cpp
+  # src/servers/assemble_press_action_server.cpp
+  # src/servers/assemble_side_chair_action_server.cpp
   src/servers/assemble_rotation_action_server.cpp
   src/servers/assemble_triple_recovery_action_server.cpp
   src/servers/assemble_approach_bolt_action_server.cpp
@@ -93,8 +93,12 @@ add_library(assembly_controller_common_lib
   src/utils/control/peg_in_hole_base.cpp
   src/utils/control/criteria.cpp
   src/utils/dyros_math.cpp
-
+  src/servers/assemble_approach_hip_action_server.cpp
+  src/servers/assemble_kitting_action_server.cpp
+  src/servers/assemble_back_forth_action_server.cpp
+  src/servers/assemble_bolting_ready_action_server.cpp
   src/model/franka_panda_model.cpp
+
 )
 
 add_library(${PROJECT_NAME}

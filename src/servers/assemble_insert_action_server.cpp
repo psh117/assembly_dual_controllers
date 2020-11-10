@@ -38,10 +38,11 @@ void AssembleInsertActionServer::goalCallback()
   yawing_motion_ = goal_->yawing_motion;
 
   connector_type_ = goal_ -> connector_type;
+  bolting_minimum_depth_ = goal_->bolting_minimum_depth;
 
   yawing_angle_ = goal_->yawing_angle * DEG2RAD; //radian
   init_yaw_angle_ = mu_[goal_->arm_name]->q_(6,0); //radian
-
+  bolting_vel_threshold_ = goal_->bolting_vel_threshold;
   std::cout<<goal_->arm_name<<std::endl;
   // std::cout<<"-------------------------------------"<<std::endl;
   // std::cout<<"init_yaw_angle: "<<init_yaw_angle_<<std::endl;
@@ -105,8 +106,6 @@ void AssembleInsertActionServer::goalCallback()
   else if(wiggle_motion_) std::cout<<"wiggle motion is activated"<<std::endl;
   else if(yawing_motion_) std::cout<<"yawing motion is activated"<<std::endl;
   else  std::cout<<"no optional motions"<<std::endl;
-  
-  control_running_ = true;
 
   // Eigen::Isometry3d T_AE;
   // Eigen::Vector3d P_ae;
@@ -137,8 +136,11 @@ void AssembleInsertActionServer::goalCallback()
   std::cout<<"q_null_target_ : "<< q_null_target_.transpose()*RAD2DEG<<std::endl;
 
   count_ = 1;
-  insertion_depth_ = 0.0;
-  insertion_depth_prev_ = 0.0;
+  bolting_stop_count_ = 0;
+  
+
+  control_running_ = true;
+
 }
 
 void AssembleInsertActionServer::preemptCallback()
@@ -171,7 +173,7 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 {
   if (!as_.isActive())
       return false; 
-
+      
   // auto & mass = arm.mass_matrix_;
   // auto & rotation = arm.rotation_;
   // auto & position = arm.position_;
@@ -186,7 +188,9 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   Eigen::Vector3d p_init_a, p_cur_a;
   
   double run_time;
-  
+  double bolting_vel;
+  int max_bolting_stop_count = 800;
+
   current_ = arm.transform_;
   run_time = time.toSec() - arm.task_start_time_.toSec();
 
@@ -203,49 +207,28 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       break;
     
     case 1:
-        
-        p_init_a = T_7A_.inverse().translation(); //{E} wrt {A}
-        p_cur_a = (T_WA_.inverse() * current_).translation();
-        // insertion_depth_ = p_cur_a(2) - p_init_a(2);    
-        insertion_depth_ = p_cur_a(2);
-        
-        if(run_time > duration_ && abs(insertion_depth_ - insertion_depth_prev_) < 0.0001)
-        {
-          std::cout<<"INSERTION IS DONE"<<std::endl;
-          std::cout<<"insertion_depth_: "<< abs(insertion_depth_ - insertion_depth_prev_)<<std::endl;
-          savePosture();
-          setSucceeded();
-        }
-        
-        //save 0.5 sec previous data
-        if(count_ % 500 == 0)
-        {
-          insertion_depth_prev_ = insertion_depth_;
-        } 
-        else insertion_depth_prev_ = insertion_depth_prev_;
 
-        count_++;
+      p_init_a = T_7A_.inverse().translation(); //{E} wrt {A}
+      p_cur_a = (T_WA_.inverse() * current_).translation();
+      insertion_depth_ = abs(p_cur_a(2) - p_init_a(2));
+            
+      if(run_time > 0.5 && insertion_depth_ >= bolting_minimum_depth_ && bolting_stop_count_ > max_bolting_stop_count)
+      {
+        std::cout << "BOLTING IS DONE" << std::endl;
+        std::cout << "displacement: " << abs(p_cur_a(2) - p_init_a(2)) << std::endl;
+        std::cout << "run time : " << run_time << std::endl;
+        std::cout<< "position error : "<< (current_.translation() - origin_.translation()).transpose()<<std::endl;
+        setSucceeded();
+      }
+
+      bolting_vel = (T_WA_.linear().inverse()*arm.xd_lpf_.head<3>())(2);      
+      if(abs(bolting_vel) <= bolting_vel_threshold_)  bolting_stop_count_++;
+      else                      bolting_stop_count_ = 0;
+
+      // std::cout<<bolting_vel<<" ," <<bolting_stop_count_<<std::endl;
+      save_insert_pose_data << (T_WA_.linear().inverse()*arm.position_).transpose()<<" "<<(T_WA_.linear().inverse()*arm.position_lpf_).transpose()<<std::endl;
+      save_insertion_vel << (T_WA_.linear().inverse()*xd.head<3>()).transpose()<<" "<<(T_WA_.linear().inverse()*arm.xd_lpf_.head<3>()).transpose()<<std::endl;
   }
-
-
-  // switch (mode_)
-  // {
-  // case SIMPLE:
-  //   f_star = PegInHole::pressEE(insertion_force_); //w.r.t {A}
-  //   break;
-  
-  // case COMPLEX: // Assumption : the location of the end-effector should be higher than the assembly frame.
-  //   f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 5000, 100);
-  //   // std::cout<<"f_star w.r.t global frame: \t"<<f_star.transpose()<<std::endl;
-  //   f_star = current_.linear().inverse()*f_star;
-  //   f_star(2) = 0.0;
-  //   f_star = current_.linear()*f_star;
-  //   // std::cout<<"f_star w.r.t local frame: \t"<<f_star.transpose()<<std::endl;
-  //   m_dir = U_dir_.cross(U_EA_); // w.r.t {E}
-  //   m_star = current_.linear()*(insertion_force_*U_dir_);
-  //   break;
-  // }
-  //f_star = PegInHole::pressEE(insertion_force_); //w.r.t {A}
 
   f_star = PegInHole::pressCubicEE(origin_, current_, xd, T_WA_, insertion_force_, time.toSec(), arm.task_start_time_.toSec(), duration_/2);
   f_star = T_WA_.linear()*f_star;
@@ -284,14 +267,15 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   
   // f_star_zero.setZero();
 
-  tau_null_cmd_ = PegInHole::nullSpaceJointTorque(arm.q_, q_init_, q_null_target_, arm.qd_, time.toSec(), total_action_start_time_, duration_*2);
+  // tau_null_cmd_ = PegInHole::nullSpaceJointTorque(arm.q_, q_init_, q_null_target_, arm.qd_, time.toSec(), total_action_start_time_, duration_*2);
   // std::cout<<"tau_null_cmd : "<< tau_null_cmd_.transpose()<<std::endl;
-
-  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero + arm.null_projector_*tau_null_cmd_;
+  std::cout<< "force cmd : " << f_star.transpose()<<std::endl;
+  std::cout<< "moment cmd : "<< m_star.transpose()<<std::endl;
+  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero; //+ arm.null_projector_*tau_null_cmd_;
   arm.setTorque(desired_torque);
   
   // insert_pose_data << arm.position_<<std::endl;
-  insert_pose_data << p_cur_a.transpose()<<std::endl;
+  // save_insert_pose_data << p_cur_a.transpose()<<std::endl;
   // std::cout<<"f_star: "<< f_star.transpose()<<std::endl;
   return true;
 }
