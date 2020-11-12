@@ -19,9 +19,6 @@ class AssembleTripleMoveActionServer : public ActionServerBase
   {
     KEEPCURRENT = 0,
     EXEC = 1,
-    EXERTREADY = 2,
-    EXERTFORCE = 3,
-    FINISHER = 4
   };
   struct a_state_
   {
@@ -58,18 +55,7 @@ class AssembleTripleMoveActionServer : public ActionServerBase
   int succeed_flag{0};
   double upper_more_;
   double stop_speed_;
-
-  double ER_time_;
-  double ER_turn_;
-  double ER_up_;
-  
-  double EF_linear_vel_;
-  double EF_pitch_;
-  double EF_limit_;
-  double EF_time_;
-  double EF_turn_;
-  double EF_down_;
-  double EF_contact_force_;
+  double max_force;
 
 public:
   AssembleTripleMoveActionServer(std::string name, ros::NodeHandle &nh,

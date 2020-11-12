@@ -41,18 +41,7 @@ void AssembleTripleMoveActionServer::goalCallback()
   is_test_ = goal_ -> is_test;
   upper_more_ = goal_ -> upper_more;
   stop_speed_ = goal_ -> stop_speed;
-
-  ER_time_ = goal_ -> ER_time;
-  ER_turn_ = goal_ -> ER_turn;
-  ER_up_ = goal_ -> ER_up;
-
-  EF_linear_vel_ = goal_ -> EF_linear_velocity;
-  EF_pitch_ = goal_ -> EF_pitch;
-  EF_limit_ = goal_ -> EF_limit;
-  EF_time_ = goal_ -> EF_time;
-  EF_turn_ = goal_ -> EF_turn;
-  EF_down_ = goal_ -> EF_down;
-  EF_contact_force_ = goal_ -> EF_contact_force;
+  max_force = goal_ -> EF_limit;
 
   hc_["panda_left"] -> count_ = 0;
   hc_["panda_left"] -> wait_ = 0;
@@ -89,7 +78,7 @@ void AssembleTripleMoveActionServer::goalCallback()
   {
     std::cout<<"TESTING TRIPLE MOVE ACTION"<<std::endl;
     hc_["panda_left"] -> move_state_ = KEEPCURRENT;
-    hc_["panda_right"] -> move_state_ = EXERTFORCE;
+    hc_["panda_right"] -> move_state_ = KEEPCURRENT;
     hc_["panda_top"] -> move_state_ = KEEPCURRENT;
     succeed_flag = 2;
   }
@@ -120,15 +109,6 @@ bool AssembleTripleMoveActionServer::compute(ros::Time time)
     return false;
   if (mu_.find("panda_left") != mu_.end() && mu_.find("panda_right") != mu_.end())
   {
-    if(hc_["panda_left"]->move_state_==KEEPCURRENT&&hc_["panda_right"]->move_state_==KEEPCURRENT&&hc_["panda_top"]->move_state_==KEEPCURRENT)
-    {
-      if (upper_arm_ != "")
-      {
-        hc_[upper_arm_] -> move_state_ = EXERTFORCE;
-        hc_[upper_arm_] -> is_mode_changed_ = true;
-        std::cout<<upper_arm_<<" is upper arm!!!"<<std::endl;
-      }
-    }
     computeArm(time, *mu_["panda_left"], *hc_["panda_left"]);
     computeArm(time, *mu_["panda_right"], *hc_["panda_right"]);
     computeArm(time, *mu_["panda_top"], *hc_["panda_top"]);
@@ -208,6 +188,7 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
         {
           std::cout << "\n!!CHECK CONTATCT!!\n" << std::endl;
           std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
+          std::cout<<"force(2): "<<force(2)<<std::endl;
           if (khc.is_upper_arm_) {khc.move_state_ = KEEPCURRENT;}
           else
           {
@@ -249,77 +230,9 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
 
       case KEEPCURRENT:
         f_star = PegInHole::keepCurrentPose(khc.origin_, current_, xd, 5000, 200, 200, 5).head<3>();
-        m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 200, 5);
+        // m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 200, 5);
         break;
 
-      case EXERTREADY:
-        traj1(2) = dyros_math::cubic(time.toSec(), khc.motion_start_time_, khc.motion_start_time_ + ER_time_, 0, ER_up_, 0.0, 0.0);
-        f_star = 700.0 * (khc.origin_.translation() + traj1 - current_.translation()) + 40.0 * (-xd.head<3>());
-
-        if (timeOut(time.toSec(), khc.motion_start_time_, ER_time_))
-        {
-          std::cout << "\n!READY FOR ASSEMBLE!" << std::endl;
-          std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
-          khc.move_state_ = EXERTFORCE;
-          khc.is_mode_changed_ = true;
-        }
-        break;
-
-      case EXERTFORCE:
-        succeed_flag++;
-        khc.move_state_ = KEEPCURRENT;
-        khc.is_mode_changed_ = true;
-        break;
-        // traj1(2) = dyros_math::cubic(time.toSec(), khc.motion_start_time_, khc.motion_start_time_ + EF_time_, 0, EF_down_, 0.0, 0.0); // pushing down {0}
-        // traj2(1) = dyros_math::spiral(time.toSec(), khc.motion_start_time_, khc.motion_start_time_ + EF_time_, start_point, EF_linear_vel_, EF_pitch_)(0); // piston movement {7}
-        // traj2 = khc.origin_.linear() * traj2; // {0}
-        // f_star = 700.0 * (khc.origin_.translation() + traj1 + traj2 - current_.translation()) + 40.0 * (-xd.head<3>());
-
-        // if (run_time > 0.1 && (abs(force(0)) + abs(force(1))) >= abs(EF_contact_force_))
-        // {
-        //   std::cout << "\n!!CHECK CONTATCT!!\n" << std::endl;
-        //   std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
-        //   std::cout<<"force: "<<force.transpose()<<std::endl;
-        //   succeed_flag++;
-        //   khc.move_state_ = KEEPCURRENT;
-        //   khc.is_mode_changed_ = true;
-        // }
-        // else if (timeOut(time.toSec(), khc.motion_start_time_, EF_time_))
-        // {
-        //   std::cout << "\n!!!!!PUSHING DONE!!!!!\n" << std::endl;
-
-        //   khc.move_state_ = FINISHER;
-
-        //   // succeed_flag++;
-        //   // khc.move_state_ = KEEPCURRENT;
-
-        //   khc.is_mode_changed_ = true;
-        // }
-        // break;
-
-      case FINISHER:
-
-        traj1(2) = dyros_math::cubic(time.toSec(), khc.motion_start_time_, khc.motion_start_time_ + ER_time_, 0, -0.01, 0.0, 0.0); // pushing down {0}
-        f_star = 700.0 * (khc.origin_.translation() + traj1 - current_.translation()) + 40.0 * (-xd.head<3>());
-
-        // f_star = khc.origin_.translation() * PegInHole::pressEE(0.04, xd, khc.origin_, 0.01, 5.0);
-
-        if (run_time > 0.05 && Criteria::checkContact(force, Eigen::Isometry3d::Identity(), contact_force_))
-        {
-          std::cout << "\n!!CHECK CONTATCT FINISHED!!\n" << std::endl;
-          std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
-          succeed_flag++;
-          khc.move_state_ = KEEPCURRENT;
-          khc.is_mode_changed_ = true;
-        }
-        if (timeOut(time.toSec(), khc.motion_start_time_, ER_time_))
-        {
-          std::cout << "\n!!!!!FINISHED!!!!!\n" << std::endl;
-          succeed_flag++;
-          khc.move_state_ = KEEPCURRENT;
-          khc.is_mode_changed_ = true;
-        }
-        break;
     }
 #ifdef TEST_PRINT
     if (khc.count_ % 2000 == 1)
@@ -332,7 +245,7 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
       std::cout<<"speed: "<<xd.head<3>().norm()<<std::endl;
     }
 #endif
-    if (f_star(2) < EF_limit_) {f_star(2) = EF_limit_;}
+    for (int i=0; i<3; i++){if (f_star(i) < max_force) {f_star(i) = max_force;}}
     if(khc.heavy_mass_)
     {
       f_star += khc.accumulated_wrench_.head<3>();
