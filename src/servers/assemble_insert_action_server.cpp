@@ -225,9 +225,20 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       if(abs(bolting_vel) <= bolting_vel_threshold_)  bolting_stop_count_++;
       else                      bolting_stop_count_ = 0;
 
+      Eigen::Vector3d phi;
+      Eigen::Matrix3d target_rot;
+      target_rot << 0, 0.7902, 0.6128, 0, -0.6128, 0.7902, 1.0000, 0, 0;
+
+      phi = dyros_math::getPhi(current_.linear(), target_rot);
+      std::cout << "displacement: " << abs(p_cur_a(2) - p_init_a(2)) << std::endl;
+      // std::cout<<"=================="<<std::endl;
+      // std::cout<<"phi : "<< phi.transpose()<<std::endl;
+      // std::cout<<"target rot : \n"<<target_rot<<std::endl;
+      // std::cout<<"current rot : \n"<<current_.linear()<<std::endl;
       // std::cout<<bolting_vel<<" ," <<bolting_stop_count_<<std::endl;
       save_insert_pose_data << (T_WA_.linear().inverse()*arm.position_).transpose()<<" "<<(T_WA_.linear().inverse()*arm.position_lpf_).transpose()<<std::endl;
       save_insertion_vel << (T_WA_.linear().inverse()*xd.head<3>()).transpose()<<" "<<(T_WA_.linear().inverse()*arm.xd_lpf_.head<3>()).transpose()<<std::endl;
+      save_rotation_error << phi.transpose()<<std::endl;
   }
 
   f_star = PegInHole::pressCubicEE(origin_, current_, xd, T_WA_, insertion_force_, time.toSec(), arm.task_start_time_.toSec(), duration_/2);
@@ -269,8 +280,8 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   // tau_null_cmd_ = PegInHole::nullSpaceJointTorque(arm.q_, q_init_, q_null_target_, arm.qd_, time.toSec(), total_action_start_time_, duration_*2);
   // std::cout<<"tau_null_cmd : "<< tau_null_cmd_.transpose()<<std::endl;
-  std::cout<< "force cmd : " << f_star.transpose()<<std::endl;
-  std::cout<< "moment cmd : "<< m_star.transpose()<<std::endl;
+  // std::cout<< "force cmd : " << f_star.transpose()<<std::endl;
+  // std::cout<< "moment cmd : "<< m_star.transpose()<<std::endl;
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero; //+ arm.null_projector_*tau_null_cmd_;
   arm.setTorque(desired_torque);
   

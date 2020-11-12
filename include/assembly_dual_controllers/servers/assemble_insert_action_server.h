@@ -63,6 +63,7 @@ class AssembleInsertActionServer : public ActionServerBase
 
     std::ofstream save_insert_pose_data {"insert_pose_data.txt"};
     std::ofstream save_insertion_vel{"insertion_vel_data.txt"};
+    std::ofstream save_rotation_error{"insertion_rotation_error.txt"};
 
     struct wiggle_z_axis{
       int a;
