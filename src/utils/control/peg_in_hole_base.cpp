@@ -1851,3 +1851,57 @@ Eigen::Vector3d PegInHole::generatePartialSpiralEE(const Eigen::Isometry3d &orig
 
   return f_a;
 }
+
+Eigen::Vector3d PegInHole::generateForceToDisassembleEE(const Eigen::Isometry3d &origin,
+                                                        const Eigen::Isometry3d &current,
+                                                        const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                                        const Eigen::Isometry3d &T_7a, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                                        const double force,                                                    
+                                                        const double t,
+                                                        const double t_0,
+                                                        const double duration,
+                                                        const int count)
+{
+  Eigen::Vector3d f_motion, f_asm, f_a; //wrt {A}
+  Eigen::Isometry3d T_wa;
+  
+  T_wa = origin * T_7a; //T_WA
+
+  f_motion = PegInHole::vibrationForce(force, t, t_0, duration, count);
+  f_asm = -PegInHole::pressCubicEE(origin, current, xd, T_wa, force, t, t_0, 2.0, 100.0, 0.0);
+  
+  f_a.head<2>() = f_motion.head<2>();
+  f_a(2) = f_asm(2);
+  
+  // std::cout<<"----------------------"<<std::endl;
+  // std::cout<<"count: "<<count<<std::endl;
+  // std::cout<<"p_init_a: "<<p_init_a.transpose()<<std::endl;
+  // std::cout<<"p_cmd_a: "<<p_cmd_a.transpose()<<std::endl;
+  // std::cout<<"p_cur_a: "<<p_cur_a.transpose()<<std::endl;
+  // std::cout<<"f_a: "<<f_a.transpose()<<std::endl;
+
+  return f_a;
+}
+
+Eigen::Vector3d PegInHole::vibrationForce(const double f_max,
+                                          const double t,
+                                          const double t_0,
+                                          const double duration,
+                                          const int count)
+{
+  double f, fx, fy, theta;
+  double run_time;
+  Eigen::Vector3d f_vibration;
+
+  run_time = t - t_0;
+  theta = count*DEG2RAD;
+
+  f = f_max*sin(2*M_PI/duration*run_time);
+
+  fx = f*sin(theta);
+  fy = f*sin(theta);
+
+  f_vibration << fx, fy, 0.0;
+
+  return f_vibration;
+}

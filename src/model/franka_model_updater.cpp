@@ -110,7 +110,7 @@ void FrankaModelUpdater::updateModel()
   null_projector_ = Eigen::Matrix<double, 7,7>::Identity() - jacobian_.transpose() * jacobian_bar_.transpose();
   
   t[debug_index++] = sb_.elapsedAndReset();
-  f_ext_ = jacobian_bar_.transpose()*tau_ext_filtered_;
+  f_ext_ = jacobian_bar_.transpose()*(tau_ext_filtered_);  
   f_measured_ = jacobian_bar_.transpose()*(tau_measured_ - gravity_ - coriolis_);
 
   t[debug_index++] = sb_.elapsedAndReset();

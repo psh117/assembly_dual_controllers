@@ -384,4 +384,20 @@ namespace PegInHole
                                             const double kp = 700,
                                             const double kv = 15);
 
+    Eigen::Vector3d generateForceToDisassembleEE(const Eigen::Isometry3d &origin,
+                                                 const Eigen::Isometry3d &current,
+                                                 const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                                 const Eigen::Isometry3d &T_7a, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                                 const double force,
+                                                 const double t,
+                                                 const double t_0,
+                                                 const double duration,
+                                                 const int count);
+
+    Eigen::Vector3d vibrationForce(const double f_max,
+                                   const double t,
+                                   const double t_0,
+                                   const double duration,
+                                   const int count);
+
 }; // namespace PegInHole

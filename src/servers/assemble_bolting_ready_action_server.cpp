@@ -92,6 +92,7 @@ bool AssembleBoltingReadyActionServer::computeArm(ros::Time time, FrankaModelUpd
 
   if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_ +0.01))
   {
+    std::cout<<"TF : \n"<< current_.linear()<<std::endl;
     setSucceeded();
   }
 
