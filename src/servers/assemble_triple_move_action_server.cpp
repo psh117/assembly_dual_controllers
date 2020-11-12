@@ -37,6 +37,7 @@ void AssembleTripleMoveActionServer::goalCallback()
   dir_ <<  goal_ -> direction.x, goal_ -> direction.y, goal_ -> direction.z;
   contact_force_ = goal_ -> contact_force;
   upper_arm_ = goal_ -> upper_arm;
+  stop_arm_ = goal_ -> stop_arm;
   duration_ = goal_ -> duration;
   is_test_ = goal_ -> is_test;
   upper_more_ = goal_ -> upper_more;
@@ -74,6 +75,7 @@ void AssembleTripleMoveActionServer::goalCallback()
   hc_["panda_top"] -> target_ = hc_["panda_top"] -> origin_.translation() + top_arm_rot_ *dir_;
   hc_["panda_top"] -> accumulated_wrench_.setZero();
 
+  if (stop_arm_.empty() == false) {succeed_flag++;}
   if (is_test_)
   {
     std::cout<<"TESTING TRIPLE MOVE ACTION"<<std::endl;
@@ -107,15 +109,22 @@ bool AssembleTripleMoveActionServer::compute(ros::Time time)
     return false;
   if (!as_.isActive())
     return false;
-  if (mu_.find("panda_left") != mu_.end() && mu_.find("panda_right") != mu_.end())
+  // if (mu_.find("panda_left") != mu_.end() && mu_.find("panda_right") != mu_.end())
+  // {
+  for (auto & model : mu_)
   {
-    computeArm(time, *mu_["panda_left"], *hc_["panda_left"]);
-    computeArm(time, *mu_["panda_right"], *hc_["panda_right"]);
-    computeArm(time, *mu_["panda_top"], *hc_["panda_top"]);
-    if (succeed_flag >= 3)
-      setSucceeded();
-    return true;
+    if (stop_arm_ != model.first)
+    {
+      computeArm(time, *model.second, *hc_[model.first]);
+    }
   }
+  // if (stop_arm_ != "panda_left") {computeArm(time, *mu_["panda_left"], *hc_["panda_left"]);}
+  // if (stop_arm_ != "panda_right") {computeArm(time, *mu_["panda_right"], *hc_["panda_right"]);}
+  // if (stop_arm_ != "panda_top") {computeArm(time, *mu_["panda_top"], *hc_["panda_top"]);}
+  if (succeed_flag >= 3)
+    setSucceeded();
+  return true;
+  // }
   else
   {
     ROS_ERROR("[AssembleTripleMoveActionServer::goalCallback] the name are not in the arm list.");
