@@ -42,7 +42,7 @@ void AssembleTripleMoveActionServer::goalCallback()
   is_test_ = goal_ -> is_test;
   upper_more_ = goal_ -> upper_more;
   stop_speed_ = goal_ -> stop_speed;
-  max_force = goal_ -> EF_limit;
+  max_force = goal_ -> force_limit;
 
   hc_["panda_left"] -> count_ = 0;
   hc_["panda_left"] -> wait_ = 0;
@@ -109,8 +109,7 @@ bool AssembleTripleMoveActionServer::compute(ros::Time time)
     return false;
   if (!as_.isActive())
     return false;
-  // if (mu_.find("panda_left") != mu_.end() && mu_.find("panda_right") != mu_.end())
-  // {
+
   for (auto & model : mu_)
   {
     if (stop_arm_ != model.first)
@@ -118,18 +117,8 @@ bool AssembleTripleMoveActionServer::compute(ros::Time time)
       computeArm(time, *model.second, *hc_[model.first]);
     }
   }
-  // if (stop_arm_ != "panda_left") {computeArm(time, *mu_["panda_left"], *hc_["panda_left"]);}
-  // if (stop_arm_ != "panda_right") {computeArm(time, *mu_["panda_right"], *hc_["panda_right"]);}
-  // if (stop_arm_ != "panda_top") {computeArm(time, *mu_["panda_top"], *hc_["panda_top"]);}
   if (succeed_flag >= 3)
     setSucceeded();
-  return true;
-  // }
-  else
-  {
-    ROS_ERROR("[AssembleTripleMoveActionServer::goalCallback] the name are not in the arm list.");
-    return false;
-  }
 }
 
 bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm, a_state_ &khc)
@@ -179,12 +168,6 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
 
   else
   {
-    Eigen::Vector3d traj1, traj2;
-    Eigen::Matrix3d rot_desired;
-    Eigen::Vector2d start_point;
-    start_point.setZero();
-    double traj_turn = 0.0;
-    traj1.setZero(); traj2.setZero();
     run_time = time.toSec() - khc.motion_start_time_;
     force = f_ext.head<3>() - khc.accumulated_wrench_.head<3>();
     switch (khc.move_state_)
@@ -198,12 +181,9 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
           std::cout << "\n!!CHECK CONTATCT!!\n" << std::endl;
           std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
           std::cout<<"force(2): "<<force(2)<<std::endl;
-          if (khc.is_upper_arm_) {khc.move_state_ = KEEPCURRENT;}
-          else
-          {
-            khc.move_state_ = KEEPCURRENT;
-            succeed_flag++;
-          }
+
+          khc.move_state_ = KEEPCURRENT;
+          succeed_flag++;
           khc.is_mode_changed_ = true;
         }
         else if (run_time > (duration_*0.7) && xd.head<3>().norm() < stop_speed_)
@@ -215,12 +195,8 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
             std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
             std::cout<<"speed: "<<xd.head<3>().norm()<<std::endl;
             
-            if (khc.is_upper_arm_) {khc.move_state_ = KEEPCURRENT;}
-            else
-            {
-              khc.move_state_ = KEEPCURRENT;
-              succeed_flag++;
-            }
+            khc.move_state_ = KEEPCURRENT;
+            succeed_flag++;
             khc.is_mode_changed_ = true;
           }
         }
