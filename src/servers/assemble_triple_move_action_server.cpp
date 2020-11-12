@@ -75,13 +75,17 @@ void AssembleTripleMoveActionServer::goalCallback()
   hc_["panda_top"] -> target_ = hc_["panda_top"] -> origin_.translation() + top_arm_rot_ *dir_;
   hc_["panda_top"] -> accumulated_wrench_.setZero();
 
-  if (stop_arm_.empty() == false) {succeed_flag++;}
+  if (stop_arm_.empty() == false)
+  {
+    succeed_flag++;
+    hc_[stop_arm_] -> move_state_ = KEEPSTOP;
+  }
   if (is_test_)
   {
     std::cout<<"TESTING TRIPLE MOVE ACTION"<<std::endl;
-    hc_["panda_left"] -> move_state_ = KEEPCURRENT;
-    hc_["panda_right"] -> move_state_ = KEEPCURRENT;
-    hc_["panda_top"] -> move_state_ = KEEPCURRENT;
+    hc_["panda_left"] -> move_state_ = KEEPSTOP;
+    hc_["panda_right"] -> move_state_ = KEEPSTOP;
+    hc_["panda_top"] -> move_state_ = KEEPSTOP;
     succeed_flag = 2;
   }
 
@@ -111,12 +115,8 @@ bool AssembleTripleMoveActionServer::compute(ros::Time time)
     return false;
 
   for (auto & model : mu_)
-  {
-    if (stop_arm_ != model.first)
-    {
-      computeArm(time, *model.second, *hc_[model.first]);
-    }
-  }
+    computeArm(time, *model.second, *hc_[model.first]);
+
   if (succeed_flag >= 3)
     setSucceeded();
 }
@@ -218,6 +218,10 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
         // m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 200, 5);
         break;
 
+      case KEEPSTOP:
+        f_star = PegInHole::keepCurrentPose(khc.origin_, current_, xd, 5000, 200, 200, 5).head<3>();
+        m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 200, 5);
+        break;
     }
 #ifdef TEST_PRINT
     if (khc.count_ % 2000 == 1)

@@ -19,6 +19,7 @@ class AssembleTripleMoveActionServer : public ActionServerBase
   {
     KEEPCURRENT = 0,
     EXEC = 1,
+    KEEPSTOP = 2
   };
   struct a_state_
   {
