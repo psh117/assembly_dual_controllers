@@ -76,7 +76,7 @@ void AssembleInsertActionServer::goalCallback()
  
   T_WA_ = origin_*T_7A_;
 
-  wiggle_angle_ = 5.0*DEG2RAD;
+  wiggle_angle_ = 2.5*DEG2RAD;
   wiggle_angular_vel_ = 4*M_PI; // 2pi / s
   
   // To define parameters of wiggle motion along z-axis
@@ -138,6 +138,7 @@ void AssembleInsertActionServer::goalCallback()
   count_ = 1;
   bolting_stop_count_ = 0;
   
+  insert_force_error_.setZero();
 
   control_running_ = true;
 
@@ -204,6 +205,12 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         savePosture();
         setSucceeded();
       }
+
+      f_star = PegInHole::pressCubicEE(origin_, current_, xd, T_WA_, insertion_force_, time.toSec(), arm.task_start_time_.toSec(), duration_/2, 1.0);
+
+      f_star = T_WA_.linear()*f_star;     
+      insert_force_error_.head<3>() += f_star -arm.f_ext_.head<3>();  
+  
       break;
     
     case 1:
@@ -225,12 +232,16 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       if(abs(bolting_vel) <= bolting_vel_threshold_)  bolting_stop_count_++;
       else                      bolting_stop_count_ = 0;
 
-      Eigen::Vector3d phi;
-      Eigen::Matrix3d target_rot;
-      target_rot << 0, 0.7902, 0.6128, 0, -0.6128, 0.7902, 1.0000, 0, 0;
+  
+      f_star = PegInHole::pressCubicEE(origin_, current_, xd, T_WA_, insertion_force_, time.toSec(), arm.task_start_time_.toSec(), duration_/2);
+      f_star = T_WA_.linear()*f_star;
+      
+      // Eigen::Vector3d phi;
+      // Eigen::Matrix3d target_rot;
+      // target_rot << 0, 0.7902, 0.6128, 0, -0.6128, 0.7902, 1.0000, 0, 0;
 
-      phi = dyros_math::getPhi(current_.linear(), target_rot);
-      std::cout << "displacement: " << abs(p_cur_a(2) - p_init_a(2)) << std::endl;
+      // phi = dyros_math::getPhi(current_.linear(), target_rot);
+      
       // std::cout<<"=================="<<std::endl;
       // std::cout<<"phi : "<< phi.transpose()<<std::endl;
       // std::cout<<"target rot : \n"<<target_rot<<std::endl;
@@ -238,11 +249,9 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       // std::cout<<bolting_vel<<" ," <<bolting_stop_count_<<std::endl;
       save_insert_pose_data << (T_WA_.linear().inverse()*arm.position_).transpose()<<" "<<(T_WA_.linear().inverse()*arm.position_lpf_).transpose()<<std::endl;
       save_insertion_vel << (T_WA_.linear().inverse()*xd.head<3>()).transpose()<<" "<<(T_WA_.linear().inverse()*arm.xd_lpf_.head<3>()).transpose()<<std::endl;
-      save_rotation_error << phi.transpose()<<std::endl;
+      // save_rotation_error << phi.transpose()<<std::endl;
   }
 
-  f_star = PegInHole::pressCubicEE(origin_, current_, xd, T_WA_, insertion_force_, time.toSec(), arm.task_start_time_.toSec(), duration_/2);
-  f_star = T_WA_.linear()*f_star;
   
   if(wiggle_motion_ && yawing_motion_)
   {
@@ -284,6 +293,7 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   // std::cout<< "moment cmd : "<< m_star.transpose()<<std::endl;
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero; //+ arm.null_projector_*tau_null_cmd_;
   arm.setTorque(desired_torque);
+  save_reaction_force << arm.f_ext_.transpose()<<std::endl;
   
   // insert_pose_data << arm.position_<<std::endl;
   // save_insert_pose_data << p_cur_a.transpose()<<std::endl;

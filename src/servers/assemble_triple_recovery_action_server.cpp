@@ -64,6 +64,7 @@ void AssembleTripleRecoveryActionServer::goalCallback()
   is_approach_first_ = true;
  
   tilt_axis_ = PegInHole::getTiltDirection(T_7A_);
+  count_ = 0;
 
   control_running_ = true;
 
@@ -111,24 +112,25 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
   auto & xd = arm.xd_; //velocity
   
   Eigen::Vector3d f_star, m_star, f_contact;    
-  Eigen::Vector6d f_star_zero, f_ex, f_tilt;
+  Eigen::Vector6d f_star_zero, f_ext, f_tilt;
   double radius;
+  double run_time;
 
-  f_ex = arm.f_ext_;
+  f_ext = arm.f_ext_;
   current_ = arm.transform_;
-
+  
   int cnt_max = 300;
   int cnt_start = 250;
   if(count_ < cnt_max)
   { 
     f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 700, 40, 2000, 15).head<3>(); //w.r.t {W}
     m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 700, 40, 2000, 15).tail<3>();
-    if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, f_ex, cnt_start, count_, cnt_max);    
+    if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, f_ext, cnt_start, count_, cnt_max);    
     count_++;
     if(count_ >= cnt_max)
     {
       count_ = cnt_max;
-      accumulated_wrench_.head<3>() = T_WA_.linear().inverse() * accumulated_wrench_.head<3>();
+      accumulated_wrench_.head<3>() = T_WA_.linear().inverse() * accumulated_wrench_.head<3>(); // to convert {A} frame
       accumulated_wrench_.tail<3>() = T_WA_.linear().inverse() * accumulated_wrench_.tail<3>();
       std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
     } 
@@ -147,20 +149,26 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
         std::cout<<"Move"<<std::endl;
       }
 
-      if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_+0.25)) state_ = APPROACH;
+      if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_+0.25))
+      {
+        state_ = APPROACH;
+        origin_ = arm.transform_;
+        count_ = 0;
+      } 
       
       radius = T_7A_.translation().norm();
       // f_star = PegInHole::threeDofMove(origin_, current_, target_.translation(), xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 300.0, 10);
-      f_star = PegInHole::followSphericalCoordinateEE(origin_, current_, target_, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), duration_, radius, 150, 2.5);
+      f_star = PegInHole::followSphericalCoordinateEE(origin_, current_, target_, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), duration_, radius, 500, 5.0);
       f_star = T_WA_.linear()*f_star;
       m_star = PegInHole::rotateWithMat(origin_, current_, xd, target_.linear(), time.toSec(), arm.task_start_time_.toSec(), duration_);
 
       break;
 
     case APPROACH:
-      f_contact = T_WA_.linear().inverse()*f_ex.head<3>() - accumulated_wrench_.head<3>();
-      // f_contact = T_WA_.linear().inverse() * (f_ex.head<3>() - f_star);
-
+      f_contact = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_.head<3>();
+      // f_contact = T_WA_.linear().inverse() * (f_ext.head<3>() - f_star);
+      triple_recovery_fm_data << f_contact.transpose()<<std::endl;
+      
       if(is_approach_first_)
       {
         origin_ = arm.transform_;
@@ -170,14 +178,14 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
         std::cout<<"recovery_angle: "<<recovery_angle_*RAD2DEG<<std::endl;
         std::cout<<"tilt_axis: "<<tilt_axis_.transpose()<<std::endl;
       }
-
+      run_time = time.toSec() - arm.task_start_time_.toSec();
       if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_+0.25))
       {
         std::cout<<"TILT BACK DONE"<<std::endl;
         setSucceeded();
       }
 
-      if (Criteria::checkForceLimit(f_contact, tilt_back_threshold_))
+      if(run_time > 0.5 && Criteria::checkForceLimit(f_contact, tilt_back_threshold_))
       {
         std::cout << "TILT BACK REACHED FORCE LIMIT" << std::endl;
         std::cout<<"tilt_back_threshold_: "<<tilt_back_threshold_<<std::endl;
@@ -185,12 +193,11 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
         setSucceeded();
       }
 
-      f_tilt = PegInHole::tiltMotion(origin_, current_, xd, T_7A_, tilt_axis_, recovery_angle_, time.toSec(), arm.task_start_time_.toSec(), duration_, 700, 40);
+      f_tilt = PegInHole::tiltMotion(origin_, current_, xd, T_7A_, tilt_axis_, recovery_angle_, time.toSec(), arm.task_start_time_.toSec(), duration_, 400, 10);
       f_star = f_tilt.head<3>();
       m_star = f_tilt.tail<3>();
       break;
     }
-    triple_recovery_fm_data << f_contact.transpose()<<std::endl;
   }
   
   f_star_zero.head<3>() = f_star;
@@ -202,9 +209,9 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
   // if(state_ == APPROACH) f_star_zero.setZero();
   // f_star_zero.setZero();
 
-  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;
+  Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_*f_star_zero;
   arm.setTorque(desired_torque);
-
+  
   return true;
 }
 

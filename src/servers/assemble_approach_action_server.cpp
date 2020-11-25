@@ -126,8 +126,9 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   int cnt_start = 100;
   if(count_ < cnt_max)
   { 
-    f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 700, 10, 2000, 15).head<3>(); //w.r.t {W}
-    m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 700, 10, 2000, 15).tail<3>();
+    f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 800, 40, 2000, 15).head<3>(); //w.r.t {W}
+    // m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 800, 40, 2000, 15).tail<3>();
+    m_star = PegInHole::rotateWithMat(origin_, current_, xd, origin_.linear(), time.toSec(), arm.task_start_time_.toSec(), cnt_max/1000, 1500, 10);
     
     if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, f_ext, cnt_start, count_, cnt_max);    
     count_++;
@@ -136,15 +137,6 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
       count_ = cnt_max;
       accumulated_wrench_a_.head<3>() = T_WA_.linear().inverse() * accumulated_wrench_.head<3>();
       accumulated_wrench_a_.tail<3>() = T_WA_.linear().inverse() * accumulated_wrench_.tail<3>();
-      // std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
-      // wrench_rtn_.force.x = accumulated_wrench_a_(0);
-      // wrench_rtn_.force.y = accumulated_wrench_a_(1);
-      // wrench_rtn_.force.z = accumulated_wrench_a_(2);
-      // wrench_rtn_.torque.x = accumulated_wrench_a_(3);
-      // wrench_rtn_.torque.y = accumulated_wrench_a_(4);
-      // wrench_rtn_.torque.z = accumulated_wrench_a_(5);
-      // result_.compensation = wrench_rtn_;
-      // heavy_mass_ = Criteria::holdHeavyMass(accumulated_wrench_.head<3>(), 8.0);
     } 
   }
   else
@@ -201,20 +193,10 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         break;
       }
 
-      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 600, 20);
+      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 600, 15);
       f_star = T_WA_.linear() * (f_star);
       m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
-      
-      // if(heavy_mass_)
-      // {
-      //   f_star = T_WA_.linear() * (f_star);// + accumulated_wrench_.head<3>();
-      //   m_star = m_star + 1.2*accumulated_wrench_.tail<3>();
-      // }
-      // else
-      // {
-      //   f_star = T_WA_.linear() * (f_star);
-      // }
-      
+            
       break;
 
     case TILT_BACK:

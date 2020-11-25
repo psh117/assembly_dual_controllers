@@ -357,8 +357,8 @@ bool AssembleProbeEdgeActionServer::computeArm(ros::Time time, FrankaModelUpdate
     // probe_pr_data << (current_ * T_7A_).translation().transpose() << std::endl;
     probe_pr_data << save_position.transpose() << std::endl;
     // probe_pr_data << arm.position_.transpose() << std::endl;
-    probe_ft_cmd_data << (T_WA_.inverse() * f_star.head<3>()).transpose() << std::endl;
-    // probe_ft_data << (T_WA_.inverse()*f_ext.head<3>()).transpose() << std::endl;
+    probe_ft_cmd_data << (T_WA_.linear().inverse() * f_star.head<3>()).transpose() << std::endl;
+    // probe_ft_data << (T_WA_.linear().inverse()*f_ext.head<3>()).transpose() << std::endl;
     // probe_ft_data << f.transpose()<<std::endl;
     probe_vel_data << task_vel_a.transpose() << std::endl;
 

@@ -31,7 +31,7 @@ void AssembleSpiralActionServer::goalCallback()
   pitch_ = goal_->pitch;
   mode_ = goal_->mode;
   // assemble_dir_ = goal_->assemble_dir;
-  depth_ = goal_->depth;
+  minimum_depth_ = goal_->depth;
   friction_ = goal_->friction;
   spiral_duration_ = goal_->spiral_duration;
   pressing_force_ = goal_->pressing_force;
@@ -45,6 +45,7 @@ void AssembleSpiralActionServer::goalCallback()
   f_measured_.setZero();
   
   origin_ = mu_[goal_->arm_name]->transform_;
+  return_to_origin_ = origin_.translation();
 
   flange_to_assembly_point_(0) = goal_->ee_to_assemble.position.x;
   flange_to_assembly_point_(1) = goal_->ee_to_assemble.position.y;
@@ -65,6 +66,9 @@ void AssembleSpiralActionServer::goalCallback()
   T_7A_.translation() = flange_to_assembly_point_;
   T_WA_ = origin_ * T_7A_;
 
+  flange_to_assembly_point_distance_ = T_7A_.translation().norm();
+  flange_to_drill_distance_ = 0.169654;
+  std::cout<<"distance : "<< flange_to_assembly_point_distance_<<std::endl;
   is_first_ = true;
 
   std::cout << "mode_ : " << mode_ << std::endl;  
@@ -83,6 +87,7 @@ void AssembleSpiralActionServer::goalCallback()
   std::cout<<"T_7A: \n"<<T_7A_.matrix()<<std::endl;
   std::cout<<"friction_: "<<friction_<<std::endl;
   std::cout<<"lin_vel :"<<lin_vel_<<std::endl;
+  std::cout<<"origin : \n"<<origin_.matrix()<<std::endl;
   if(set_tilt_) std::cout<<" TILTED "<< std::endl;
 
   twist_pos_save_.setZero();
@@ -132,28 +137,34 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   Eigen::Vector3d f_star, m_star, m_tilt;
   Eigen::Vector6d f_star_zero, f_ext;
-  Eigen::Vector3d position_change;
-  Eigen::Vector3d f_add;
   double run_time;
   int cnt_max = 150;
   int cnt_start = 50;
 
   f_ext = arm.f_ext_;
   current_ = arm.transform_;
-  position_change = (T_WA_.inverse()*current_*T_7A_).translation();
+  // position_change = (T_WA_.inverse()*current_*T_7A_).translation();
+
+  Eigen::Vector3d p_init_a, p_cur_a;
+  p_init_a = (T_WA_.inverse() * origin_).translation();
+  p_cur_a = (T_WA_.inverse() * current_).translation();
+  position_change_ = abs(p_cur_a(2) - p_init_a(2));
 
   if(is_mode_changed_)
   {
     arm.task_start_time_ = time;
     origin_ = arm.transform_;
     is_mode_changed_ = false;
+    if(mode_ == 3)  return_to_origin_(2) = origin_.translation()(2);
   }
 
   switch (state_)
   {
     case READY:
+      
       if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, f_ext, cnt_start, count_, cnt_max);    
       count_++;
+      // std::cout<<count_<<std::endl;
       if(count_ >= cnt_max)
       {
         state_ = EXEC;
@@ -163,12 +174,10 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         accumulated_wrench_a_.tail<3>() = T_WA_.linear().inverse() * accumulated_wrench_.tail<3>();
         std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
         std::cout<<"start spiral search"<<std::endl;
-        // heavy_mass_ = Criteria::holdHeavyMass(accumulated_wrench_.head<3>(), 0.0);
-        // if(heavy_mass_) std::cout<<"Heavy mass"<<std::endl;
-        // else            std::cout<<"Not heavy mass"<<std::endl;
       } 
-      f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 800, 40, 2000, 15).head<3>(); //w.r.t {W}
-      m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 800, 40, 2000, 15).tail<3>();
+      f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 900, 40, 2000, 15).head<3>(); //w.r.t {W}
+      m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 900, 40, 2000, 15).tail<3>();
+      
       break;
   
    case EXEC:
@@ -181,40 +190,51 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         break;
       }
       
-      if (run_time > 0.5 && detectHole(origin_, current_, f_ext.head<3>() - accumulated_wrench_.head<3>(), T_WA_, friction_))
-      // if(detectHole(init_pos_(assemble_dir_),position(assemble_dir_),f,depth_,friction_))
+      if (run_time > 0.5 && detectHole(origin_, current_, f_ext.head<3>() - accumulated_wrench_.head<3>(), T_WA_, friction_) && position_change_ > minimum_depth_)
+      // for partial spiral search, it is required to back to the origin
       {
-        std::cout << "HOLE IS DETECTED" << std::endl;
-        setSucceeded();
-        break;
+        if(mode_ == 3 )
+        {
+          state_ = RETURN;
+          is_mode_changed_ = true;
+          break;
+        }
+        else
+        {
+          std::cout << "HOLE IS DETECTED" << std::endl;
+          setSucceeded();
+          break; 
+        }
       }
 
-      f_star = PegInHole::generateSpiralEE(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec(), 5.0, set_tilt_);
-      f_star = T_WA_.inverse()*f_star;
-      spiral_pos_save_ = PegInHole::generateSpiralEE_datasave(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
-      
-      // for(int i = 0; i < 3 ; i++)
-      // {
-      //   f_add(i) = dyros_math::cubic(time.toSec(), arm.task_start_time_.toSec(), arm.task_start_time_.toSec() + 0.5, accumulated_wrench_(i)/3, accumulated_wrench_(i), 0.0, 0.0);
-      // }
-      // f_add.setZero();
-      // if(heavy_mass_) f_star = T_WA_.linear() * f_star + f_add;
-      // else  f_star = T_WA_.inverse()*f_star;
-
-      //signle peg in hole
+      //single peg in hole
       if (mode_ == 1)
       {
         if (set_tilt_)  m_star = PegInHole::generateMoment(origin_, current_, T_7A_, xd, 1.50*M_PI/180, time.toSec(), arm.task_start_time_.toSec(), 1.0, 2000, 30);       
-        else            m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);     
-        // m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
+        else      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);     
+        
+        f_star = PegInHole::generateSpiralEE(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec(), 5.0, set_tilt_);        
+        
+        if(flange_to_assembly_point_distance_ == flange_to_drill_distance_)
+        { 
+          Eigen::Vector3d f_asm, m_a, m_compensation, p_ae;
+          f_asm << 0.0, 0.0, f_star(2); // f_star is still represented w.r.t {A}
+          p_ae = T_7A_.inverse().translation();
+          m_a = -3.0*p_ae.cross(f_asm);
+          m_compensation = T_WA_.linear().inverse()*m_a;
+          m_star = m_star + m_compensation;
+        }
+
+        f_star = T_WA_.linear()*f_star;
+        
+        spiral_pos_save_ = PegInHole::generateSpiralEE_datasave(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
       }      
       //dual peg in hole
       else if (mode_ == 2)
       {
         Eigen::Vector6d f_spiral;              
         f_spiral = PegInHole::generateTwistSpiralEE(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, range_, time.toSec(), arm.task_start_time_.toSec(), spiral_duration_, twist_duration_);    
-        twist_pos_save_ = PegInHole::generateTwistSpiralEE_savedata(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, range_, time.toSec(), arm.task_start_time_.toSec(), spiral_duration_, twist_duration_);
-               
+        twist_pos_save_ = PegInHole::generateTwistSpiralEE_savedata(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, range_, time.toSec(), arm.task_start_time_.toSec(), spiral_duration_, twist_duration_);       
         f_star = T_WA_.linear()*(f_spiral.head<3>());
         m_star = T_WA_.linear() * f_spiral.tail<3>();
       }
@@ -222,10 +242,23 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       else if(mode_ == 3)
       {
         f_star = PegInHole::generatePartialSpiralEE(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, partial_search_dir_, time.toSec(), arm.task_start_time_.toSec(), spiral_duration_, 300, 1.0);
-        f_star = T_WA_.inverse()*f_star;
+        f_star = T_WA_.linear()*f_star;
         m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
+      }      
+      break;
+
+    case RETURN:
+      run_time = time.toSec() - arm.task_start_time_.toSec();
+      
+      if (timeOut(time.toSec(), arm.task_start_time_.toSec(), 2.05)) //duration wrong??
+      {
+        std::cout << "HOLE IS DETECTED" << std::endl;
+        setSucceeded();
+        break;
       }
       
+      f_star = PegInHole::threeDofMove(origin_, current_, return_to_origin_, xd, time.toSec(), arm.task_start_time_.toSec(), 2.0);
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
       break;
   }
 
@@ -235,8 +268,10 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   // std::cout<<"force compensation : "<<force_compensation_.transpose()<<std::endl;
   // std::cout<<"accumulated_wrench_ : "<< accumulated_wrench_.head<3>().transpose()<<std::endl;
   // std::cout<<"f_add : "<<f_add.transpose()<<std::endl;
-  // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
-  // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
+  // std::cout << "det(j)=" << arm.jacobian_.determinant() << std::endl;
+  // std::cout<<"================="<<std::endl;
+  
+
   
   // f_star_zero.setZero();
 

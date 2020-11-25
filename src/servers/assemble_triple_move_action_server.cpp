@@ -35,7 +35,6 @@ void AssembleTripleMoveActionServer::goalCallback()
   mu_["panda_top"]->task_start_time_ = ros::Time::now();
 
   dir_ <<  goal_ -> direction.x, goal_ -> direction.y, goal_ -> direction.z;
-  contact_force_ = goal_ -> contact_force;
   upper_arm_ = goal_ -> upper_arm;
   stop_arm_ = goal_ -> stop_arm;
   duration_ = goal_ -> duration;
@@ -52,6 +51,7 @@ void AssembleTripleMoveActionServer::goalCallback()
   hc_["panda_left"] -> origin_ = mu_["panda_left"] -> transform_;
   hc_["panda_left"] -> target_ = hc_["panda_left"] -> origin_.translation() + dir_;
   hc_["panda_left"] -> accumulated_wrench_.setZero();
+  hc_["panda_left"] -> contact_force_ = goal_ -> contact_force_left;
 
   hc_["panda_right"] -> count_ = 0;
   hc_["panda_right"] -> wait_ = 0;
@@ -61,6 +61,7 @@ void AssembleTripleMoveActionServer::goalCallback()
   hc_["panda_right"] -> origin_ = mu_["panda_right"] -> transform_;
   hc_["panda_right"] -> target_ = hc_["panda_right"] -> origin_.translation() + dir_;
   hc_["panda_right"] -> accumulated_wrench_.setZero();
+  hc_["panda_right"] -> contact_force_ = goal_ -> contact_force_right;
 
   top_arm_rot_.setIdentity();
   top_arm_rot_(0,0) = -1.0;
@@ -74,6 +75,7 @@ void AssembleTripleMoveActionServer::goalCallback()
   hc_["panda_top"] -> origin_ = mu_["panda_top"] -> transform_;
   hc_["panda_top"] -> target_ = hc_["panda_top"] -> origin_.translation() + top_arm_rot_ *dir_;
   hc_["panda_top"] -> accumulated_wrench_.setZero();
+  hc_["panda_top"] -> contact_force_ = goal_ -> contact_force_top;
 
   if (stop_arm_.empty() == false)
   {
@@ -92,7 +94,6 @@ void AssembleTripleMoveActionServer::goalCallback()
 #ifdef TEST_PRINT
   std::cout<<"TRIPLE MOVE ACTION"<<std::endl;
   std::cout<<"duration: "<<duration_<<std::endl;
-  std::cout<<"contact_force: "<<contact_force_<<std::endl;
   std::cout<<"l&r target direction: "<<dir_.transpose()<<std::endl;
   std::cout<<"top target direction: "<<(top_arm_rot_*dir_).transpose()<<std::endl;
 #endif
@@ -176,7 +177,7 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
         f_star = PegInHole::threeDofMove(khc.origin_, current_, khc.target_, xd, time.toSec(), khc.motion_start_time_, duration_);
         m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 200, 5);
 
-        if (run_time > 0.05 && Criteria::checkContact(force, Eigen::Isometry3d::Identity(), contact_force_))
+        if (run_time > 0.05 && Criteria::checkContact(force, Eigen::Isometry3d::Identity(), khc.contact_force_))
         {
           std::cout << "\n!!CHECK CONTATCT!!\n" << std::endl;
           std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;

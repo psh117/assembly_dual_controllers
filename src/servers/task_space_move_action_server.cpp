@@ -27,9 +27,9 @@ void TaskSpaceMoveActionServer::goalCallback()
   std::cout<<goal_->target_pose.orientation.y<<std::endl;
   std::cout<<goal_->target_pose.orientation.z<<std::endl;
   std::cout<<goal_->target_pose.orientation.w<<std::endl;
-  if (target_relative_pose.translation().norm() > 0.1)
+  if (target_relative_pose.translation().norm() > 0.4)
   {
-    ROS_WARN("[TaskSpaceMoveActionServer::goalCallback] DO NOT USE THIS ACTION with over 10 cm movement goal. Just passing it.");
+    ROS_WARN("[TaskSpaceMoveActionServer::goalCallback] DO NOT USE THIS ACTION with over 40 cm movement goal. Just passing it.");
     as_.setAborted();
     return; 
   }

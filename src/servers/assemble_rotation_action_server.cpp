@@ -155,7 +155,7 @@ bool AssembleRotationActionServer::computeArm(ros::Time time, FrankaModelUpdater
     m_sum = sqrt(pow(f_ext_a(3), 2) + pow(f_ext_a(4), 2) + pow(f_ext_a(5), 2));
     friction = sqrt(pow(f_ext_a(0), 2) + pow(f_ext_a(1), 2));
 
-    if(run_time > 0.05 && friction >= 5.0 && m_sum > f_threshold_)
+    if(run_time > 0.05 && friction >= 3.5 && m_sum > f_threshold_)
     //if(run_time > 0.05 && m_sum > f_threshold_)
     {
       std::cout<<"HOLE IS DETECTED"<<std::endl;
