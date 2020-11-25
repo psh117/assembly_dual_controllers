@@ -15,7 +15,8 @@ class AssembleSpiralActionServer : public ActionServerBase
   enum ASSEMBLY_STATE : int
   {
     READY = 0,
-    EXEC = 1
+    EXEC = 1,
+    RETURN = 2
   };
 
   actionlib::SimpleActionServer<assembly_msgs::AssembleSpiralAction> as_;
@@ -44,12 +45,16 @@ class AssembleSpiralActionServer : public ActionServerBase
   int mode_;
   int assemble_dir_;
   int partial_search_dir_;
-  double depth_;
   double friction_;
   double pressing_force_;
   double spiral_duration_;
   double range_;
   double twist_duration_;
+  double minimum_depth_;
+
+  double position_change_;
+  double flange_to_assembly_point_distance_;
+  double flange_to_drill_distance_;
 
   Eigen::Vector3d flange_to_assembly_point_;
   Eigen::Quaterniond flange_to_assembly_quat_;
@@ -67,6 +72,7 @@ class AssembleSpiralActionServer : public ActionServerBase
   Eigen::Vector6d accumulated_wrench_;
   Eigen::Vector6d accumulated_wrench_a_;
 
+  Eigen::Vector3d return_to_origin_;
   // !!! DO NOT USE RAW POINTER OF FILE !!!
   // FILE *spiral_data;
 

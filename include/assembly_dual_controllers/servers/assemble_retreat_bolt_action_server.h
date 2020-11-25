@@ -33,7 +33,7 @@ class AssembleRetreatBoltActionServer : public ActionServerBase
     bool reverse_moment_;
     
     double duration_;
-    double retreat_force_;
+    double retreat_force_, retreat_moment_;
     double retreat_distance_;
     double time_limit_;    
     double wiggle_angle_;
@@ -41,6 +41,7 @@ class AssembleRetreatBoltActionServer : public ActionServerBase
 
     double changed_task_time_;
     int repeatition_;
+    Eigen::Vector6d init_stage_force_error_, retreat_stage_force_error_;
 
     struct wiggle_z_axis{
       int a;
@@ -52,13 +53,15 @@ class AssembleRetreatBoltActionServer : public ActionServerBase
     
     int mode_;
 
-    std::ofstream reaction_force {"reaction_force.txt"};
+    std::ofstream reaction_force {"retreat_reaction_force.txt"};
     std::ofstream command_force {"command_force.txt"};
     std::ofstream tau_ext {"tau_ext.txt"};
     std::ofstream tau_measured {"tau_measured.txt"};
+    std::ofstream force_vibration{"force_vibration.txt"};
 
     Eigen::Vector7d tau_measured_;
     Eigen::Vector7d tau_ext_;
+    Eigen::Vector6d f_ext_lpf_;
 public:
   AssembleRetreatBoltActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);

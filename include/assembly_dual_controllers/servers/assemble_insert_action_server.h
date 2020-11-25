@@ -64,6 +64,7 @@ class AssembleInsertActionServer : public ActionServerBase
     std::ofstream save_insert_pose_data {"insert_pose_data.txt"};
     std::ofstream save_insertion_vel{"insertion_vel_data.txt"};
     std::ofstream save_rotation_error{"insertion_rotation_error.txt"};
+    std::ofstream save_reaction_force{"insertion_reaction_force.txt"};
 
     struct wiggle_z_axis{
       int a;
@@ -77,6 +78,7 @@ class AssembleInsertActionServer : public ActionServerBase
 
     double total_action_start_time_;
     
+    Eigen::Vector3d insert_force_error_;
 public:
   AssembleInsertActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);

@@ -26,6 +26,7 @@ class AssembleTripleMoveActionServer : public ActionServerBase
     int count_{0};
     int wait_{0};
     double motion_start_time_;
+    double contact_force_;
     bool heavy_mass_;
     bool is_upper_arm_{false};
     bool is_mode_changed_{true};
@@ -51,7 +52,6 @@ class AssembleTripleMoveActionServer : public ActionServerBase
   Eigen::Vector3d dir_;
   Eigen::Matrix3d top_arm_rot_;
   double duration_;
-  double contact_force_;
   bool is_test_;
   bool control_running_;
   int succeed_flag{0};
