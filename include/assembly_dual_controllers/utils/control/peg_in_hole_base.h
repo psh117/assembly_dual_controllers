@@ -183,6 +183,7 @@ namespace PegInHole
                                 const double t,
                                 const double t_0,
                                 const double duration,
+                                const double f_init = 0.0,
                                 const double kp = 800,
                                 const double kv = 20);
 
@@ -391,13 +392,50 @@ namespace PegInHole
                                                  const double force,
                                                  const double t,
                                                  const double t_0,
-                                                 const double duration,
-                                                 const int count);
+                                                 const double duration);
 
     Eigen::Vector3d vibrationForce(const double f_max,
                                    const double t,
                                    const double t_0,
-                                   const double duration,
-                                   const int count);
+                                   const double duration);
+
+    Eigen::Vector3d generateInsertionForceWithLessFriction(const Eigen::Isometry3d &origin,
+                                                           const Eigen::Isometry3d &current,                                                           
+                                                           const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                                           const Eigen::Isometry3d &T_7a, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                                           const Eigen::Vector3d &f_ext,
+                                                           const Eigen::Vector3d &f_ext_error,
+                                                           const double force,
+                                                           const double t,
+                                                           const double t_0,
+                                                           const double duration,
+                                                           const double kp = 0.15,
+                                                           const double ki = 0.002,
+                                                           const double kv = 15.0);
+
+    Eigen::Vector3d generateMomentToDisassembleEE(const Eigen::Isometry3d &origin,
+                                                  const Eigen::Isometry3d &current,
+                                                  const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                                  const Eigen::Isometry3d &T_7a, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                                  const double momnet,
+                                                  const double t,
+                                                  const double t_0,
+                                                  const double duration);
+
+    Eigen::Vector6d generateRotationToDisassembleEE(const Eigen::Isometry3d &origin,
+                                                    const Eigen::Isometry3d &current,
+                                                    const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                                    const Eigen::Ref<const Eigen::Vector6d> &f_ext,
+                                                    const Eigen::Isometry3d &T_7a, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                                    const double force,
+                                                    const double moment,
+                                                    const double angle,
+                                                    const double t,
+                                                    const double t_0,
+                                                    const double duration,
+                                                    const double kp = 700,
+                                                    const double kv = 20,
+                                                    const double kwp = 1000,
+                                                    const double kwv = 7.5);
 
 }; // namespace PegInHole

@@ -398,3 +398,23 @@ bool Criteria::holdHeavyMass(const Eigen::Vector3d &input_force,
 
 //     return is_done;
 // }
+
+bool Criteria::checkForceDivergence(const Eigen::Vector3d &f,
+                                    const double threshold)
+{
+    double f_norm;
+    bool result;
+
+    f_norm = 0.0;
+    for (int i = 0; i < 3; i++) f_norm += pow(f(i), 2);
+    f_norm = sqrt(f_norm);
+
+    if (f_norm > threshold)
+    {
+        std::cout << "Warning!! It's going to be divergent" << std::endl;
+        result = true;
+    }
+    else    result = false;
+
+    return result;
+}

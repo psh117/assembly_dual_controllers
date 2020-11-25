@@ -1,6 +1,6 @@
 #include <assembly_dual_controllers/utils/model/franka_model_updater.h>
 
-const double FrankaModelUpdater::PRINT_RATE = 0.001;//0.5;//10.0;
+const double FrankaModelUpdater::PRINT_RATE = 0.01;//0.5;//10.0;
 
 FrankaModelUpdater::FrankaModelUpdater() {
   initialize();
@@ -204,6 +204,8 @@ void FrankaModelUpdater::printState()
   << "---------------------------------------------------------------------------------------\n"
   << "# name         : " << arm_name_ << std::endl
   << "  - q          : " << q_.transpose().format(clean_fmt) << std::endl
+  << "  - det(j)     : " << jacobian_.determinant() << std::endl
+  << "  - manipulab  : " << manipulability_measure_ << std::endl
   // << "  - gravity    : " << gravity_.transpose().format(clean_fmt) << std::endl
   // << "  - torque     : " << tau_measured_.transpose().format(clean_fmt) << std::endl
   // << "  - manip_msr  : " << manipulability_measure_ << std::endl
