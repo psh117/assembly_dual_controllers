@@ -36,7 +36,8 @@ void AssembleTripleMoveActionServer::goalCallback()
 
   dir_ <<  goal_ -> direction.x, goal_ -> direction.y, goal_ -> direction.z;
   upper_arm_ = goal_ -> upper_arm;
-  stop_arm_ = goal_ -> stop_arm;
+  stop_arm_1_ = goal_ -> stop_arm_1;
+  stop_arm_2_ = goal_ -> stop_arm_2;
   duration_ = goal_ -> duration;
   is_test_ = goal_ -> is_test;
   upper_more_ = goal_ -> upper_more;
@@ -77,11 +78,17 @@ void AssembleTripleMoveActionServer::goalCallback()
   hc_["panda_top"] -> accumulated_wrench_.setZero();
   hc_["panda_top"] -> contact_force_ = goal_ -> contact_force_top;
 
-  if (stop_arm_.empty() == false)
+  if (stop_arm_1_.empty() == false)
   {
     succeed_flag++;
-    hc_[stop_arm_] -> move_state_ = KEEPSTOP;
+    hc_[stop_arm_1_] -> move_state_ = KEEPSTOP;
   }
+  if (stop_arm_2_.empty() == false)
+  {
+    succeed_flag++;
+    hc_[stop_arm_2_] -> move_state_ = KEEPSTOP;
+  }
+
   if (is_test_)
   {
     std::cout<<"TESTING TRIPLE MOVE ACTION"<<std::endl;

@@ -48,7 +48,8 @@ class AssembleTripleMoveActionServer : public ActionServerBase
   a_state_ right_states;
   a_state_ top_states;
   std::string upper_arm_;
-  std::string stop_arm_;
+  std::string stop_arm_1_;
+  std::string stop_arm_2_;
   Eigen::Vector3d dir_;
   Eigen::Matrix3d top_arm_rot_;
   double duration_;
