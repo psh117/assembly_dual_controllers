@@ -65,9 +65,9 @@ public:
 
   bool compute(ros::Time time) override;
 
-private:
-  void setSucceeded();
-  void setAborted();  
+protected:
+  void setSucceeded() override;
+  void setAborted() override;
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
   
 };

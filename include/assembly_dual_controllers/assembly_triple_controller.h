@@ -67,6 +67,8 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   bool init(hardware_interface::RobotHW* robot_hw, ros::NodeHandle& node_handle) override;
   void starting(const ros::Time&) override;
   void update(const ros::Time&time, const ros::Duration& period) override;
+  // void stopping(const ros::Time& /*time*/) override { ROS_INFO("stopping controllers"); is_stopped_ = true; }
+  // void aborting(const ros::Time& /*time*/) override { ROS_INFO("need to be aborted!"); is_aborted_ = true; }
 
  private:
 
@@ -112,6 +114,8 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   franka_msgs::SetLoadRequest init_load_;
   franka_msgs::SetLoadResponse load_response_;
 
+  bool is_stopped_ {false};
+  bool is_aborted_ {false};
 
   std::ofstream debug_file_q{"q.txt"};
   std::ofstream debug_file_fuck{"f.txt"};

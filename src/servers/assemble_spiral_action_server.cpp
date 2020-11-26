@@ -176,8 +176,8 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         std::cout<<"start spiral search"<<std::endl;
       } 
       f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 900, 40, 2000, 15).head<3>(); //w.r.t {W}
-      m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 900, 40, 2000, 15).tail<3>();
-      
+      // m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 900, 40, 2000, 15).tail<3>();
+      m_star = PegInHole::rotateWithMat(origin_, current_, xd, origin_.linear(), time.toSec(), arm.task_start_time_.toSec(), cnt_max/1000, 1500, 10);
       break;
   
    case EXEC:
@@ -206,7 +206,21 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
           break; 
         }
       }
-
+      else if(run_time > 0.5 && detectHole(origin_, current_, f_ext.head<3>() - accumulated_wrench_.head<3>(), T_WA_, friction_*1.5))
+      {
+        if(mode_ == 3 )
+        {
+          state_ = RETURN;
+          is_mode_changed_ = true;
+          break;
+        }
+        else
+        {
+          std::cout << "HOLE IS DETECTED" << std::endl;
+          setSucceeded();
+          break; 
+        }
+      }
       //single peg in hole
       if (mode_ == 1)
       {

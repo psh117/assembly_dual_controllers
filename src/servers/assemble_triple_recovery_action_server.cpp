@@ -158,7 +158,7 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
       
       radius = T_7A_.translation().norm();
       // f_star = PegInHole::threeDofMove(origin_, current_, target_.translation(), xd, time.toSec(), arm.task_start_time_.toSec(), duration_, 300.0, 10);
-      f_star = PegInHole::followSphericalCoordinateEE(origin_, current_, target_, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), duration_, radius, 500, 5.0);
+      f_star = PegInHole::followSphericalCoordinateEE(origin_, current_, target_, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), duration_, radius, 400, 5.0);
       f_star = T_WA_.linear()*f_star;
       m_star = PegInHole::rotateWithMat(origin_, current_, xd, target_.linear(), time.toSec(), arm.task_start_time_.toSec(), duration_);
 

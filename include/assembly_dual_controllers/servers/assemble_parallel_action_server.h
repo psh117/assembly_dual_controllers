@@ -41,4 +41,7 @@ public:
 
   bool compute(ros::Time time) override;
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
+protected:
+  void setSucceeded() override {};
+  void setAborted() override {};
 };

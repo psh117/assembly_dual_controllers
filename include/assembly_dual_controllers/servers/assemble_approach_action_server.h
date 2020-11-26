@@ -86,10 +86,11 @@ public:
                                std::map<std::string, std::shared_ptr<FrankaModelUpdater>> &mu);
 
   bool compute(ros::Time time) override;
+  void signalAbort(bool is_aborted) override;
 
-private:
-  void setSucceeded();
-  void setAborted();
+protected:
+  void setSucceeded() override;
+  void setAborted() override;
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
   //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
 };

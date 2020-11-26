@@ -193,7 +193,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         break;
       }
 
-      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 600, 15);
+      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 300, 10);
       f_star = T_WA_.linear() * (f_star);
       m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
             
@@ -272,6 +272,11 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   arm.setTorque(desired_torque);
 
   return true;
+}
+
+void AssembleApproachActionServer::signalAbort(bool is_aborted)
+{
+  setAborted();  
 }
 
 void AssembleApproachActionServer::setSucceeded()

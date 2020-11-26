@@ -25,9 +25,8 @@ as_(nh,name,false)
     kp << 800, 800, 800, 800, 500, 400, 300;
     kv << 10, 10, 10, 10, 5, 5, 3;
     arm_gain_map_[iter->first] = std::make_pair(kp,kv);
-
-    server_  = nh_.advertiseService(name + "_gain_set", &JointTrajectoryActionServer::setTarget, this);
   }
+  server_  = nh_.advertiseService(name + "_gain_set", &JointTrajectoryActionServer::setTarget, this);
 }
 
 void JointTrajectoryActionServer::goalCallback()

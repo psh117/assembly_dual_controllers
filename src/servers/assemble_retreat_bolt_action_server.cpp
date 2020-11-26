@@ -200,7 +200,7 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
       f_star = PegInHole::generateRotationToDisassembleEE(origin_, current_, xd, arm.f_ext_, T_7A_, -retreat_force_, -retreat_moment_, 
                                                           -M_PI/180, time.toSec(), arm.task_start_time_.toSec() + holding_time, duration_).head<3>();    
       f_star = T_WA_.linear()*f_star;     
-      std::cout<<"f_star : "<< f_star.transpose()<<std::endl;
+      // std::cout<<"f_star : "<< f_star.transpose()<<std::endl;
 
       if(Criteria::checkForceDivergence(f_star, 80.0)) setSucceeded();
     }
@@ -228,7 +228,7 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
     // f_star.head<2>().setZero();
     f_star = T_WA_.linear()*f_star;
     reaction_force << arm.f_ext_.transpose()<<std::endl;
-    std::cout<<"run_time : "<<run_time<<std::endl;
+    // std::cout<<"run_time : "<<run_time<<std::endl;
   } 
   
   else if(mode_ == 3) // to make a vibration on the tip of drill
@@ -313,8 +313,8 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
                                                           -M_PI/180, time.toSec(), arm.task_start_time_.toSec() + holding_time + delay, duration_).tail<3>();    
       m_star = T_WA_.linear()*m_star;     
 
-      std::cout<<"m_star : "<< m_star.transpose()<<std::endl;
-      std::cout<<"m_d    : "<< m_d.transpose()<<std::endl;
+      // std::cout<<"m_star : "<< m_star.transpose()<<std::endl;
+      // std::cout<<"m_d    : "<< m_d.transpose()<<std::endl;
     }
   }
   else
@@ -327,7 +327,7 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   { 
     double dist;
     dist = sqrt(pow(d(0),2) + pow(d(1),2) + pow(d(2),2));
-    if(run_time > 1.0 && dist > retreat_distance_ + 0.01) // dp(2) is always negative 
+    if(run_time > 1.0 && dist > retreat_distance_ + 0.005) // dp(2) is always negative 
     {
       std::cout<<"Success retreat action"<<std::endl;
       setSucceeded();

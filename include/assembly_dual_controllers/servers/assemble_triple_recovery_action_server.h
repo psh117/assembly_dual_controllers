@@ -62,8 +62,8 @@ public:
 
   double getDistance(const Eigen::Vector3d target, const Eigen::Vector3d start, const int mode, const int dir);
 
-private:
-  void setSucceeded();
-  void setAborted();
+protected:
+  void setSucceeded() override;
+  void setAborted() override;
 
 };

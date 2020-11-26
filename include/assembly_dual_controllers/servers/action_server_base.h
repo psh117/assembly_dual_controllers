@@ -40,6 +40,14 @@ class ActionServerBase
 
   public:
     virtual bool compute(ros::Time time) = 0;
+    virtual void signalAbort(bool is_aborted)
+    {
+      setAborted();
+    };
+
+  protected:
+    virtual void setSucceeded() {};
+    virtual void setAborted() {};
     // virtual bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque_main, Eigen::Matrix<double, 7, 1> & torque_sub) = 0; //command to robot
     // virtual Eigen::Matrix<double, 6, 1> mainArm(ros::Time time);
     // virtual Eigen::Matrix<double, 6, 1> subArm(ros::Time time);

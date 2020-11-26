@@ -72,8 +72,8 @@ public:
   bool computeAssistArm(ros::Time time, FrankaModelUpdater &arm);
   void stateTransferFromTaskArm();
   void stateTransferFromAssisArm();
-private:
-  void setSucceeded();
-  void setAborted();
 
+protected:
+  void setSucceeded() override;
+  void setAborted() override;
 };

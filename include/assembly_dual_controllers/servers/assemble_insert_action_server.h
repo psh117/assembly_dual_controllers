@@ -87,8 +87,8 @@ public:
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
   //bool getTarget(ros::Time time, Eigen::Matrix<double, 7, 1> & torque) override; //command to robot
 
-  private:
-    void setSucceeded();
-    void setAborted();
-    void savePosture();
+protected:
+  void setSucceeded() override;
+  void setAborted() override;
+  void savePosture();
 };
