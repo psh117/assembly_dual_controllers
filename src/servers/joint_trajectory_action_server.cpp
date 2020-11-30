@@ -46,6 +46,8 @@ void JointTrajectoryActionServer::goalCallback()
   start_time_ = ros::Time::now();
   auto now_time = ros::WallTime::now();
   ROS_INFO("start time = %lf %lf", start_time_.toSec(), now_time.toSec());
+  writeDebugInfos("goalCallback", "goall received");
+  DEBUG_FILE("start_time_: " << start_time_.toSec());
   // start_time_ = ros::Time::now();
 
   bool find_any_arm = false;
@@ -80,6 +82,7 @@ void JointTrajectoryActionServer::goalCallback()
   {
     q_desired_(i) = goal_->trajectory.points[0].positions[i];
   }
+  DEBUG_FILE("q_desired_: " << q_desired_.transpose());
 
   qd_desired_.setZero(goal_->trajectory.joint_names.size());
   qdd_desired_.setZero(goal_->trajectory.joint_names.size());
@@ -223,7 +226,21 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
   // std::cout << "dt: " << desired_torque.transpose() << std::endl;
   
   // as_.publishFeedback(feedback_);
-
+  if (++ print_count_ > iter_per_print_)
+  {
+    Eigen::IOFormat tab_format(Eigen::FullPrecision, 0, "\t", "\n");
+    debug_file_.precision(std::numeric_limits< double >::digits10);
+    DEBUG_FILE(arm.arm_name_ << '\t' 
+            << time.toSec() << '\t' 
+            << arm.q_.transpose().format(tab_format) << '\t'
+            << arm.qd_.transpose().format(tab_format) << '\t' 
+            << arm.tau_ext_filtered_.transpose().format(tab_format) << '\t' 
+            << arm.mob_torque_.transpose().format(tab_format) << '\t' 
+            << q_desired.transpose().format(tab_format) << '\t' 
+            << qd_desired.transpose().format(tab_format) << '\t' 
+            << qdd_desired.transpose().format(tab_format));
+    print_count_ = 0;
+  }
   if(time.toSec() > (start_time_.toSec() +  total_time.toSec() + 0.5))
   {
     Eigen::Vector7d goal_q;

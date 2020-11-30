@@ -122,13 +122,14 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   f_ext = arm.f_ext_;
   current_ = arm.transform_;
   
-  int cnt_max = 500;
-  int cnt_start = 100;
+  int cnt_max = 400;
+  int cnt_start = 200;
   if(count_ < cnt_max)
   { 
-    f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 800, 40, 2000, 15).head<3>(); //w.r.t {W}
+    // f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 600, 20, 2000, 15).head<3>(); //w.r.t {W}
+    f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 350, 10);
     // m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 800, 40, 2000, 15).tail<3>();
-    m_star = PegInHole::rotateWithMat(origin_, current_, xd, origin_.linear(), time.toSec(), arm.task_start_time_.toSec(), cnt_max/1000, 1500, 10);
+    m_star = PegInHole::rotateWithMat(origin_, current_, xd, origin_.linear(), time.toSec(), arm.task_start_time_.toSec(), cnt_max/1000, 1000, 10);
     
     if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, f_ext, cnt_start, count_, cnt_max);    
     count_++;
@@ -193,10 +194,12 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         break;
       }
 
-      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 300, 10);
+      f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 1000, 20);
+      // f_star = PegInHole::approachComponentEE(origin_, current_, xd, T_7A_, descent_speed_, time.toSec(), approach_start_time_, 300, 10);
       f_star = T_WA_.linear() * (f_star);
-      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
-            
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 4000, 30);
+      // m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
+
       break;
 
     case TILT_BACK:

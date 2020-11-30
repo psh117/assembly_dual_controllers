@@ -173,7 +173,7 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   }
   else if(mode_ == 1) // to retreat drill from a bolt with force control
   {
-    if(run_time > 1.0 && abs(d(2)) > retreat_distance_) // dp(2) is always negative 
+    if(run_time > 1.0 && (abs(d(2)) > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear(), current_.linear(), 10*DEG2RAD))) // dp(2) is always negative 
     {
       std::cout<<"Success retreat action"<<std::endl;
       setSucceeded();
@@ -185,16 +185,6 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
       setAborted();
       return true;
     }
-
-    // if(run_time >= holding_time)
-    // {
-    //   f_star = PegInHole::generateInsertionForceWithLessFriction(origin_, current_, xd, T_7A_, arm.f_ext_.head<3>(), retreat_stage_force_error_.head<3>(), -retreat_force_, 
-    //                                                              time.toSec(), arm.task_start_time_.toSec() + holding_time, 2.0, 0.25, 0.003, 15.0);    
-    //   f_star = T_WA_.linear()*f_star;     
-    //   retreat_stage_force_error_.head<3>() += f_star -arm.f_ext_.head<3>();  
-    //   std::cout<<"f_star : "<< f_star.transpose()<<std::endl;
-    // }
-        
     if(run_time >= holding_time)
     {
       f_star = PegInHole::generateRotationToDisassembleEE(origin_, current_, xd, arm.f_ext_, T_7A_, -retreat_force_, -retreat_moment_, 
@@ -204,14 +194,15 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
 
       if(Criteria::checkForceDivergence(f_star, 80.0)) setSucceeded();
     }
-
   }  
 
   else if(mode_ == 2) // to retreat drill from a bolt with velocity control
   {
     if(run_time > 1.0 && abs(d(2)) > retreat_distance_) // dp(2) is always negative 
+    // if(run_time > 1.0 && abs(d(2)) > retreat_distance_) // dp(2) is always negative 
     {
-      std::cout<<"Success retreat action"<<std::endl;
+      std::cout<<"Success retreat action(velocity)"<<std::endl;
+      std::cout<<"d : "<<abs(d(2))<<std::endl;
       setSucceeded();
       return true;
     }
@@ -327,7 +318,7 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   { 
     double dist;
     dist = sqrt(pow(d(0),2) + pow(d(1),2) + pow(d(2),2));
-    if(run_time > 1.0 && dist > retreat_distance_ + 0.005) // dp(2) is always negative 
+    if(run_time > 1.0 && (dist > retreat_distance_ + 0.005 || Criteria::checkOrientationChange(origin_.linear(), current_.linear(), 10*DEG2RAD))) // dp(2) is always negative 
     {
       std::cout<<"Success retreat action"<<std::endl;
       setSucceeded();
@@ -351,7 +342,7 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
     // std::cout<<"m_ext : "<<arm.f_ext_.tail<3>().transpose()<<std::endl;
     // std::cout<<"cross : "<<2*p.cross(arm.f_ext_.head<3>()).transpose()<<std::endl;
     // std::cout<<"run time : "<< run_time<<std::endl;
-    origin_ = current_;
+    // origin_ = current_;
   }
 
   f_star_zero.head<3>() = f_star;

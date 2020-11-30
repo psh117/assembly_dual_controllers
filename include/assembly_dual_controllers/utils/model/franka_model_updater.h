@@ -30,6 +30,7 @@ struct FrankaModelUpdater
   Eigen::Matrix<double, 7, 1> coriolis_;
   Eigen::Matrix<double, 7, 1> q_;
   Eigen::Matrix<double, 7, 1> qd_;
+  Eigen::Matrix<double, 7, 1> qdd_;
   Eigen::Matrix<double, 7, 1> tau_measured_;
   Eigen::Matrix<double, 7, 1> tau_desired_read_;
   Eigen::Matrix<double, 7, 1> tau_ext_filtered_;
@@ -49,6 +50,9 @@ struct FrankaModelUpdater
   Eigen::Matrix<double, 6, 1> xd_prev_;
   Eigen::Matrix<double, 6, 1> xd_lpf_;
   Eigen::Matrix<double, 7, 1> q_limit_center_;
+  Eigen::Matrix<double, 7, 1> mob_integral_;
+  Eigen::Matrix<double, 7, 1> mob_torque_;
+  Eigen::Matrix<double, 7, 7> mob_gain_;
 
   Eigen::Matrix<double, 7, 1> initial_q_;  ///< initial joint configuration for idle control
   Eigen::Isometry3d initial_transform_; ///< initial transform for idle control

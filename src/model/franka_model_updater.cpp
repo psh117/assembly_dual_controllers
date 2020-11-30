@@ -27,6 +27,7 @@ mujoco_helper_(mujoco_helper), arm_num_(arm_num)
 void FrankaModelUpdater::initialize()
 {
   qd_.setZero(); 
+  qdd_.setZero();
   q_limit_center_ << 0.0, 0.0, 0.0, -M_PI_2, 0.0, 1.8675, 0.0;
 
   Eigen::Matrix4d::Map(F_T_EE_.data()) << 0.707106781, 0.707106781, 0, 0,
@@ -37,6 +38,9 @@ void FrankaModelUpdater::initialize()
   xd_lpf_.setZero();
   xd_lpf_.head<3>() = 0.1*xd_lpf_.head<3>().setOnes();
   position_lpf_.setZero();
+  mob_integral_.setZero();
+  mob_gain_.setIdentity();
+  mob_gain_ = mob_gain_ * 20;
 }
 
 void FrankaModelUpdater::updateModel()
@@ -90,8 +94,14 @@ void FrankaModelUpdater::updateModel()
 
   for(int i=0; i<7; i++)
   {
+    qdd_(i) = franka::lowpassFilter(0.001, (qd_now(i) - qd_(i)) * 1000.0, qdd_(i), 150.0);
+  }
+
+  for(int i=0; i<7; i++)
+  {
     qd_(i) = franka::lowpassFilter(0.001, qd_now(i), qd_(i), 150.0);
   }
+
 
   t[debug_index++] = sb_.elapsedAndReset();
   position_ = transform_.translation();
@@ -100,13 +110,14 @@ void FrankaModelUpdater::updateModel()
   xd_ = jacobian_ * qd_;
 
   t[debug_index++] = sb_.elapsedAndReset();
-  lambda_matrix_ = (jacobian_ * mass_matrix_.inverse() * jacobian_.transpose() + 0.001 * Eigen::Matrix<double,6,6>::Identity()).inverse();
+  Eigen::Matrix<double, 7, 7> mass_matrix_inverse = mass_matrix_.inverse();
+  lambda_matrix_ = (jacobian_ * mass_matrix_inverse * jacobian_.transpose() + 0.001 * Eigen::Matrix<double,6,6>::Identity()).inverse();
   modified_mass_matrix_ = mass_matrix_;
   modified_mass_matrix_(4,4) += 0.1;
   modified_mass_matrix_(5,5) += 0.1;
   modified_mass_matrix_(6,6) += 0.1;
   modified_lambda_matrix_ = (jacobian_ * modified_mass_matrix_.inverse() * jacobian_.transpose() + 0.001 * Eigen::Matrix<double,6,6>::Identity()).inverse();
-  jacobian_bar_ = mass_matrix_.inverse()*jacobian_.transpose()*lambda_matrix_;
+  jacobian_bar_ = mass_matrix_inverse * jacobian_.transpose() * lambda_matrix_;
   null_projector_ = Eigen::Matrix<double, 7,7>::Identity() - jacobian_.transpose() * jacobian_bar_.transpose();
   
   t[debug_index++] = sb_.elapsedAndReset();
@@ -122,8 +133,10 @@ void FrankaModelUpdater::updateModel()
 
   target_updated_ = false;
 
-  q_out_file_ << q_.transpose() << std::endl;
-  x_out_file_ << transform_.translation().transpose() << std::endl;
+  mob_integral_ = mob_integral_ + (tau_measured_ + coriolis_ - gravity_ - mob_torque_) / 1000.0;
+  mob_torque_ = mob_gain_ * (mob_integral_ - mass_matrix_ * qd_);
+  // q_out_file_ << q_.transpose() << std::endl;
+  // x_out_file_ << transform_.translation().transpose() << std::endl;
   
   printState();
   t[debug_index++] = sb_.elapsedAndReset();

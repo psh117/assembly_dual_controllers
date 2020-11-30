@@ -57,6 +57,20 @@ void AssembleTripleRecoveryActionServer::goalCallback()
   target_.linear() = target_pose_quat_.toRotationMatrix();
   target_.translation() = target_pose_position_;
 
+  Eigen::Vector3d recover_dir;
+  double offset_angle;
+  Eigen::Isometry3d T_aa;
+  recover_dir = (T_WA_.linear().inverse()*(origin_.translation().cross(target_.translation())));
+  recover_dir = recover_dir/recover_dir.norm();
+  if(recover_dir(2) < 0) offset_angle = -2.0*DEG2RAD;
+  else offset_angle = 2.0*DEG2RAD;
+  T_aa.Identity();
+  T_aa.linear() = dyros_math::rotateWithZ(offset_angle);
+  target_pose_position_ = T_WA_*T_aa*T_WA_.inverse()*target_pose_position_;
+  // std::cout<<"origin target position w.r.t {A} : "<<(T_WA_.inverse()*target_pose_position_).transpose()<<std::endl;
+  // std::cout<<"renew  target position w.r.t {A} : "<<(T_aa*T_WA_.inverse()*target_pose_position_).transpose()<<std::endl;
+  std::cout<<"rotation direction : "<<recover_dir.transpose()<<std::endl;
+
   state_ = MOVE;
 
   is_escape_first_ = true;
@@ -69,7 +83,7 @@ void AssembleTripleRecoveryActionServer::goalCallback()
   control_running_ = true;
 
   std::cout<<"TRIPLE RECOVERY START"<<std::endl;
-  std::cout<<"return target: "<<target_pose_position_.transpose()<<std::endl;
+  std::cout<<"return target after: "<<target_pose_position_.transpose()<<std::endl;
 }
 
 void AssembleTripleRecoveryActionServer::preemptCallback()
@@ -165,19 +179,22 @@ bool AssembleTripleRecoveryActionServer::computeArm(ros::Time time, FrankaModelU
       break;
 
     case APPROACH:
-      f_contact = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_.head<3>();
-      // f_contact = T_WA_.linear().inverse() * (f_ext.head<3>() - f_star);
-      triple_recovery_fm_data << f_contact.transpose()<<std::endl;
-      
       if(is_approach_first_)
       {
         origin_ = arm.transform_;
         arm.task_start_time_ = time;
         is_approach_first_ = false;
+        f_contact_init_ = T_WA_.linear().inverse()*f_ext.head<3>();
         std::cout<<"Approach"<<std::endl;
         std::cout<<"recovery_angle: "<<recovery_angle_*RAD2DEG<<std::endl;
         std::cout<<"tilt_axis: "<<tilt_axis_.transpose()<<std::endl;
+        std::cout<<"f_contact_init : "<< f_contact_init_.transpose()<<std::endl;
       }
+      
+      f_contact = T_WA_.linear().inverse()*f_ext.head<3>() - f_contact_init_;
+      // f_contact = T_WA_.linear().inverse() * (f_ext.head<3>() - f_star);
+      triple_recovery_fm_data << f_contact.transpose()<<std::endl;
+
       run_time = time.toSec() - arm.task_start_time_.toSec();
       if(timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_+0.25))
       {

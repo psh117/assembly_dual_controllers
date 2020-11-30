@@ -144,6 +144,33 @@ bool Criteria::checkContact(const double current_force,
     return result;
 }
 
+bool Criteria::checkOrientationChange(const Eigen::Matrix3d &r_init,
+                                      const Eigen::Matrix3d &r_cur,
+                                      const double threshold)
+{
+    Eigen::Matrix3d rot;
+    double angle, tr_R;
+    bool result;
+
+    rot = r_init.inverse()*r_cur;
+    
+    tr_R = 0.0;
+    for(int i = 0; i < 3; i++) tr_R += rot(i,i);
+    
+    angle = acos((tr_R-1)/2);
+
+    if(abs(angle) < threshold)  result = false;
+    else
+    {
+        result = true;  
+        std::cout<<"angle : " << angle*RAD2DEG<<std::endl;
+    } 
+
+
+    return result;
+
+}
+
 // bool Criteria::checkDisplacement(const Eigen::Isometry3d &origin,
 //                                  const Eigen::Isometry3d &current,
 //                                  const Eigen::Isometry3d &T_wa,

@@ -242,7 +242,7 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         f_star = T_WA_.linear()*f_star;
         
         spiral_pos_save_ = PegInHole::generateSpiralEE_datasave(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
-      }      
+      }
       //dual peg in hole
       else if (mode_ == 2)
       {

@@ -50,6 +50,8 @@ class AssembleTripleRecoveryActionServer : public ActionServerBase
     Eigen::Vector3d tilt_axis_;
     int count_;
 
+    Eigen::Vector3d f_contact_init_;
+
     std::ofstream triple_recovery_fm_data {"triple_recovery_fm_data.txt"};
     std::ofstream triple_recovery_pr_data {"triple_recovery_pr_data.txt"};
 public:

@@ -84,12 +84,6 @@ bool AssemblyTripleController::initArm(
 
 bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
                                   ros::NodeHandle& node_handle) {
-  unsigned long mask = 1; /* processor 0 */  
-  /* bind process to processor 0 */  
-  if (pthread_setaffinity_np(pthread_self(), sizeof(mask), (cpu_set_t *)&mask) <0) 
-  {  
-    perror("pthread_setaffinity_np");  
-  }
 
   init_load_.mass = 0.0;
   ros::service::call("/panda_dual/panda_left/set_load",init_load_,load_response_);
@@ -301,53 +295,80 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   // tf::transformTFToEigen(transform, Ol_T_Or_);  // NOLINT (readability-identifier-naming)
 
 
-  idle_control_server_ = std::make_unique<IdleControlServer>
+  idle_control_server_ = std::make_shared<IdleControlServer>
   ("/assembly_dual_controller/idle_control", node_handle, arms_data_);
 
-  assemble_approach_action_server_ = std::make_unique<AssembleApproachActionServer>
+  assemble_approach_action_server_ = std::make_shared<AssembleApproachActionServer>
   ("/assembly_dual_controller/assemble_approach_control", node_handle, arms_data_);
-  assemble_spiral_action_server_ = std::make_unique<AssembleSpiralActionServer>
+  assemble_spiral_action_server_ = std::make_shared<AssembleSpiralActionServer>
   ("/assembly_dual_controller/assemble_spiral_control", node_handle, arms_data_);
-  assemble_insert_action_server_ = std::make_unique<AssembleInsertActionServer>
+  assemble_insert_action_server_ = std::make_shared<AssembleInsertActionServer>
   ("/assembly_dual_controller/assemble_exert_force_control", node_handle, arms_data_);
-  assemble_verify_action_server_ = std::make_unique<AssembleVerifyActionServer>
+  assemble_verify_action_server_ = std::make_shared<AssembleVerifyActionServer>
   ("/assembly_dual_controller/assemble_verify_completion_control", node_handle, arms_data_);
-  joint_trajectory_action_server_ = std::make_unique<JointTrajectoryActionServer>
+  joint_trajectory_action_server_ = std::make_shared<JointTrajectoryActionServer>
   ("/assembly_dual_controller/joint_trajectory_control", node_handle, arms_data_);
-  assemble_move_action_server_ = std::make_unique<AssembleMoveActionServer>
+  assemble_move_action_server_ = std::make_shared<AssembleMoveActionServer>
   ("/assembly_dual_controller/assemble_move_control", node_handle, arms_data_);
-  // assemble_press_action_server_ = std::make_unique<AssemblePressActionServer>
+  // assemble_press_action_server_ = std::make_shared<AssemblePressActionServer>
   // ("/assembly_dual_controller/assemble_press_control", node_handle, arms_data_);
-  // assemble_side_chair_action_server_ = std::make_unique<AssembleSideChairActionServer>
+  // assemble_side_chair_action_server_ = std::make_shared<AssembleSideChairActionServer>
   // ("/assembly_dual_controller/assemble_side_chair_control", node_handle, arms_data_);
-  assemble_dual_spiral_action_server_ = std::make_unique<AssembleDualSpiralActionServer>
+  assemble_dual_spiral_action_server_ = std::make_shared<AssembleDualSpiralActionServer>
   ("/assembly_dual_controller/assemble_dual_spiral_control", node_handle, arms_data_);
-  assemble_dual_approach_action_server_ = std::make_unique<AssembleDualApproachActionServer>
+  assemble_dual_approach_action_server_ = std::make_shared<AssembleDualApproachActionServer>
   ("/assembly_dual_controller/assemble_dual_approach_control", node_handle, arms_data_);
-  assemble_rotation_action_server_ = std::make_unique<AssembleRotationActionServer>
+  assemble_rotation_action_server_ = std::make_shared<AssembleRotationActionServer>
   ("/assembly_dual_controller/assemble_rotation_control", node_handle, arms_data_);
-  assemble_triple_recovery_action_server_ = std::make_unique<AssembleTripleRecoveryActionServer>
+  assemble_triple_recovery_action_server_ = std::make_shared<AssembleTripleRecoveryActionServer>
   ("/assembly_dual_controller/assemble_triple_recovery_control", node_handle, arms_data_);
-  assemble_approach_bolt_action_server_ = std::make_unique<AssembleApproachBoltActionServer>
+  assemble_approach_bolt_action_server_ = std::make_shared<AssembleApproachBoltActionServer>
   ("/assembly_dual_controller/assemble_approach_bolt_control", node_handle, arms_data_);
-  assemble_retreat_bolt_action_server_ = std::make_unique<AssembleRetreatBoltActionServer>
+  assemble_retreat_bolt_action_server_ = std::make_shared<AssembleRetreatBoltActionServer>
   ("/assembly_dual_controller/assemble_retreat_bolt_control", node_handle, arms_data_);  
-  task_space_move_action_server_ = std::make_unique<TaskSpaceMoveActionServer>
+  task_space_move_action_server_ = std::make_shared<TaskSpaceMoveActionServer>
   ("/assembly_dual_controller/task_space_move", node_handle, arms_data_);
-  assemble_probe_edge_action_server_ = std::make_unique<AssembleProbeEdgeActionServer>
+  assemble_probe_edge_action_server_ = std::make_shared<AssembleProbeEdgeActionServer>
   ("/assembly_dual_controller/assemble_probe_edge_control", node_handle, arms_data_);
-  assemble_triple_move_action_server_ = std::make_unique<AssembleTripleMoveActionServer>
+  assemble_triple_move_action_server_ = std::make_shared<AssembleTripleMoveActionServer>
   ("/assembly_dual_controller/assemble_triple_move_control", node_handle, arms_data_);
-  assemble_approach_hip_action_server_ = std::make_unique<AssembleApproachHipActionServer>
+  assemble_approach_hip_action_server_ = std::make_shared<AssembleApproachHipActionServer>
   ("/assembly_dual_controller/assemble_approach_hip_control", node_handle, arms_data_);
-  assemble_kitting_action_server_ = std::make_unique<AssembleKittingActionServer>
+  assemble_kitting_action_server_ = std::make_shared<AssembleKittingActionServer>
   ("/assembly_dual_controller/assemble_kitting_control", node_handle, arms_data_);
-  assemble_back_forth_action_server_ = std::make_unique<AssembleBackForthActionServer>
+  assemble_back_forth_action_server_ = std::make_shared<AssembleBackForthActionServer>
   ("/assembly_dual_controller/assemble_back_forth_control", node_handle, arms_data_);
-  assemble_bolting_ready_action_server_ = std::make_unique<AssembleBoltingReadyActionServer>
+  assemble_bolting_ready_action_server_ = std::make_shared<AssembleBoltingReadyActionServer>
   ("/assembly_dual_controller/assemble_bolting_ready_control", node_handle, arms_data_);
-  // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
+  // single_peginhole_action_server_ = std::make_shared<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
+
+  action_servers_.push_back(assemble_approach_action_server_);
+  action_servers_.push_back(assemble_spiral_action_server_);
+  action_servers_.push_back(assemble_insert_action_server_);
+  action_servers_.push_back(assemble_verify_action_server_);
+  action_servers_.push_back(joint_trajectory_action_server_);
+  action_servers_.push_back(assemble_move_action_server_);
+  action_servers_.push_back(assemble_dual_spiral_action_server_);
+  action_servers_.push_back(assemble_dual_approach_action_server_);
+  action_servers_.push_back(assemble_rotation_action_server_);
+  action_servers_.push_back(assemble_triple_recovery_action_server_);
+  action_servers_.push_back(assemble_approach_bolt_action_server_);
+  action_servers_.push_back(assemble_retreat_bolt_action_server_);
+  action_servers_.push_back(task_space_move_action_server_);
+  action_servers_.push_back(assemble_probe_edge_action_server_);
+  action_servers_.push_back(assemble_triple_move_action_server_);
+  action_servers_.push_back(assemble_approach_hip_action_server_);
+  action_servers_.push_back(assemble_kitting_action_server_);
+  action_servers_.push_back(assemble_back_forth_action_server_);
+  action_servers_.push_back(assemble_bolting_ready_action_server_);
+  
+  std::string homedir = getenv("HOME");
+  
+  for (auto & as : action_servers_)
+  {
+    as->openDebugFile(homedir + "/suhan_motion_control/logs");
+  }
 
   return left_success && right_success && top_success;
 }
@@ -369,23 +390,16 @@ void AssemblyTripleController::startingArm(FrankaModelUpdater& arm_data) {
 }
 
 void AssemblyTripleController::starting(const ros::Time& time) {
+  // unsigned long mask = 1; /* processor 0 */  
+  // /* bind process to processor 0 */  
+  // if (pthread_setaffinity_np(pthread_self(), sizeof(mask), (cpu_set_t *)&mask) <0) 
+  // {  
+  //   perror("pthread_setaffinity_np");  
+  // }
+
   for (auto& arm_data : arms_data_) {
     startingArm(*arm_data.second);
   }
-  // franka::RobotState robot_state_right =
-  //     arms_data_.at(right_arm_id_).state_handle_->getRobotState();
-  // franka::RobotState robot_state_left = arms_data_.at(left_arm_id_).state_handle_->getRobotState();
-  // Eigen::Isometry3d Ol_T_EEl(Eigen::Matrix4d::Map(  // NOLINT (readability-identifier-naming)
-  //     robot_state_left.O_T_EE.data()));           // NOLINT (readability-identifier-naming)
-  // Eigen::Isometry3d Or_T_EEr(Eigen::Matrix4d::Map(  // NOLINT (readability-identifier-naming)
-  //     robot_state_right.O_T_EE.data()));          // NOLINT (readability-identifier-naming)
-  // EEr_T_EEl_ =
-  //     Or_T_EEr.inverse() * Ol_T_Or_.inverse() * Ol_T_EEl;  // NOLINT (readability-identifier-naming)
-  // EEl_T_C_.setIdentity();
-  // Eigen::Vector3d EEr_r_EEr_EEl =  // NOLINT (readability-identifier-naming)
-  //     EEr_T_EEl_.translation();    // NOLINT (readability-identifier-naming)
-  // EEl_T_C_.translation() = -0.5 * EEr_T_EEl_.inverse().rotation() * EEr_r_EEr_EEl;
-  // Bias correction for the current external torque
   start_time_ = ros::Time::now();
 }
 
@@ -397,59 +411,30 @@ void AssemblyTripleController::update(const ros::Time& time, const ros::Duration
   // Eigen::Matrix<double, 21, 1> q_total;
   // Eigen::IOFormat tab_format(Eigen::FullPrecision, 0, "\t", "\n");
   // int q_num = 0;
+  std::vector<std::thread> model_update_threads;
   for (auto& arm : arms_data_) {
-    arm.second->updateModel();
-    arm.second->target_updated_ = false;
+    model_update_threads.push_back(std::thread([&]() {
+      arm.second->updateModel();
+      arm.second->target_updated_ = false;
+    }));
+    // arm.second->updateModel();
+    // arm.second->target_updated_ = false;
     // q_total.segment<7>(q_num * 7) = arm.second->q_;
     // q_num++;
+  }
+  for (auto & thread : model_update_threads)
+  {
+    thread.join();
   }
   // debug_file_q << q_total.transpose().format(tab_format) << std::endl;
   t[1] = sb_.elapsedAndReset();
 
   int ctr_index = 2;
-  joint_trajectory_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_approach_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_spiral_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_insert_action_server_->compute(time);  
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_verify_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_move_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  // assemble_press_action_server_->compute(time);
-  // t[ctr_index++] = sb_.elapsedAndReset();
-  // assemble_side_chair_action_server_ ->compute(time);
-  // t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_rotation_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_triple_recovery_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_dual_spiral_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_dual_approach_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_approach_bolt_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  task_space_move_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_probe_edge_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_triple_move_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_retreat_bolt_action_server_->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_approach_hip_action_server_ ->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_kitting_action_server_ ->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_back_forth_action_server_ ->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-  assemble_bolting_ready_action_server_ ->compute(time);
-  t[ctr_index++] = sb_.elapsedAndReset();
-
+  for (auto & as : action_servers_)
+  {
+    as->compute(time);
+    t[ctr_index++] = sb_.elapsedAndReset();
+  }
   // add normal action server above ----------
   idle_control_server_->compute(time);
   t[ctr_index++] = sb_.elapsedAndReset();
@@ -486,6 +471,21 @@ Eigen::Matrix<double, 7, 1> AssemblyTripleController::saturateTorqueRate(
                                                -arm_data.delta_tau_max_);
   }
   return tau_d_saturated;
+}
+
+void AssemblyTripleController::writeDebugInfos(const std::string &title, const std::string &context)
+{
+  const auto now = std::chrono::system_clock::now();
+  const auto now_time_t = std::chrono::system_clock::to_time_t(now);
+  const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      now.time_since_epoch()) % 1000;
+  debug_file_ << "["
+      << std::put_time(std::localtime(&now_time_t), "%Y-%m-%d %a %T")
+      << '.' << std::setfill('0') << std::setw(3) << now_ms.count() << "]-";
+  
+  debug_file_ << "[" << title << "]: " << context << std::endl;
+  debug_file_.precision(4);
+  debug_file_ << std::setfill(' ');
 }
 
 /*

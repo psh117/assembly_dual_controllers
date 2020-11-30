@@ -2,6 +2,7 @@
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
 #pragma once
 
+#include <thread>
 #include <memory>
 #include <string>
 #include <vector>
@@ -53,6 +54,13 @@
 #include <fstream>
 
 #define EYE(X) Matrix<double, X, X>::Identity()
+
+#define DEBUG_FILE(text) \
+if(debug_file_.is_open()) \
+{ \
+  debug_file_ << text << std::endl;\
+}
+
 namespace assembly_dual_controllers {
 
 typedef Eigen::Matrix<double, 7, 1> Vector7d;
@@ -72,29 +80,31 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
 
  private:
 
-  std::unique_ptr<AssembleApproachActionServer> assemble_approach_action_server_;
-  std::unique_ptr<AssembleSpiralActionServer> assemble_spiral_action_server_;
-  std::unique_ptr<AssembleInsertActionServer> assemble_insert_action_server_;
-  std::unique_ptr<AssembleVerifyActionServer> assemble_verify_action_server_;
-  std::unique_ptr<JointTrajectoryActionServer> joint_trajectory_action_server_;
-  std::unique_ptr<AssembleMoveActionServer> assemble_move_action_server_;
-  // std::unique_ptr<AssemblePressActionServer> assemble_press_action_server_;
-  // std::unique_ptr<AssembleSideChairActionServer> assemble_side_chair_action_server_;
-  std::unique_ptr<AssembleRotationActionServer> assemble_rotation_action_server_;
-  std::unique_ptr<AssembleTripleRecoveryActionServer> assemble_triple_recovery_action_server_;
-  std::unique_ptr<AssembleDualSpiralActionServer> assemble_dual_spiral_action_server_;
-  std::unique_ptr<AssembleDualApproachActionServer> assemble_dual_approach_action_server_;
-  std::unique_ptr<AssembleApproachBoltActionServer> assemble_approach_bolt_action_server_;
-  std::unique_ptr<AssembleRetreatBoltActionServer> assemble_retreat_bolt_action_server_;
-  std::unique_ptr<TaskSpaceMoveActionServer> task_space_move_action_server_;
-  std::unique_ptr<AssembleProbeEdgeActionServer> assemble_probe_edge_action_server_;
-  std::unique_ptr<AssembleTripleMoveActionServer> assemble_triple_move_action_server_;
-  std::unique_ptr<AssembleApproachHipActionServer> assemble_approach_hip_action_server_;
-  std::unique_ptr<AssembleKittingActionServer> assemble_kitting_action_server_;
-  std::unique_ptr<AssembleBackForthActionServer> assemble_back_forth_action_server_;
-  std::unique_ptr<AssembleBoltingReadyActionServer> assemble_bolting_ready_action_server_;
-  std::unique_ptr<IdleControlServer> idle_control_server_;
+  std::shared_ptr<AssembleApproachActionServer> assemble_approach_action_server_;
+  std::shared_ptr<AssembleSpiralActionServer> assemble_spiral_action_server_;
+  std::shared_ptr<AssembleInsertActionServer> assemble_insert_action_server_;
+  std::shared_ptr<AssembleVerifyActionServer> assemble_verify_action_server_;
+  std::shared_ptr<JointTrajectoryActionServer> joint_trajectory_action_server_;
+  std::shared_ptr<AssembleMoveActionServer> assemble_move_action_server_;
+  // std::shared_ptr<AssemblePressActionServer> assemble_press_action_server_;
+  // std::shared_ptr<AssembleSideChairActionServer> assemble_side_chair_action_server_;
+  std::shared_ptr<AssembleRotationActionServer> assemble_rotation_action_server_;
+  std::shared_ptr<AssembleTripleRecoveryActionServer> assemble_triple_recovery_action_server_;
+  std::shared_ptr<AssembleDualSpiralActionServer> assemble_dual_spiral_action_server_;
+  std::shared_ptr<AssembleDualApproachActionServer> assemble_dual_approach_action_server_;
+  std::shared_ptr<AssembleApproachBoltActionServer> assemble_approach_bolt_action_server_;
+  std::shared_ptr<AssembleRetreatBoltActionServer> assemble_retreat_bolt_action_server_;
+  std::shared_ptr<TaskSpaceMoveActionServer> task_space_move_action_server_;
+  std::shared_ptr<AssembleProbeEdgeActionServer> assemble_probe_edge_action_server_;
+  std::shared_ptr<AssembleTripleMoveActionServer> assemble_triple_move_action_server_;
+  std::shared_ptr<AssembleApproachHipActionServer> assemble_approach_hip_action_server_;
+  std::shared_ptr<AssembleKittingActionServer> assemble_kitting_action_server_;
+  std::shared_ptr<AssembleBackForthActionServer> assemble_back_forth_action_server_;
+  std::shared_ptr<AssembleBoltingReadyActionServer> assemble_bolting_ready_action_server_;
+  std::shared_ptr<IdleControlServer> idle_control_server_;
   
+  std::vector<std::shared_ptr<ActionServerBase>> action_servers_;
+
   std::map<std::string, std::shared_ptr<FrankaModelUpdater> >  arms_data_; ///< Holds all relevant data for both arms.
   std::string left_arm_id_;   ///< Name of the left arm, retreived from the parameter server.
   std::string right_arm_id_;  ///< Name of the right arm, retreived from the parameter server.
@@ -117,6 +127,7 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   bool is_stopped_ {false};
   bool is_aborted_ {false};
 
+  void writeDebugInfos(const std::string &title, const std::string &context);
   std::ofstream debug_file_q{"q.txt"};
   std::ofstream debug_file_fuck{"f.txt"};
   std::ofstream debug_file_qd{"qd.txt"};
@@ -124,6 +135,7 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   std::ofstream debug_file_qc{"iamdebugqc.txt"};
   std::ofstream debug_file_tq{"iamdebugt.txt"};
   std::ofstream debug_file_3{"iamdebug.txt"};
+  std::ofstream debug_file_;
 
   SuhanBenchmark sb_;
   std::ofstream debug_file_td_{"time_debug.txt"};

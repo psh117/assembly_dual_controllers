@@ -88,5 +88,9 @@ namespace Criteria
 
     bool checkForceDivergence(const Eigen::Vector3d &f,
                               const double threshold);
+    
+    bool checkOrientationChange(const Eigen::Matrix3d &r_init,
+                                const Eigen::Matrix3d &r_cur,
+                                const double threshold);
 
 }; // namespace Criteria

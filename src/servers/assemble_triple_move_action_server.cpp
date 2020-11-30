@@ -157,8 +157,8 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
   }
   if (khc.count_ < cnt_max)
   {
-    f_star = PegInHole::keepCurrentPose(khc.origin_, current_, xd, 5000, 200, 200, 5).head<3>();
-    m_star = PegInHole::keepCurrentPose(khc.origin_, current_, xd, 5000, 200, 200, 5).tail<3>();
+    f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 1000, 20);
+    m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 4000, 30);
     if (khc.count_ > cnt_start)
       PegInHole::getCompensationWrench(khc.accumulated_wrench_, f_ext, cnt_start, khc.count_, cnt_max);
     if(khc.count_ == cnt_max - 1)
@@ -181,12 +181,12 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
     switch (khc.move_state_)
     {
       case EXEC :
-        f_star = PegInHole::threeDofMove(khc.origin_, current_, khc.target_, xd, time.toSec(), khc.motion_start_time_, duration_);
-        m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 200, 5);
+        f_star = PegInHole::threeDofMove(khc.origin_, current_, khc.target_, xd, time.toSec(), khc.motion_start_time_, duration_, 1000, 20);
+        m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 4000, 30);
 
         if (run_time > 0.05 && Criteria::checkContact(force, Eigen::Isometry3d::Identity(), khc.contact_force_))
         {
-          std::cout << "\n!!CHECK CONTATCT!!\n" << std::endl;
+          std::cout << "\n!!CHECK CONTATCT IN Z DIRECTION!!\n" << std::endl;
           std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
           std::cout<<"force(2): "<<force(2)<<std::endl;
 
@@ -199,7 +199,7 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
           khc.wait_++;
           if (khc.wait_ > 1000)
           {
-            std::cout << "\n!DISTANCE REACHED!\n" << std::endl;
+            std::cout << "\n!SPEED ZERO!\n" << std::endl;
             std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
             std::cout<<"speed: "<<xd.head<3>().norm()<<std::endl;
             
@@ -208,13 +208,26 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
             khc.is_mode_changed_ = true;
           }
         }
-        else if (timeOut(time.toSec(), khc.motion_start_time_, duration_ + 6.0))
+
+        // else if (run_time > 0.5 && (khc.target_ - current_.translation()).norm() < 0.00)
+        // {
+        //   std::cout << "\n!DISTANCE REACHED!\n" << std::endl;
+        //   std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
+        //   std::cout<<"speed: "<<xd.head<3>().norm()<<std::endl;
+          
+        //   khc.move_state_ = KEEPCURRENT;
+        //   succeed_flag++;
+        //   khc.is_mode_changed_ = true;
+        // }
+
+        else if (timeOut(time.toSec(), khc.motion_start_time_, duration_ + 3.0))
         {
           std::cout << "\n!!!!!TIME OUT!!!!!\n" << std::endl;
           khc.move_state_ = KEEPCURRENT;
           succeed_flag++;
           setAborted();
         }
+
         else
         {
           khc.wait_ = 0;
@@ -222,13 +235,12 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
         break;
 
       case KEEPCURRENT:
-        f_star = PegInHole::keepCurrentPose(khc.origin_, current_, xd, 5000, 200, 200, 5).head<3>();
-        // m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 200, 5);
+        f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 1000, 20);
         break;
 
       case KEEPSTOP:
-        f_star = PegInHole::keepCurrentPose(khc.origin_, current_, xd, 5000, 200, 200, 5).head<3>();
-        m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 200, 5);
+        f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 1000, 20);
+        m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 4000, 30);
         break;
     }
 #ifdef TEST_PRINT
@@ -253,7 +265,7 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
-  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * f_star_zero;
+  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_ * f_star_zero;
   arm.setTorque(desired_torque);
   return true;
 }
