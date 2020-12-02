@@ -33,50 +33,39 @@ void AssembleTripleMoveActionServer::goalCallback()
   mu_["panda_left"]->task_start_time_ = ros::Time::now();
   mu_["panda_right"]->task_start_time_ = ros::Time::now();
   mu_["panda_top"]->task_start_time_ = ros::Time::now();
+  asm_dir_ = Eigen::Vector3d::UnitZ();
 
-  dir_ <<  goal_ -> direction.x, goal_ -> direction.y, goal_ -> direction.z;
   upper_arm_ = goal_ -> upper_arm;
   stop_arm_1_ = goal_ -> stop_arm_1;
   stop_arm_2_ = goal_ -> stop_arm_2;
   duration_ = goal_ -> duration;
-  is_test_ = goal_ -> is_test;
-  upper_more_ = goal_ -> upper_more;
-  stop_speed_ = goal_ -> stop_speed;
-  max_force = goal_ -> force_limit;
 
   hc_["panda_left"] -> count_ = 0;
   hc_["panda_left"] -> wait_ = 0;
-  hc_["panda_left"] -> is_upper_arm_ = false;
   hc_["panda_left"] -> is_mode_changed_ = true;
   hc_["panda_left"] -> move_state_ = EXEC;
   hc_["panda_left"] -> origin_ = mu_["panda_left"] -> transform_;
-  hc_["panda_left"] -> target_ = hc_["panda_left"] -> origin_.translation() + dir_;
   hc_["panda_left"] -> accumulated_wrench_.setZero();
   hc_["panda_left"] -> contact_force_ = goal_ -> contact_force_left;
+  hc_["panda_left"] -> speed_ = goal_ -> speed;
 
   hc_["panda_right"] -> count_ = 0;
   hc_["panda_right"] -> wait_ = 0;
-  hc_["panda_right"] -> is_upper_arm_ = false;
   hc_["panda_right"] -> is_mode_changed_ = true;
   hc_["panda_right"] -> move_state_ = EXEC;
   hc_["panda_right"] -> origin_ = mu_["panda_right"] -> transform_;
-  hc_["panda_right"] -> target_ = hc_["panda_right"] -> origin_.translation() + dir_;
   hc_["panda_right"] -> accumulated_wrench_.setZero();
   hc_["panda_right"] -> contact_force_ = goal_ -> contact_force_right;
-
-  top_arm_rot_.setIdentity();
-  top_arm_rot_(0,0) = -1.0;
-  top_arm_rot_(1,1) = -1.0;
+  hc_["panda_right"] -> speed_ = goal_ -> speed;
 
   hc_["panda_top"] -> count_ = 0;
   hc_["panda_top"] -> wait_ = 0;
-  hc_["panda_top"] -> is_upper_arm_ = false;
   hc_["panda_top"] -> is_mode_changed_ = true;
   hc_["panda_top"] -> move_state_ = EXEC;
   hc_["panda_top"] -> origin_ = mu_["panda_top"] -> transform_;
-  hc_["panda_top"] -> target_ = hc_["panda_top"] -> origin_.translation() + top_arm_rot_ *dir_;
   hc_["panda_top"] -> accumulated_wrench_.setZero();
   hc_["panda_top"] -> contact_force_ = goal_ -> contact_force_top;
+  hc_["panda_top"] -> speed_ = goal_ -> speed;
 
   if (stop_arm_1_.empty() == false)
   {
@@ -89,29 +78,16 @@ void AssembleTripleMoveActionServer::goalCallback()
     hc_[stop_arm_2_] -> move_state_ = KEEPSTOP;
   }
 
-  if (is_test_)
-  {
-    std::cout<<"TESTING TRIPLE MOVE ACTION"<<std::endl;
-    hc_["panda_left"] -> move_state_ = KEEPSTOP;
-    hc_["panda_right"] -> move_state_ = KEEPSTOP;
-    hc_["panda_top"] -> move_state_ = KEEPSTOP;
-    succeed_flag = 2;
-  }
-
 #ifdef TEST_PRINT
-  std::cout<<"TRIPLE MOVE ACTION"<<std::endl;
-  std::cout<<"duration: "<<duration_<<std::endl;
-  std::cout<<"l&r target direction: "<<dir_.transpose()<<std::endl;
-  std::cout<<"top target direction: "<<(top_arm_rot_*dir_).transpose()<<std::endl;
+  std::cout << "TRIPLE MOVE ACTION" << std::endl;
+  std::cout << "duration: " << duration_ << std::endl;
+  std::cout << "target speed: " << goal_ -> speed;
 #endif
-
   if (upper_arm_ != "")
   {
-    hc_[upper_arm_] -> is_upper_arm_ = true;
-    if (upper_arm_ == "panda_top") {hc_[upper_arm_] -> target_ += top_arm_rot_ * dir_ * upper_more_;}
-    else {hc_[upper_arm_] -> target_ += dir_;}
-    std::cout<<upper_arm_<<" is upper arm!!!"<<std::endl;
-    std::cout<<"target direction: "<<(hc_[upper_arm_] -> origin_.translation() - hc_[upper_arm_] -> target_).transpose() <<std::endl;
+    hc_[upper_arm_] -> speed_ = goal_ -> upper_speed;
+    std::cout << upper_arm_ << " is upper arm!!!" << std::endl;
+    std::cout << "upper arm target speed: " << hc_[upper_arm_] -> speed_;
   }
 }
 
@@ -177,13 +153,23 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
 
   else
   {
+    Eigen::Matrix3d K_p, K_v;
+    Eigen::Vector3d p_desired, v_desired;
     run_time = time.toSec() - khc.motion_start_time_;
     force = f_ext.head<3>() - khc.accumulated_wrench_.head<3>();
     switch (khc.move_state_)
     {
       case EXEC :
-        f_star = PegInHole::threeDofMove(khc.origin_, current_, khc.target_, xd, time.toSec(), khc.motion_start_time_, duration_, 500, 20);
-        // m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 1200, 15);
+        K_p = Eigen::Matrix3d::Identity(); K_v = Eigen::Matrix3d::Identity();
+
+        K_p(0,0) = 600.; K_p(1,1) = 600.; K_p(2,2) = 800.;
+        K_v(0,0) = 15.; K_v(1,1) = 15.; K_v(2,2) = 20.; 
+
+        v_desired = khc.speed_ * asm_dir_;
+        p_desired = khc.origin_.translation() + khc.speed_ * (time.toSec() - khc.motion_start_time_) * asm_dir_;
+
+        f_star = K_p * (p_desired - current_.translation()) + K_v * (v_desired - xd.head<3>());
+        m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 1200, 15);
 
         if (run_time > 0.05 && Criteria::checkContact(force, Eigen::Isometry3d::Identity(), khc.contact_force_))
         {
@@ -195,31 +181,6 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
           succeed_flag++;
           khc.is_mode_changed_ = true;
         }
-        else if (run_time > (duration_*0.7) && xd.head<3>().norm() < stop_speed_)
-        {
-          khc.wait_++;
-          if (khc.wait_ > 1000)
-          {
-            std::cout << "\n!SPEED ZERO!\n" << std::endl;
-            std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
-            std::cout<<"speed: "<<xd.head<3>().norm()<<std::endl;
-            
-            khc.move_state_ = KEEPCURRENT;
-            succeed_flag++;
-            khc.is_mode_changed_ = true;
-          }
-        }
-
-        // else if (run_time > 0.5 && (khc.target_ - current_.translation()).norm() < 0.00)
-        // {
-        //   std::cout << "\n!DISTANCE REACHED!\n" << std::endl;
-        //   std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
-        //   std::cout<<"speed: "<<xd.head<3>().norm()<<std::endl;
-          
-        //   khc.move_state_ = KEEPCURRENT;
-        //   succeed_flag++;
-        //   khc.is_mode_changed_ = true;
-        // }
 
         else if (timeOut(time.toSec(), khc.motion_start_time_, duration_ + 3.0))
         {
@@ -249,13 +210,12 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
     {
       if(arm.arm_name_=="panda_left"){std::cout<<"\n";}
       std::cout<<"\narm_name: "<<arm.arm_name_<<" // run_time: "<<run_time<<std::endl;
-      std::cout<<"[f_star] [m_star]: "<<f_star.transpose()<<m_star.transpose()<<std::endl;
+      std::cout<<"[f_star] [m_star]: "<<f_star.transpose()<<" "<<m_star.transpose()<<std::endl;
       std::cout<<"force: "<<force.transpose()<<std::endl;
       std::cout<<"distance: "<<(khc.origin_.translation() - current_.translation()).norm()<<std::endl;
       std::cout<<"speed: "<<xd.head<3>().norm()<<std::endl;
     }
 #endif
-    for (int i=0; i<3; i++){if (f_star(i) < max_force) {f_star(i) = max_force;}}
     if(khc.heavy_mass_)
     {
       f_star += khc.accumulated_wrench_.head<3>();

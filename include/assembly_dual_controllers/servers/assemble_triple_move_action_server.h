@@ -27,12 +27,11 @@ class AssembleTripleMoveActionServer : public ActionServerBase
     int wait_{0};
     double motion_start_time_;
     double contact_force_;
+    double speed_;
     bool heavy_mass_;
-    bool is_upper_arm_{false};
     bool is_mode_changed_{true};
     MOVE_STATE move_state_;
     Eigen::Isometry3d origin_;
-    Eigen::Vector3d target_;
     Eigen::Vector6d accumulated_wrench_;
   };
 
@@ -50,15 +49,10 @@ class AssembleTripleMoveActionServer : public ActionServerBase
   std::string upper_arm_;
   std::string stop_arm_1_;
   std::string stop_arm_2_;
-  Eigen::Vector3d dir_;
-  Eigen::Matrix3d top_arm_rot_;
+  Eigen::Vector3d asm_dir_;
   double duration_;
-  bool is_test_;
   bool control_running_;
   int succeed_flag{0};
-  double upper_more_;
-  double stop_speed_;
-  double max_force;
 
 public:
   AssembleTripleMoveActionServer(std::string name, ros::NodeHandle &nh,
