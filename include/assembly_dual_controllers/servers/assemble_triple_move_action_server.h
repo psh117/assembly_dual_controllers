@@ -24,7 +24,6 @@ class AssembleTripleMoveActionServer : public ActionServerBase
   struct a_state_
   {
     int count_{0};
-    int wait_{0};
     double motion_start_time_;
     double contact_force_;
     double speed_;
@@ -51,8 +50,11 @@ class AssembleTripleMoveActionServer : public ActionServerBase
   std::string stop_arm_2_;
   Eigen::Vector3d asm_dir_;
   double duration_;
+  double m_star_limit_;
   bool control_running_;
   int succeed_flag{0};
+
+  std::ofstream contact_force {"stefan_placement_contact_force.txt"}; 
 
 public:
   AssembleTripleMoveActionServer(std::string name, ros::NodeHandle &nh,

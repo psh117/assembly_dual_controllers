@@ -39,9 +39,9 @@ void AssembleTripleMoveActionServer::goalCallback()
   stop_arm_1_ = goal_ -> stop_arm_1;
   stop_arm_2_ = goal_ -> stop_arm_2;
   duration_ = goal_ -> duration;
+  m_star_limit_ = goal_ -> m_star_limit;
 
   hc_["panda_left"] -> count_ = 0;
-  hc_["panda_left"] -> wait_ = 0;
   hc_["panda_left"] -> is_mode_changed_ = true;
   hc_["panda_left"] -> move_state_ = EXEC;
   hc_["panda_left"] -> origin_ = mu_["panda_left"] -> transform_;
@@ -50,7 +50,6 @@ void AssembleTripleMoveActionServer::goalCallback()
   hc_["panda_left"] -> speed_ = goal_ -> speed;
 
   hc_["panda_right"] -> count_ = 0;
-  hc_["panda_right"] -> wait_ = 0;
   hc_["panda_right"] -> is_mode_changed_ = true;
   hc_["panda_right"] -> move_state_ = EXEC;
   hc_["panda_right"] -> origin_ = mu_["panda_right"] -> transform_;
@@ -59,7 +58,6 @@ void AssembleTripleMoveActionServer::goalCallback()
   hc_["panda_right"] -> speed_ = goal_ -> speed;
 
   hc_["panda_top"] -> count_ = 0;
-  hc_["panda_top"] -> wait_ = 0;
   hc_["panda_top"] -> is_mode_changed_ = true;
   hc_["panda_top"] -> move_state_ = EXEC;
   hc_["panda_top"] -> origin_ = mu_["panda_top"] -> transform_;
@@ -131,7 +129,7 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
     std::cout<<"executing motion: "<<khc.move_state_<<std::endl;
 #endif
   }
-  if (khc.count_ < cnt_max)
+  if (khc.count_ > 100000)
   {
     f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 1000, 15);
     m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 2000, 15);
@@ -182,6 +180,17 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
           khc.is_mode_changed_ = true;
         }
 
+        else if (run_time > 0.05 && m_star.norm() > m_star_limit_)
+        {
+          std::cout << "\n!!CHECK MSTAR LIMIT!!\n" << std::endl;
+          std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
+          std::cout<<"m_star: "<<m_star<<std::endl;
+
+          khc.move_state_ = KEEPCURRENT;
+          succeed_flag++;
+          khc.is_mode_changed_ = true;
+        }
+
         else if (timeOut(time.toSec(), khc.motion_start_time_, duration_ + 3.0))
         {
           std::cout << "\n!!!!!TIME OUT!!!!!\n" << std::endl;
@@ -190,10 +199,6 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
           setAborted();
         }
 
-        else
-        {
-          khc.wait_ = 0;
-        }
         break;
 
       case KEEPCURRENT:
@@ -212,17 +217,20 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
       std::cout<<"\narm_name: "<<arm.arm_name_<<" // run_time: "<<run_time<<std::endl;
       std::cout<<"[f_star] [m_star]: "<<f_star.transpose()<<" "<<m_star.transpose()<<std::endl;
       std::cout<<"force: "<<force.transpose()<<std::endl;
-      std::cout<<"distance: "<<(khc.origin_.translation() - current_.translation()).norm()<<std::endl;
-      std::cout<<"speed: "<<xd.head<3>().norm()<<std::endl;
+      std::cout<<"m_star.norm(): "<<m_star.norm()<<std::endl;
+      // std::cout<<"distance: "<<(khc.origin_.translation() - current_.translation()).norm()<<std::endl;
+      // std::cout<<"speed: "<<xd.head<3>().norm()<<std::endl;
     }
 #endif
-    if(khc.heavy_mass_)
-    {
-      f_star += khc.accumulated_wrench_.head<3>();
-      m_star += 1.0 * khc.accumulated_wrench_.tail<3>();
-    }
+    // if(khc.heavy_mass_)
+    // {
+    //   f_star += khc.accumulated_wrench_.head<3>();
+    //   m_star += 1.0 * khc.accumulated_wrench_.tail<3>();
+    // }
   }
   khc.count_++;
+  
+  contact_force << arm.f_ext_.transpose()<<std::endl;
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
