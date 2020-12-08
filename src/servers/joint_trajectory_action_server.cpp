@@ -246,7 +246,17 @@ bool JointTrajectoryActionServer::computeArm(ros::Time time, FrankaModelUpdater 
     Eigen::Vector7d goal_q;
     goal_q = Eigen::Vector7d::Map(goal_->trajectory.points.back().positions.data() + start_index);
     std::cout << "goal_q: " << goal_q.transpose() << std::endl;
-    ROS_INFO("joint_trajectory_done %lf %lf", start_time_.toSec(), total_time.toSec() );
+    std::cout << "joint_trajectory_done " << start_time_.toSec() << " to " << total_time.toSec() << std::endl;
+    double diff = (goal_q-arm.q_).norm();
+    if ( diff > 0.1 )
+    {
+      std::cout << "joint diff to goal is too high. assuming aborted" << std::endl;
+      std::cout << "diff: " << diff << std::endl;
+      std::cout << "goal_q: " << goal_q.transpose() << std::endl;
+      std::cout << "arm.q_: " << arm.q_.transpose() << std::endl;
+      as_.setAborted();
+      control_running_ = false;
+    }
     if (as_.isActive())
     {
       as_.setSucceeded();
