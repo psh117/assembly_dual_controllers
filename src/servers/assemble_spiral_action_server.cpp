@@ -9,7 +9,14 @@ AssembleSpiralActionServer::AssembleSpiralActionServer(std::string name, ros::No
   as_.registerPreemptCallback(boost::bind(&AssembleSpiralActionServer::preemptCallback, this));
   as_.start();
 
-  // spiral_data = fopen("/home/dyros/catkin_ws/src/advanced_robotics_franka_controllers/experiment_data/LHS/spiral_data.txt","w");
+  for (auto iter = mu_.begin(); iter != mu_.end(); iter++)
+  {
+    Eigen::VectorXd spiral_gain(4);
+    spiral_gain << 1000, 10, 3000, 20;      
+    // arm_gain_map_[iter] = std::make_pair(spiral_gain);
+    arm_gain_map_[iter->first] = spiral_gain;
+  }
+  server_  = nh_.advertiseService(name + "_gain_set", &AssembleSpiralActionServer::setTarget, this);  
 }
 
 void AssembleSpiralActionServer::goalCallback()
@@ -39,6 +46,9 @@ void AssembleSpiralActionServer::goalCallback()
   twist_duration_ = goal_->twist_duration;
   set_tilt_ = goal_->set_tilt;
   partial_search_dir_ = goal_->partial_search_dir;
+  global_target_ = goal_->global_target;
+  use_global_depth_ = goal_->use_global_depth;
+
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
   mu_[goal_->arm_name]->task_end_time_ = ros::Time(mu_[goal_->arm_name]->task_start_time_.toSec() + spiral_duration_);
 
@@ -88,6 +98,7 @@ void AssembleSpiralActionServer::goalCallback()
   std::cout<<"friction_: "<<friction_<<std::endl;
   std::cout<<"lin_vel :"<<lin_vel_<<std::endl;
   std::cout<<"origin : \n"<<origin_.matrix()<<std::endl;
+  std::cout<<"global target: "<<global_target_<<std::endl;
   if(set_tilt_) std::cout<<" TILTED "<< std::endl;
 
   twist_pos_save_.setZero();
@@ -137,13 +148,23 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
   Eigen::Vector3d f_star, m_star, m_tilt;
   Eigen::Vector6d f_star_zero, f_ext;
+
   double run_time;
   int cnt_max = 150;
   int cnt_start = 50;
+  double global_depth_change;
 
   f_ext = arm.f_ext_;
   current_ = arm.transform_;
+  global_depth_change = global_target_ - origin_.translation()(2);
   // position_change = (T_WA_.inverse()*current_*T_7A_).translation();
+
+  auto & spiral_gain_set = arm_gain_map_[arm.arm_name_];
+  double kp = spiral_gain_set(0);
+  double kv = spiral_gain_set(1);
+  double kp_o = spiral_gain_set(2);
+  double kv_o = spiral_gain_set(3);
+  // std::cout<<"spiral gain set received : "<< spiral_gain_set.transpose()<<std::endl;
 
   Eigen::Vector3d p_init_a, p_cur_a;
   p_init_a = (T_WA_.inverse() * origin_).translation();
@@ -175,9 +196,9 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
         std::cout<<"start spiral search"<<std::endl;
       } 
-      f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 900, 40, 2000, 15).head<3>(); //w.r.t {W}
+      f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 1000, 10, 2000, 20).head<3>(); //w.r.t {W}
       // m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 900, 40, 2000, 15).tail<3>();
-      m_star = PegInHole::rotateWithMat(origin_, current_, xd, origin_.linear(), time.toSec(), arm.task_start_time_.toSec(), cnt_max/1000, 1500, 10);
+      m_star = PegInHole::rotateWithMat(origin_, current_, xd, origin_.linear(), time.toSec(), arm.task_start_time_.toSec(), cnt_max/1000, 3500, 20);
       break;
   
    case EXEC:
@@ -206,7 +227,8 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
           break; 
         }
       }
-      else if(run_time > 0.5 && detectHole(origin_, current_, f_ext.head<3>() - accumulated_wrench_.head<3>(), T_WA_, friction_*1.5))
+      else if(run_time > 0.5 && use_global_depth_ == true && global_depth_change >= 0.035)
+      // else if(run_time > 0.5 && detectHole(origin_, current_, f_ext.head<3>() - accumulated_wrench_.head<3>(), T_WA_, friction_*1.5))
       {
         if(mode_ == 3 )
         {
@@ -216,7 +238,7 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         }
         else
         {
-          std::cout << "HOLE IS DETECTED" << std::endl;
+          std::cout << "HOLE IS DETECTED WITHOUT SPIRAL MOTION" << std::endl;
           setSucceeded();
           break; 
         }
@@ -225,9 +247,11 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       if (mode_ == 1)
       {
         if (set_tilt_)  m_star = PegInHole::generateMoment(origin_, current_, T_7A_, xd, 1.50*M_PI/180, time.toSec(), arm.task_start_time_.toSec(), 1.0, 2000, 30);       
-        else      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);     
+        else      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, kp_o, kv_o);     
         
-        f_star = PegInHole::generateSpiralEE(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec(), 5.0, set_tilt_);        
+        f_star = PegInHole::generateSpiralEE(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, 
+                                             time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec(), 5.0, 
+                                             set_tilt_, kp, kv);
         
         if(flange_to_assembly_point_distance_ == flange_to_drill_distance_)
         { 
@@ -272,7 +296,7 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       }
       
       f_star = PegInHole::threeDofMove(origin_, current_, return_to_origin_, xd, time.toSec(), arm.task_start_time_.toSec(), 2.0);
-      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, 2000, 15);
+      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, kp_o, kv_o);
       break;
   }
 
@@ -326,3 +350,30 @@ void AssembleSpiralActionServer::setAborted()
   control_running_ = false;
 }
 
+bool AssembleSpiralActionServer::setTarget(assembly_msgs::SetSpiralGain::Request &req,
+                                           assembly_msgs::SetSpiralGain::Response &res)
+{
+  auto it = arm_gain_map_.find(req.arm_name);
+  if (it == arm_gain_map_.end())
+  {
+    ROS_WARN("arm name %s is not in the arm_gain_map_. ignore", req.arm_name.c_str());
+    res.is_succeed = false;
+    return true;
+  }
+
+  if (req.spiral_gain.size() != 4)
+  {
+    ROS_INFO("req.spiral_gain != 4, resetting the gains");
+
+    Eigen::VectorXd spiral_gain(4);
+    spiral_gain << 1000, 10, 3000, 20;      
+    arm_gain_map_[req.arm_name] = spiral_gain;
+  }
+  else
+  {
+    arm_gain_map_[req.arm_name] = Eigen::VectorXd::Map(req.spiral_gain.data(),4);
+  }
+  res.is_succeed = true;
+
+  return true;
+}

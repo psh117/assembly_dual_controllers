@@ -149,11 +149,16 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   double run_time;
   double holding_time = 3.0;
   double delay = 0.5;
+  Eigen::Vector3d p_wa_init, p_wa_cur, p_wa_dis;
 
   f_d.setZero();
   current_ = arm.transform_;
   run_time = time.toSec() - arm.task_start_time_.toSec();
  
+  p_wa_init = T_WA_.translation();
+  p_wa_cur = (current_*T_7A_).translation();
+  p_wa_dis = p_wa_init - p_wa_cur;
+  
   d = (T_7A_.inverse()).translation() - (T_WA_.inverse()*current_).translation();
 
   if(mode_ == 0) // to move backward
@@ -173,7 +178,8 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   }
   else if(mode_ == 1) // to retreat drill from a bolt with force control
   {
-    if(run_time > 1.0 && (abs(d(2)) > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear(), current_.linear(), 10*DEG2RAD))) // dp(2) is always negative 
+    if(run_time > 0.5 && (abs(d(2)) > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear(), current_.linear(), 15*DEG2RAD))) // dp(2) is always negative 
+    // if(run_time > 0.5 && (p_wa_dis.norm() > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear(), current_.linear(), 15*DEG2RAD))) // dp(2) is always negative 
     {
       std::cout<<"Success retreat action"<<std::endl;
       setSucceeded();
@@ -192,7 +198,11 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
       f_star = T_WA_.linear()*f_star;     
       // std::cout<<"f_star : "<< f_star.transpose()<<std::endl;
 
-      if(Criteria::checkForceDivergence(f_star, 80.0)) setSucceeded();
+      if(Criteria::checkForceDivergence(arm.f_ext_.head<3>(), 80.0))
+      {
+        std::cout<<"CAUTION TO BE CARTESIAN REFLEX!!"<<std::endl;
+        setAborted();
+      } 
     }
   }  
 
@@ -318,7 +328,8 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   { 
     double dist;
     dist = sqrt(pow(d(0),2) + pow(d(1),2) + pow(d(2),2));
-    if(run_time > 1.0 && (dist > retreat_distance_ + 0.005 || Criteria::checkOrientationChange(origin_.linear(), current_.linear(), 10*DEG2RAD))) // dp(2) is always negative 
+    // dist = p_wa_dis.norm();
+    if(run_time > 0.5 && (dist > retreat_distance_ + 0.005 || Criteria::checkOrientationChange(origin_.linear(), current_.linear(), 15*DEG2RAD))) // dp(2) is always negative 
     {
       std::cout<<"Success retreat action"<<std::endl;
       setSucceeded();

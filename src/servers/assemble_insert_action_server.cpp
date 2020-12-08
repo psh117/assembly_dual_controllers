@@ -43,7 +43,15 @@ void AssembleInsertActionServer::goalCallback()
   yawing_angle_ = goal_->yawing_angle * DEG2RAD; //radian
   init_yaw_angle_ = mu_[goal_->arm_name]->q_(6,0); //radian
   bolting_vel_threshold_ = goal_->bolting_vel_threshold;
+  time_limit_ = goal_->time_limit;
+  if(time_limit_ == 0)
+  {
+    std::cout<<"Set Time Limit As Default Value, 1000000"<<std::endl;
+    time_limit_ = 1000000.0;
+  }
   std::cout<<goal_->arm_name<<std::endl;
+
+
   // std::cout<<"-------------------------------------"<<std::endl;
   // std::cout<<"init_yaw_angle: "<<init_yaw_angle_<<std::endl;
   // std::cout<<"init_yaw_goal: "<<yawing_angle_<<std::endl;
@@ -226,6 +234,11 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         std::cout << "run time : " << run_time << std::endl;
         std::cout<< "position error : "<< (current_.translation() - origin_.translation()).transpose()<<std::endl;
         setSucceeded();
+      }
+      if(run_time > time_limit_)
+      {
+        std::cout<<"TIME OUT"<<std::endl;
+        setAborted();
       }
 
       bolting_vel = (T_WA_.linear().inverse()*arm.xd_lpf_.head<3>())(2);      

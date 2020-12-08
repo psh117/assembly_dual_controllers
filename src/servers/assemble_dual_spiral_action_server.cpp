@@ -198,7 +198,7 @@ bool AssembleDualSpiralActionServer::computeAssistArm(ros::Time time, FrankaMode
 
   if(assist_arm_action_ == 1) // hold
   {
-    f_star = PegInHole::keepCurrentPosition(assist_arm_origin_, assist_arm_current_, xd, 700, 40);
+    f_star = PegInHole::keepCurrentPosition(assist_arm_origin_, assist_arm_current_, xd, 800, 40);
   }
   else if(assist_arm_action_ == 2) // press
   {

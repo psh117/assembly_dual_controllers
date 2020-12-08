@@ -167,9 +167,9 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
         p_desired = khc.origin_.translation() + khc.speed_ * (time.toSec() - khc.motion_start_time_) * asm_dir_;
 
         f_star = K_p * (p_desired - current_.translation()) + K_v * (v_desired - xd.head<3>());
-        m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 1200, 15);
+        m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 1000, 15);
 
-        if (run_time > 0.05 && Criteria::checkContact(force, Eigen::Isometry3d::Identity(), khc.contact_force_))
+        if (run_time > 1.5 && Criteria::checkContact(force, Eigen::Isometry3d::Identity(), khc.contact_force_))
         {
           std::cout << "\n!!CHECK CONTATCT IN Z DIRECTION!!\n" << std::endl;
           std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
@@ -180,11 +180,12 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
           khc.is_mode_changed_ = true;
         }
 
-        else if (run_time > 0.05 && m_star.norm() > m_star_limit_)
+        else if (run_time > 1.5 && m_star.norm() > m_star_limit_)
         {
           std::cout << "\n!!CHECK MSTAR LIMIT!!\n" << std::endl;
           std::cout<<"arm_name: "<<arm.arm_name_<<std::endl;
-          std::cout<<"m_star: "<<m_star<<std::endl;
+          std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
+          std::cout<<"m_star norm: "<<m_star.norm() <<std::endl;
 
           khc.move_state_ = KEEPCURRENT;
           succeed_flag++;
@@ -202,16 +203,16 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
         break;
 
       case KEEPCURRENT:
-        f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 1000, 15);
+        f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 600, 15);
         break;
 
       case KEEPSTOP:
-        f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 1000, 15);
+        f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 800, 15);
         m_star = PegInHole::keepCurrentOrientation(khc.origin_, current_, xd, 2000, 15);
         break;
     }
 #ifdef TEST_PRINT
-    if (khc.count_ % 500 == 1)
+    if (khc.count_ % 1000 == 1)
     {
       if(arm.arm_name_=="panda_left"){std::cout<<"\n";}
       std::cout<<"\narm_name: "<<arm.arm_name_<<" // run_time: "<<run_time<<std::endl;

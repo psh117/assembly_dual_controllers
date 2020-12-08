@@ -224,7 +224,9 @@ namespace PegInHole
                                      const double t_0,
                                      const double duration,
                                      const double f_gain = 5.0,
-                                     const bool set_tilt = false);
+                                     const bool set_tilt = false,
+                                     const double kp = 1000.0,
+                                     const double kv = 20.0);
 
     Eigen::Vector6d generateSpiralEE_datasave(const Eigen::Isometry3d &origin,
                                               const Eigen::Isometry3d &current,

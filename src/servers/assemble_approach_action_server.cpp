@@ -127,9 +127,9 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   if(count_ < cnt_max)
   { 
     // f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 600, 20, 2000, 15).head<3>(); //w.r.t {W}
-    f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 350, 10);
+    f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 800, 10);
     // m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 800, 40, 2000, 15).tail<3>();
-    m_star = PegInHole::rotateWithMat(origin_, current_, xd, origin_.linear(), time.toSec(), arm.task_start_time_.toSec(), cnt_max/1000, 1000, 10);
+    m_star = PegInHole::rotateWithMat(origin_, current_, xd, origin_.linear(), time.toSec(), arm.task_start_time_.toSec(), cnt_max/1000, 3500, 20);
     
     if(count_ > cnt_start) PegInHole::getCompensationWrench(accumulated_wrench_, f_ext, cnt_start, count_, cnt_max);    
     count_++;
@@ -185,7 +185,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         break;
       }
 
-      if (run_time > 0.5 && Criteria::checkContact(force, T_WA_, contact_force_))
+      if (run_time > 0.1 && Criteria::checkContact(force, T_WA_, contact_force_))
       {
         if (set_tilt_back_) state_ = TILT_BACK;
         else                state_ = IGNORE;

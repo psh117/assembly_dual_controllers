@@ -5,6 +5,7 @@
 #include <assembly_dual_controllers/utils/dyros_math.h>
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 #include <assembly_dual_controllers/utils/control/criteria.h>
+#include <assembly_msgs/SetSpiralGain.h>
 
 using namespace dyros_math;
 using namespace Criteria;
@@ -56,6 +57,9 @@ class AssembleSpiralActionServer : public ActionServerBase
   double flange_to_assembly_point_distance_;
   double flange_to_drill_distance_;
 
+  double global_target_;
+  bool use_global_depth_;
+
   Eigen::Vector3d flange_to_assembly_point_;
   Eigen::Quaterniond flange_to_assembly_quat_;
 
@@ -87,9 +91,13 @@ public:
 
   bool compute(ros::Time time) override;
   bool computeArm(ros::Time time, FrankaModelUpdater &arm);
-
+  std::map<std::string, Eigen::VectorXd> arm_gain_map_;
+  ros::ServiceServer server_;
 
 protected:
   void setSucceeded() override;
   void setAborted() override;
+
+  bool setTarget(assembly_msgs::SetSpiralGain::Request &req, assembly_msgs::SetSpiralGain::Response &res);  
+
 };

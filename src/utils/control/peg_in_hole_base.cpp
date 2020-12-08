@@ -1034,7 +1034,9 @@ Eigen::Vector3d PegInHole::generateSpiralEE(const Eigen::Isometry3d &origin,
                                             const double t_0,
                                             const double duration,
                                             const double f_gain,
-                                            const bool set_tilt)
+                                            const bool set_tilt,
+                                            const double kp,
+                                            const double kv)
 {
   Eigen::Vector2d start_point, traj;
   Eigen::Vector3d f_a, f_motion, f_asm; //wrt {A}
@@ -1046,8 +1048,8 @@ Eigen::Vector3d PegInHole::generateSpiralEE(const Eigen::Isometry3d &origin,
   Eigen::Isometry3d T_wa;
   Eigen::Vector3d asm_dir;
 
-  K_p = Eigen::Matrix3d::Identity() * 1000;
-  K_v = Eigen::Matrix3d::Identity() * 20;
+  K_p = Eigen::Matrix3d::Identity() * kp;
+  K_v = Eigen::Matrix3d::Identity() * kv;
   // asm_dir = T_7a.linear().col(2); //w.r.t {E}
   asm_dir = Eigen::Vector3d::UnitZ();
   start_point.setZero();
