@@ -88,6 +88,7 @@ void AssembleDualSpiralActionServer::goalCallback()
   std::cout<<"pressing_force: "<<pressing_force_<<std::endl;
   std::cout<<"spiral pitch : "<<pitch_<<std::endl;
   std::cout<<"save the spiral origin: \n"<<result_.spiral_origin<<std::endl;
+  std::cout<<"T_7A_task : \n"<<T_7A_task_.matrix()<<std::endl;
 }
 
 void AssembleDualSpiralActionServer::preemptCallback()
