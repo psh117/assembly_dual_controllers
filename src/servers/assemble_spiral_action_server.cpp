@@ -253,15 +253,15 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
                                              time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec(), 5.0, 
                                              set_tilt_, kp, kv);
         
-        if(flange_to_assembly_point_distance_ == flange_to_drill_distance_)
-        { 
-          Eigen::Vector3d f_asm, m_a, m_compensation, p_ae;
-          f_asm << 0.0, 0.0, f_star(2); // f_star is still represented w.r.t {A}
-          p_ae = T_7A_.inverse().translation();
-          m_a = -3.0*p_ae.cross(f_asm);
-          m_compensation = T_WA_.linear().inverse()*m_a;
-          m_star = m_star + m_compensation;
-        }
+        // if(flange_to_assembly_point_distance_ == flange_to_drill_distance_)
+        // { 
+        //   Eigen::Vector3d f_asm, m_a, m_compensation, p_ae;
+        //   f_asm << 0.0, 0.0, f_star(2); // f_star is still represented w.r.t {A}
+        //   p_ae = T_7A_.inverse().translation();
+        //   m_a = -3.0*p_ae.cross(f_asm);
+        //   m_compensation = T_WA_.linear().inverse()*m_a;
+        //   m_star = m_star + m_compensation;
+        // }
 
         f_star = T_WA_.linear()*f_star;
         
