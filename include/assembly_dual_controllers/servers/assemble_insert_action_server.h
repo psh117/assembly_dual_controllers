@@ -61,6 +61,7 @@ class AssembleInsertActionServer : public ActionServerBase
     double bolting_minimum_depth_;
     double bolting_vel_threshold_;  
     double time_limit_;
+    double bolting_vel_prev_{1.0};
 
     std::ofstream save_insert_pose_data {"insert_pose_data.txt"};
     std::ofstream save_insertion_vel{"insertion_vel_data.txt"};

@@ -203,8 +203,8 @@ bool AssembleTripleMoveActionServer::computeArm(ros::Time time, FrankaModelUpdat
         break;
 
       case KEEPCURRENT:
-        f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 600, 15);
-        // f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 300, 15);
+        // f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 600, 15);
+        f_star = PegInHole::keepCurrentPosition(khc.origin_, current_, xd, 300, 15);
         break;
 
       case KEEPSTOP:

@@ -644,7 +644,7 @@ Eigen::Vector3d quinticSpline(
   return result;
 }
 
-inline double lowPassFilter(double input, double prev, double ts, double tau)
+double lowPassFilter(double input, double prev, double ts, double tau)
 {
   return (tau * prev + ts * input) / (tau + ts);
 }

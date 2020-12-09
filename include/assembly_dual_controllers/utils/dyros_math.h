@@ -334,7 +334,7 @@ Eigen::Vector3d quinticSpline(
     double x_dot_f,   ///< End state
     double x_ddot_f); ///< End state ddot
 
-inline double lowPassFilter(double input, double prev, double ts, double tau);
+double lowPassFilter(double input, double prev, double ts, double tau);
 template <int N>
 Eigen::Matrix<double, N, 1> lowPassFilter(Eigen::Matrix<double, N, 1> input, Eigen::Matrix<double, N, 1> prev, double ts, double tau)
 {

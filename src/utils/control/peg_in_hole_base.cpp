@@ -2011,13 +2011,13 @@ Eigen::Vector6d PegInHole::generateRotationToDisassembleEE(const Eigen::Isometry
   m_a.head<2>() = m_asm.head<2>();
   m_a.tail<1>() = m_motion.tail<1>();
 
-  std::cout<<"================================="<<std::endl;
-  std::cout<<"l        : "<< l<<std::endl;
-  std::cout<<"theta : "<< theta*RAD2DEG<<std::endl;
-  std::cout<<"cross : "<< (T_7a.translation().cross(f_asm)).transpose()<<std::endl;
-  std::cout<<"const : " << 0.0<< ","<< moment<<","<< 0.0<<std::endl;
-  std::cout<<"m_d   : "<<m_d.transpose()<<std::endl;
-  std::cout<<"m_a   : "<< m_a.transpose()<<std::endl;
+  // std::cout<<"================================="<<std::endl;
+  // std::cout<<"l        : "<< l<<std::endl;
+  // std::cout<<"theta : "<< theta*RAD2DEG<<std::endl;
+  // std::cout<<"cross : "<< (T_7a.translation().cross(f_asm)).transpose()<<std::endl;
+  // std::cout<<"const : " << 0.0<< ","<< moment<<","<< 0.0<<std::endl;
+  // std::cout<<"m_d   : "<<m_d.transpose()<<std::endl;
+  // std::cout<<"m_a   : "<< m_a.transpose()<<std::endl;
 
   f_star_zero_a<< f_a, m_a;
 

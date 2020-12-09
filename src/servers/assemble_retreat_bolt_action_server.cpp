@@ -178,8 +178,8 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   }
   else if(mode_ == 1) // to retreat drill from a bolt with force control
   {
-    if(run_time > 0.5 && (abs(d(2)) > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear(), current_.linear(), 15*DEG2RAD))) // dp(2) is always negative 
-    // if(run_time > 0.5 && (p_wa_dis.norm() > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear(), current_.linear(), 15*DEG2RAD))) // dp(2) is always negative 
+    if(run_time > 0.5 && (d.norm() > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear()* T_7A_.linear(), current_.linear()* T_7A_.linear(), 15*DEG2RAD))) // dp(2) is always negative 
+    // if(run_time > 0.5 && (p_wa_dis.norm() > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear() * T_7A_.linear(), current_.linear() * T_7A_.linear(), 15*DEG2RAD))) // dp(2) is always negative 
     {
       std::cout<<"Success retreat action"<<std::endl;
       setSucceeded();
@@ -193,8 +193,7 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
     }
     if(run_time >= holding_time)
     {
-      f_star = PegInHole::generateRotationToDisassembleEE(origin_, current_, xd, arm.f_ext_, T_7A_, -retreat_force_, -retreat_moment_, 
-                                                          -M_PI/180, time.toSec(), arm.task_start_time_.toSec() + holding_time, duration_).head<3>();    
+      f_star = PegInHole::generateRotationToDisassembleEE(origin_, current_, xd, arm.f_ext_, T_7A_, -retreat_force_, -retreat_moment_, -M_PI/180, time.toSec(), arm.task_start_time_.toSec() + holding_time, duration_).head<3>();    
       f_star = T_WA_.linear()*f_star;     
       // std::cout<<"f_star : "<< f_star.transpose()<<std::endl;
 

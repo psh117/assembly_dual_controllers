@@ -227,7 +227,11 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       p_cur_a = (T_WA_.inverse() * current_).translation();
       insertion_depth_ = abs(p_cur_a(2) - p_init_a(2));
             
-      if(run_time > 0.5 && insertion_depth_ >= bolting_minimum_depth_ && bolting_stop_count_ > max_bolting_stop_count)
+      bolting_vel = (T_WA_.linear().inverse()*arm.xd_lpf_.head<3>())(2);      
+      bolting_vel = dyros_math::lowPassFilter(bolting_vel, bolting_vel_prev_, 0.001, 2.0);
+      bolting_vel_prev_ = bolting_vel;
+      
+      if(run_time > 0.5 && insertion_depth_ >= bolting_minimum_depth_ && abs(bolting_vel) <= bolting_vel_threshold_)
       {
         std::cout << "BOLTING IS DONE" << std::endl;
         std::cout << "displacement: " << abs(p_cur_a(2) - p_init_a(2)) << std::endl;
@@ -241,9 +245,8 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         setAborted();
       }
 
-      bolting_vel = (T_WA_.linear().inverse()*arm.xd_lpf_.head<3>())(2);      
-      if(abs(bolting_vel) <= bolting_vel_threshold_)  bolting_stop_count_++;
-      else                      bolting_stop_count_ = 0;
+      // if(abs(bolting_vel) <= bolting_vel_threshold_)  bolting_stop_count_++;
+      // else                                            bolting_stop_count_ = 0;
 
   
       f_star = PegInHole::pressCubicEE(origin_, current_, xd, T_WA_, insertion_force_, time.toSec(), arm.task_start_time_.toSec(), duration_/2);
