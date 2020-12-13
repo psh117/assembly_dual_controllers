@@ -185,7 +185,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
         break;
       }
 
-      if (run_time > 0.1 && Criteria::checkContact(force, T_WA_, contact_force_))
+      if (run_time > 0.5 && Criteria::checkContact(force, T_WA_, contact_force_))
       {
         if (set_tilt_back_) state_ = TILT_BACK;
         else                state_ = IGNORE;

@@ -228,10 +228,10 @@ bool AssembleInsertActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       insertion_depth_ = abs(p_cur_a(2) - p_init_a(2));
             
       bolting_vel = (T_WA_.linear().inverse()*arm.xd_lpf_.head<3>())(2);      
-      bolting_vel = dyros_math::lowPassFilter(bolting_vel, bolting_vel_prev_, 0.001, 2.0);
+      bolting_vel = dyros_math::lowPassFilter(bolting_vel, bolting_vel_prev_, 0.001, 1.5);
       bolting_vel_prev_ = bolting_vel;
       
-      if(run_time > 0.5 && insertion_depth_ >= bolting_minimum_depth_ && abs(bolting_vel) <= bolting_vel_threshold_)
+      if(run_time > 2.0 && insertion_depth_ >= bolting_minimum_depth_ && abs(bolting_vel) <= bolting_vel_threshold_)
       {
         std::cout << "BOLTING IS DONE" << std::endl;
         std::cout << "displacement: " << abs(p_cur_a(2) - p_init_a(2)) << std::endl;

@@ -152,9 +152,9 @@ bool AssembleBackForthActionServer::computeArm(ros::Time time, FrankaModelUpdate
 #ifdef TEST_PRINT
     if (count_ % 200 == 1)
     {
-      std::cout<<"\narm_name: "<<arm.arm_name_<<" // run_time: "<<run_time<<std::endl;
-      std::cout<<"[f_star] [m_star]: "<<f_star.transpose()<<m_star.transpose()<<std::endl;
-      std::cout<<"force: "<<force(axis_)<<std::endl;
+      // std::cout<<"\narm_name: "<<arm.arm_name_<<" // run_time: "<<run_time<<std::endl;
+      // std::cout<<"[f_star] [m_star]: "<<f_star.transpose()<<m_star.transpose()<<std::endl;
+      // std::cout<<"force: "<<force(axis_)<<std::endl;
     }
 #endif
     if(heavy_mass_)

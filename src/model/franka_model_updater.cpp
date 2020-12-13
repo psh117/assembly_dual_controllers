@@ -1,6 +1,6 @@
 #include <assembly_dual_controllers/utils/model/franka_model_updater.h>
 
-const double FrankaModelUpdater::PRINT_RATE = 0.01;//0.5;//10.0;
+const double FrankaModelUpdater::PRINT_RATE = 0.0001;//0.5;//10.0;
 
 FrankaModelUpdater::FrankaModelUpdater() {
   initialize();
