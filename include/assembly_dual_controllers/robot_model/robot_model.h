@@ -8,10 +8,13 @@ class RobotModel
 public:
   RobotModel() {}
 
-  virtual Eigen::MatrixXd getJacobianMatrix(const Eigen::VectorXd &q) const = 0;
-  virtual Eigen::Vector3d getTranslation(const Eigen::VectorXd &q) const = 0;
-  virtual Eigen::Matrix3d getRotation(const Eigen::VectorXd &q) const = 0;
-  virtual Eigen::Isometry3d getTransform(const Eigen::VectorXd &q) const = 0; 
+  virtual Eigen::MatrixXd getJacobianMatrix(const Eigen::Ref<const Eigen::VectorXd> &q) const = 0;
+  virtual Eigen::MatrixXd getJacobianMatrix(const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::Vector3d> & tool_tf) const = 0;
+  virtual Eigen::Vector3d getTranslation(const Eigen::Ref<const Eigen::VectorXd> &q) const = 0;
+  virtual Eigen::Vector3d getTranslation(const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::Vector3d> & tool_tf) const = 0;
+  virtual Eigen::Matrix3d getRotation(const Eigen::Ref<const Eigen::VectorXd> &q) const = 0;
+  virtual Eigen::Isometry3d getTransform(const Eigen::Ref<const Eigen::VectorXd> &q) const = 0; 
+  virtual Eigen::Isometry3d getTransform(const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::Vector3d> & tool_tf) const = 0;
   virtual Eigen::MatrixXd getJointLimit() const = 0;
   virtual Eigen::VectorXd getInitialConfiguration() const = 0;
 

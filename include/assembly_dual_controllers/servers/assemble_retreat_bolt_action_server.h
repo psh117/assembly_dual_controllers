@@ -26,7 +26,7 @@ class AssembleRetreatBoltActionServer : public ActionServerBase
     Eigen::Vector3d flange_to_assembly_point_;
     Eigen::Quaterniond flange_to_assembly_quat_;
    
-    Eigen::Isometry3d T_7A_, T_WA_;
+    Eigen::Isometry3d T_7A_, T_WA_, T_WA_2_;
     
     bool wiggle_motion_;
     bool wiggle_motion_z_axis_;
@@ -52,6 +52,7 @@ class AssembleRetreatBoltActionServer : public ActionServerBase
     Eigen::Matrix3d compliant_translation_ee_select_mtx_;
     
     int mode_;
+    int print_count_;
 
     std::ofstream reaction_force {"retreat_reaction_force.txt"};
     std::ofstream command_force {"command_force.txt"};

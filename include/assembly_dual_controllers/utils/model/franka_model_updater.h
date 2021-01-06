@@ -39,6 +39,8 @@ struct FrankaModelUpdater
   Eigen::Matrix<double, 7, 1> gravity_;
   Eigen::Matrix<double, 6, 7> jacobian_;
   Eigen::Matrix<double, 7, 6> jacobian_bar_; ///< dynamically consistent inverse
+  Eigen::Matrix<double, 6, 7> jacobian_long_drill_;
+  Eigen::Matrix<double, 7, 6> jacobian_long_drill_bar_; ///< dynamically consistent inverse
   Eigen::Matrix<double, 6, 6> manipulability_;
   double manipulability_measure_;
   Eigen::Matrix<double, 7, 7> null_projector_; ///< dynamically consistent inverse
@@ -46,7 +48,9 @@ struct FrankaModelUpdater
   Eigen::Matrix<double, 3, 1> position_lpf_;
   Eigen::Matrix<double, 3, 3> rotation_;
   Eigen::Isometry3d transform_;
+  Eigen::Isometry3d transform_long_drill_;
   Eigen::Matrix<double, 6, 1> xd_;
+  Eigen::Matrix<double, 6, 1> xd_long_drill_;
   Eigen::Matrix<double, 6, 1> xd_prev_;
   Eigen::Matrix<double, 6, 1> xd_lpf_;
   Eigen::Matrix<double, 7, 1> q_limit_center_;

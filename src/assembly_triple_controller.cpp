@@ -340,6 +340,8 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_back_forth_control", node_handle, arms_data_);
   assemble_bolting_ready_action_server_ = std::make_shared<AssembleBoltingReadyActionServer>
   ("/assembly_dual_controller/assemble_bolting_ready_control", node_handle, arms_data_);
+  assemble_GMM_spiral_action_server_ = std::make_shared<AssembleGMMSpiralActionServer>
+  ("/assembly_dual_controller/assemble_GMM_spiral_control", node_handle, arms_data_);
   // single_peginhole_action_server_ = std::make_shared<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
 
@@ -362,6 +364,7 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   action_servers_.push_back(assemble_kitting_action_server_);
   action_servers_.push_back(assemble_back_forth_action_server_);
   action_servers_.push_back(assemble_bolting_ready_action_server_);
+  action_servers_.push_back(assemble_GMM_spiral_action_server_);
   
   std::string homedir = getenv("HOME");
   

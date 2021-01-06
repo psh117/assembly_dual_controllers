@@ -6,12 +6,19 @@ FrankaPandaModel::FrankaPandaModel()
   initModel();
 }
 
-Eigen::MatrixXd FrankaPandaModel::getJacobianMatrix(const Eigen::VectorXd &q) const
+Eigen::MatrixXd FrankaPandaModel::getJacobianMatrix(const Eigen::Ref<const Eigen::VectorXd> &q) const
 {
+  auto ee_default = Eigen::Vector3d(0.0, 0.0, 0.107);
+  return getJacobianMatrix(q, ee_default);
+}
+
+Eigen::MatrixXd FrankaPandaModel::getJacobianMatrix(const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::Vector3d> & tool_tf) const
+{
+  Eigen::Vector3d tool_position = rot_ee_ * tool_tf;
   Eigen::MatrixXd j_temp;
   j_temp.setZero(6, kDof);
   Eigen::Matrix<double, 6, kDof> j;
-  RigidBodyDynamics::CalcPointJacobian6D(*model_, q, body_id_[kDof - 1], ee_position_, j_temp, true);
+  RigidBodyDynamics::CalcPointJacobian6D(*model_, q, body_id_[kDof - 1], tool_position, j_temp, true);
 
   for (int i = 0; i < 2; i++)
   {
@@ -21,22 +28,40 @@ Eigen::MatrixXd FrankaPandaModel::getJacobianMatrix(const Eigen::VectorXd &q) co
   return j;
 }
 
-Eigen::Vector3d FrankaPandaModel::getTranslation(const Eigen::VectorXd &q) const
+Eigen::Vector3d FrankaPandaModel::getTranslation(const Eigen::Ref<const Eigen::VectorXd> &q) const
 {
   return RigidBodyDynamics::CalcBodyToBaseCoordinates(*model_, q, body_id_[kDof - 1], ee_position_, true);
 }
 
-Eigen::Matrix3d FrankaPandaModel::getRotation(const Eigen::VectorXd &q) const
+Eigen::Vector3d FrankaPandaModel::getTranslation(const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::Vector3d> & tool_tf) const
+{
+  Eigen::Vector3d tool_position = rot_ee_ * tool_tf;
+  return RigidBodyDynamics::CalcBodyToBaseCoordinates(*model_, q, body_id_[kDof - 1], ee_position_, true);
+}
+
+Eigen::Matrix3d FrankaPandaModel::getRotation(const Eigen::Ref<const Eigen::VectorXd> &q) const
 {
   auto M = rot_ee_ * Eigen::AngleAxisd(-M_PI/4., Eigen::Vector3d::UnitZ());
   return RigidBodyDynamics::CalcBodyWorldOrientation(*model_, q, body_id_[kDof - 1], true).transpose() * M;
 }
 
-Eigen::Isometry3d FrankaPandaModel::getTransform(const Eigen::VectorXd &q) const
+Eigen::Isometry3d FrankaPandaModel::getTransform(const Eigen::Ref<const Eigen::VectorXd> &q) const
 {
   Eigen::Isometry3d transform;
   transform.linear() = getRotation(q);
   transform.translation() = getTranslation(q);
+
+  return transform;
+}
+
+Eigen::Isometry3d FrankaPandaModel::getTransform(const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::Vector3d> & tool_tf) const
+{
+  Eigen::Isometry3d transform;
+  Eigen::Matrix3d R_7a;
+  R_7a << 0.0, 0.0, -1.0, 0.0, -1.0, 0.0, -1.0, 0.0, 0.0;
+
+  transform.linear() = getRotation(q)*R_7a;
+  transform.translation() = getTranslation(q, tool_tf);
 
   return transform;
 }

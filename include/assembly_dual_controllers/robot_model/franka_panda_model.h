@@ -16,10 +16,13 @@ public:
 
   FrankaPandaModel();
 
-  Eigen::MatrixXd getJacobianMatrix(const Eigen::VectorXd &q) const override;
-  Eigen::Vector3d getTranslation(const Eigen::VectorXd &q) const override;
-  Eigen::Matrix3d getRotation(const Eigen::VectorXd &q) const override;
-  Eigen::Isometry3d getTransform(const Eigen::VectorXd &q) const override;
+  Eigen::MatrixXd getJacobianMatrix(const Eigen::Ref<const Eigen::VectorXd> &q) const override;
+  Eigen::MatrixXd getJacobianMatrix(const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::Vector3d> & tool_tf) const override;
+  Eigen::Vector3d getTranslation(const Eigen::Ref<const Eigen::VectorXd> &q) const override;
+  Eigen::Vector3d getTranslation(const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::Vector3d> & tool_tf) const override;
+  Eigen::Matrix3d getRotation(const Eigen::Ref<const Eigen::VectorXd> &q) const override;
+  Eigen::Isometry3d getTransform(const Eigen::Ref<const Eigen::VectorXd> &q) const override;
+  Eigen::Isometry3d getTransform(const Eigen::Ref<const Eigen::VectorXd> &q, const Eigen::Ref<const Eigen::Vector3d> & tool_tf) const override;
   Eigen::MatrixXd getJointLimit() const override;
   Eigen::VectorXd getInitialConfiguration() const override;
 

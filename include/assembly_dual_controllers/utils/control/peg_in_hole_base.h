@@ -187,6 +187,18 @@ namespace PegInHole
                                 const double kp = 800,
                                 const double kv = 20);
 
+    Eigen::Vector6d pressCubicEE2(const Eigen::Isometry3d &origin,
+                                  const Eigen::Isometry3d &current,
+                                  const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                  const Eigen::Isometry3d &T_wa,
+                                  const double force,
+                                  const double t,
+                                  const double t_0,
+                                  const double duration,
+                                  const double f_init = 0.0,
+                                  const double kp = 800,
+                                  const double kv = 20);
+
     Eigen::Vector6d generateTwistSpiralEE(const Eigen::Isometry3d &origin,
                                           const Eigen::Isometry3d &current,
                                           const Eigen::Ref<const Eigen::Vector6d> &xd,
@@ -227,6 +239,21 @@ namespace PegInHole
                                      const bool set_tilt = false,
                                      const double kp = 1000.0,
                                      const double kv = 20.0);
+
+    Eigen::Vector6d generateSpiralEE2(const Eigen::Isometry3d &origin,
+                                      const Eigen::Isometry3d &current,
+                                      const Eigen::Ref<const Eigen::Vector6d> &xd,
+                                      const double pitch,
+                                      const double lin_vel,
+                                      const double force,
+                                      const Eigen::Isometry3d &T_ea, //the direction where a peg is inserted, wrt {E} .i.e., T_ga
+                                      const double t,
+                                      const double t_0,
+                                      const double duration,
+                                      const double f_gain = 5.0,
+                                      const bool set_tilt = false,
+                                      const double kp = 1000.0,
+                                      const double kv = 20.0);
 
     Eigen::Vector6d generateSpiralEE_datasave(const Eigen::Isometry3d &origin,
                                               const Eigen::Isometry3d &current,

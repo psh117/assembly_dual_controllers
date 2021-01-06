@@ -42,6 +42,7 @@
 #include <assembly_dual_controllers/servers/assemble_kitting_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_back_forth_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_bolting_ready_action_server.h>
+#include <assembly_dual_controllers/servers/assemble_GMM_spiral_action_server.h>
 
 
 // #include <assembly_dual_controllers/single_peginhole_action_server.h>
@@ -101,6 +102,7 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   std::shared_ptr<AssembleKittingActionServer> assemble_kitting_action_server_;
   std::shared_ptr<AssembleBackForthActionServer> assemble_back_forth_action_server_;
   std::shared_ptr<AssembleBoltingReadyActionServer> assemble_bolting_ready_action_server_;
+  std::shared_ptr<AssembleGMMSpiralActionServer> assemble_GMM_spiral_action_server_;
   std::shared_ptr<IdleControlServer> idle_control_server_;
   
   std::vector<std::shared_ptr<ActionServerBase>> action_servers_;

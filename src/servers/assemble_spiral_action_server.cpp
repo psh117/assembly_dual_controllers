@@ -227,7 +227,23 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
           break; 
         }
       }
-      else if(run_time > 0.5 && use_global_depth_ == true && global_depth_change >= 0.035)
+      if (run_time > 0.5 && detectHole(origin_, current_, f_ext.head<3>() - accumulated_wrench_.head<3>(), T_WA_, friction_*1.85))      
+      {
+        if(mode_ == 3 )
+        {
+          state_ = RETURN;
+          is_mode_changed_ = true;
+          break;
+        }
+        else
+        {
+          std::cout << "HOLE IS DETECTED" << std::endl;
+          setSucceeded();
+          break; 
+        }
+      }
+
+      else if(run_time > 0.5 && use_global_depth_ == true && global_depth_change >= 0.030)
       // else if(run_time > 0.5 && detectHole(origin_, current_, f_ext.head<3>() - accumulated_wrench_.head<3>(), T_WA_, friction_*1.5))
       {
         if(mode_ == 3 )

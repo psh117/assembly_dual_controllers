@@ -28,8 +28,9 @@ void AssembleRetreatBoltActionServer::goalCallback()
   mu_[goal_->arm_name]->task_start_time_ = ros::Time::now();
   changed_task_time_ = mu_[goal_->arm_name]->task_start_time_.toSec();
 
-  origin_ = mu_[goal_->arm_name]->transform_;
-  
+  origin_ = mu_[goal_->arm_name]->transform_; 
+  // origin_  = mu_[goal_->arm_name]->transform_long_drill_; // reflect long drill tool!!!
+
   retreat_force_ = goal_->retreat_force;
   retreat_moment_ = goal_->retreat_moment;
   retreat_distance_ = goal_->retreat_distance;
@@ -60,10 +61,17 @@ void AssembleRetreatBoltActionServer::goalCallback()
   flange_to_assembly_quat_.z() = goal_->ee_to_assemble.orientation.z;
   flange_to_assembly_quat_.w() = goal_->ee_to_assemble.orientation.w;
 
+  // T_7A_.setIdentity();
   T_7A_.linear() = flange_to_assembly_quat_.toRotationMatrix();
   T_7A_.translation() = flange_to_assembly_point_;
- 
+  
+  Eigen::Isometry3d T_7A_kw;
+  T_7A_kw.setIdentity();
+  T_7A_kw.linear() = flange_to_assembly_quat_.toRotationMatrix();
+
   T_WA_ = origin_*T_7A_;
+  T_WA_2_ = origin_*T_7A_kw;
+  // T_WA_= origin_; // consider long drill tool
 
   wiggle_angular_vel_ = 4*M_PI; // 2pi / s
   
@@ -77,7 +85,7 @@ void AssembleRetreatBoltActionServer::goalCallback()
   std::cout<<"ORIGIN: "<<origin_.translation().transpose()<<std::endl;
   std::cout<<"before retreating TF : \n"<< origin_.linear()<<std::endl;
    
-   // To define parameters of wiggle motion along z-axis
+  // To define parameters of wiggle motion along z-axis
   
   if(mu_[goal_->arm_name]->q_(6,0) + wiggle_angle_ >= rbdl_panda_.getJointLimit()(6,1))
   {
@@ -101,7 +109,7 @@ void AssembleRetreatBoltActionServer::goalCallback()
   init_stage_force_error_.setZero();
   retreat_stage_force_error_.setZero();
   f_ext_lpf_.setZero();
-
+  print_count_ = 0.0;
   control_running_ = true;
 }
 
@@ -139,126 +147,138 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   // auto & rotation = arm.rotation_;
   // auto & position = arm.position_;
   auto & jacobian = arm.jacobian_;
+  // auto & jacobian = arm.jacobian_long_drill_;
   // auto & tau_measured = arm.tau_measured_;
   // auto & gravity = arm.gravity_;
   auto & xd = arm.xd_; //velocity
+  // auto & xd = arm.xd_long_drill_; //velocity
 
   Eigen::Vector3d f_star, m_star, m_wig, m_wig_z;
   Eigen::Vector6d f_star_zero, f_d;
-  Eigen::Vector3d d;
+  Eigen::Vector3d d, d_2;
   double run_time;
   double holding_time = 3.0;
   double delay = 0.5;
   Eigen::Vector3d p_wa_init, p_wa_cur, p_wa_dis;
+  Eigen::Vector3d del_p;
 
   f_d.setZero();
   current_ = arm.transform_;
+  // current_ = arm.transform_long_drill_;
   run_time = time.toSec() - arm.task_start_time_.toSec();
  
-  p_wa_init = T_WA_.translation();
-  p_wa_cur = (current_*T_7A_).translation();
-  p_wa_dis = p_wa_init - p_wa_cur;
+  // p_wa_init = T_WA_.translation();
+  // p_wa_cur = (current_*T_7A_).translation();
+  // p_wa_dis = p_wa_init - p_wa_cur;
   
   d = (T_7A_.inverse()).translation() - (T_WA_.inverse()*current_).translation();
-
-  if(mode_ == 0) // to move backward
+  d_2 = (T_WA_2_.inverse()*current_).translation();
+  if (mode_ == 0) // to move backward
   {
-    if(Criteria::timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_))
+    if (Criteria::timeOut(time.toSec(), arm.task_start_time_.toSec(), duration_))
     {
-      std::cout<<"Move backward is done"<<std::endl;
+      std::cout << "Move backward is done" << std::endl;
       setSucceeded();
       return true;
     }
     Eigen::Vector3d f_a;
     f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 700.0, 40.0);
-    f_a = T_WA_.linear().inverse()*f_star; // transfomr from {W} to {A}
-    f_a = compliant_translation_ee_select_mtx_*f_a; // set complianct motion 
-    f_star = T_WA_.linear()*f_a;
+    f_a = T_WA_.linear().inverse() * f_star;          // transfomr from {W} to {A}
+    f_a = compliant_translation_ee_select_mtx_ * f_a; // set complianct motion
+    f_star = T_WA_.linear() * f_a;
+    // std::cout<< "here" << std::endl;
     // std::cout<<"f_star with compliant motion : "<<f_star.transpose()<<std::endl;
   }
-  else if(mode_ == 1) // to retreat drill from a bolt with force control
+  else if (mode_ == 1) // to retreat drill from a bolt with force control
   {
-    if(run_time > 0.5 && (d.norm() > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear()* T_7A_.linear(), current_.linear()* T_7A_.linear(), 15*DEG2RAD))) // dp(2) is always negative 
-    // if(run_time > 0.5 && (p_wa_dis.norm() > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear() * T_7A_.linear(), current_.linear() * T_7A_.linear(), 15*DEG2RAD))) // dp(2) is always negative 
+    if (run_time > 0.5 && (d.norm() > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear() * T_7A_.linear(), current_.linear() * T_7A_.linear(), 15 * DEG2RAD))) // dp(2) is always negative
+    // if(run_time > 0.5 && (p_wa_dis.norm() > retreat_distance_ || Criteria::checkOrientationChange(origin_.linear() * T_7A_.linear(), current_.linear() * T_7A_.linear(), 15*DEG2RAD))) // dp(2) is always negative
     {
-      std::cout<<"Success retreat action"<<std::endl;
+      std::cout << "Success retreat action" << std::endl;
       setSucceeded();
       return true;
     }
-    if(Criteria::timeOut(time.toSec(), arm.task_start_time_.toSec(), time_limit_))
+    if (Criteria::timeOut(time.toSec(), arm.task_start_time_.toSec(), time_limit_))
     {
-      std::cout<<"Fail retreat action"<<std::endl;
+      std::cout << "Fail retreat action" << std::endl;
       setAborted();
       return true;
     }
-    if(run_time >= holding_time)
+    if (run_time >= holding_time)
     {
-      f_star = PegInHole::generateRotationToDisassembleEE(origin_, current_, xd, arm.f_ext_, T_7A_, -retreat_force_, -retreat_moment_, -M_PI/180, time.toSec(), arm.task_start_time_.toSec() + holding_time, duration_).head<3>();    
-      f_star = T_WA_.linear()*f_star;     
+      f_star = PegInHole::generateRotationToDisassembleEE(origin_, current_, xd, arm.f_ext_, T_7A_, -retreat_force_, -retreat_moment_, -M_PI / 180, time.toSec(), arm.task_start_time_.toSec() + holding_time, duration_).head<3>();
+      f_star = T_WA_.linear() * f_star;
       // std::cout<<"f_star : "<< f_star.transpose()<<std::endl;
-
-      if(Criteria::checkForceDivergence(arm.f_ext_.head<3>(), 80.0))
+      //std::cout << "T_WA_.linear() \n" << T_WA_.linear() << std::endl;
+      if (Criteria::checkForceDivergence(arm.f_ext_.head<3>(), 80.0))
       {
-        std::cout<<"CAUTION TO BE CARTESIAN REFLEX!!"<<std::endl;
+        std::cout << "CAUTION TO BE CARTESIAN REFLEX!!" << std::endl;
         setAborted();
-      } 
+      }
     }
-  }  
-
-  else if(mode_ == 2) // to retreat drill from a bolt with velocity control
+  }
+  else if (mode_ == 2) // to retreat drill from a bolt with velocity control
   {
-    if(run_time > 1.0 && abs(d(2)) > retreat_distance_) // dp(2) is always negative 
-    // if(run_time > 1.0 && abs(d(2)) > retreat_distance_) // dp(2) is always negative 
+    
+    if(run_time > 1.0 && abs(d_2(2)) > retreat_distance_) // dp(2) is always negative
     {
-      std::cout<<"Success retreat action(velocity)"<<std::endl;
-      std::cout<<"d : "<<abs(d(2))<<std::endl;
+      std::cout << "Success retreat action(velocity)" << std::endl;
+      std::cout << "d : " << abs(d(2)) << std::endl;
+      std::cout<<"origin : "<<origin_.translation().transpose()<<std::endl;
+      std::cout<<"curren : "<<current_.translation().transpose()<<std::endl;
       setSucceeded();
       return true;
     }
-    if(Criteria::timeOut(time.toSec(), arm.task_start_time_.toSec(), time_limit_))
+    if (Criteria::timeOut(time.toSec(), arm.task_start_time_.toSec(), time_limit_))
     {
-      std::cout<<"Fail retreat action"<<std::endl;
+      std::cout << "Fail retreat action" << std::endl;
       setAborted();
       return true;
     }
-    
+
     Eigen::Vector3d target;
-    target << 0.0, 0.0, -retreat_distance_*1.2;
-    f_star = PegInHole::threeDofMoveEE(origin_, current_, target, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), duration_, 300.0, 20.0); 
-    // f_star.head<2>().setZero();
-    f_star = T_WA_.linear()*f_star;
-    reaction_force << arm.f_ext_.transpose()<<std::endl;
-    // std::cout<<"run_time : "<<run_time<<std::endl;
-  } 
+    Eigen::Isometry3d I;
+    I = Eigen::Isometry3d::Identity();
+    I.linear() = T_7A_.linear();
+    target << 0.0, 0.0, -retreat_distance_ * 1.2;
+    // target << 0.0, 0.0, -0.05;
+    f_star = PegInHole::threeDofMoveEE(origin_, current_, target, xd, I, time.toSec(), arm.task_start_time_.toSec(), duration_, 1500.0, 20.0);
+    
+    del_p = f_star + 40.0*xd.head<3>();
+    del_p = del_p/700.0;
   
+    f_star = T_WA_2_.linear() * f_star;
+    reaction_force << arm.f_ext_.transpose() << std::endl;
+    // std::cout<<"run_time : "<<run_time<<std::endl;
+
+  }
   else if(mode_ == 3) // to make a vibration on the tip of drill
   {
     double t_e;
     t_e = time.toSec() - changed_task_time_;
 
-    if(run_time > 1.0 && abs(d(2)) > retreat_distance_) // dp(2) is always negative 
+    if (run_time > 1.0 && abs(d(2)) > retreat_distance_) // dp(2) is always negative
     {
-      std::cout<<"Success retreat action"<<std::endl;
+      std::cout << "Success retreat action" << std::endl;
       setSucceeded();
       return true;
     }
-    if(Criteria::timeOut(time.toSec(), arm.task_start_time_.toSec(), time_limit_))
+    if (Criteria::timeOut(time.toSec(), arm.task_start_time_.toSec(), time_limit_))
     {
-      std::cout<<"Fail retreat action"<<std::endl;
+      std::cout << "Fail retreat action" << std::endl;
       setAborted();
       return true;
     }
 
-    if(run_time >= holding_time)
+    if (run_time >= holding_time)
     {
-      f_star = PegInHole::generateForceToDisassembleEE(origin_, current_, xd, T_7A_, retreat_force_, time.toSec(), arm.task_start_time_.toSec()+holding_time, duration_);
-      force_vibration << f_star.transpose()<<std::endl;
-      f_star = T_WA_.linear()*f_star;
+      f_star = PegInHole::generateForceToDisassembleEE(origin_, current_, xd, T_7A_, retreat_force_, time.toSec(), arm.task_start_time_.toSec() + holding_time, duration_);
+      force_vibration << f_star.transpose() << std::endl;
+      f_star = T_WA_.linear() * f_star;
     }
   }
 
   //######## Orientation ########
-  
   if(wiggle_motion_ && wiggle_motion_z_axis_)
   {
     m_wig = PegInHole::generateWiggleMotionEE(origin_, current_, T_7A_, xd, wiggle_angle_, wiggle_angular_vel_, time.toSec(), arm.task_start_time_.toSec(), 500);
@@ -319,7 +339,9 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   }
   else
   {
-    m_star = keepCurrentOrientation(origin_, current_ , xd, 2000, 15);    
+    m_star = keepCurrentOrientation(origin_, current_ , xd, 1200.0, 40);    
+    // Eigen::Vector3d delphi = dyros_math::getPhi(current_.linear(), origin_.linear());
+    //std::cout << delphi.transpose() << std::endl;
   }  
 
 
@@ -358,10 +380,27 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
   
-  // std::cout<<"f_star: "<<f_star.transpose()<<std::endl;
-  // std::cout<<"m_star: "<<m_star.transpose()<<std::endl;
+  // std::cout << "f_star: "<<f_star.transpose()<<std::endl;
+  //std::cout << "m_star: "<<m_star.transpose()<<std::endl;
 
+  Eigen::Vector3d delphi = dyros_math::getPhi(current_.linear(), origin_.linear());
+  
+
+  // if(std::fmod(print_count_, 1000) == 0)
+  // {
+  //   std::cout<<"==================="<<std::endl;
+  //   std::cout<<"delphi      : "<<delphi.transpose()<<std::endl;
+  //   std::cout<<"f_star_zero : "<< f_star_zero.transpose()<<std::endl;
+  //   std::cout<<"d.norm      : "<< d.norm()<<std::endl;
+  //   std::cout<<"del p       : "<< del_p.transpose()<<std::endl;
+  //   std::cout<<"origin     \n "<<origin_.matrix()<<std::endl;    
+  // }
+
+  // print_count_ ++;
+
+  
   // f_star_zero.setZero();  
+  // m_star.setZero();
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * (arm.modified_lambda_matrix_ * f_star_zero + f_d);
   arm.setTorque(desired_torque);
 
@@ -372,6 +411,8 @@ bool AssembleRetreatBoltActionServer::computeArm(ros::Time time, FrankaModelUpda
   tau_ext << tau_ext_.transpose()<<std::endl;
   reaction_force << arm.f_ext_.transpose()<<std::endl;
   command_force << (arm.modified_lambda_matrix_ * f_star_zero + f_d).transpose()<<std::endl;
+
+
 
   return true;
 }

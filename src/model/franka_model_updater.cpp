@@ -65,7 +65,7 @@ void FrankaModelUpdater::updateModel()
   q_ = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(robot_state.q.data());
   qd_now = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(robot_state.dq.data());
 
-  jacobian_ = Eigen::Map<Eigen::Matrix<double, 6, 7>>(jacobian_array.data());
+  // jacobian_ = Eigen::Map<Eigen::Matrix<double, 6, 7>>(jacobian_array.data());
   tau_measured_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(robot_state.tau_J.data());
   tau_desired_read_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(robot_state.tau_J_d.data());
   tau_ext_filtered_ = Eigen::Map<Eigen::Matrix<double, 7, 1>>(robot_state.tau_ext_hat_filtered.data());
@@ -77,6 +77,9 @@ void FrankaModelUpdater::updateModel()
   // jacobian_ = rbdl_model_.getJacobianMatrix(q_ + q_offset_);
   transform_ = rbdl_model_.getTransform(q_);
   jacobian_ = rbdl_model_.getJacobianMatrix(q_);
+  Eigen::Vector3d long_drill_pos_(-0.1645, 0, 0.125);
+  transform_long_drill_ = rbdl_model_.getTransform(q_, long_drill_pos_);
+  jacobian_long_drill_ = rbdl_model_.getJacobianMatrix(q_, long_drill_pos_);
   t[debug_index++] = sb_.elapsedAndReset();
 #else
   // mass_matrix_ = 
@@ -108,6 +111,7 @@ void FrankaModelUpdater::updateModel()
   rotation_ = transform_.rotation();
   
   xd_ = jacobian_ * qd_;
+  xd_long_drill_ = jacobian_long_drill_*qd_;
 
   t[debug_index++] = sb_.elapsedAndReset();
   Eigen::Matrix<double, 7, 7> mass_matrix_inverse = mass_matrix_.inverse();
@@ -118,6 +122,7 @@ void FrankaModelUpdater::updateModel()
   modified_mass_matrix_(6,6) += 0.1;
   modified_lambda_matrix_ = (jacobian_ * modified_mass_matrix_.inverse() * jacobian_.transpose() + 0.001 * Eigen::Matrix<double,6,6>::Identity()).inverse();
   jacobian_bar_ = mass_matrix_inverse * jacobian_.transpose() * lambda_matrix_;
+  jacobian_long_drill_bar_ = mass_matrix_inverse * jacobian_long_drill_.transpose() * lambda_matrix_;
   null_projector_ = Eigen::Matrix<double, 7,7>::Identity() - jacobian_.transpose() * jacobian_bar_.transpose();
   
   t[debug_index++] = sb_.elapsedAndReset();
