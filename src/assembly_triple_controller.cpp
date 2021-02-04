@@ -411,25 +411,38 @@ void AssemblyTripleController::update(const ros::Time& time, const ros::Duration
   // std::cout << period.toSec() << std::endl;
   double t[30];
   t[0] = sb_.elapsedAndReset();
-  // Eigen::Matrix<double, 21, 1> q_total;
-  // Eigen::IOFormat tab_format(Eigen::FullPrecision, 0, "\t", "\n");
-  // int q_num = 0;
+
   std::vector<std::thread> model_update_threads;
   for (auto& arm : arms_data_) {
     model_update_threads.push_back(std::thread([&]() {
       arm.second->updateModel();
       arm.second->target_updated_ = false;
     }));
-    // arm.second->updateModel();
-    // arm.second->target_updated_ = false;
-    // q_total.segment<7>(q_num * 7) = arm.second->q_;
-    // q_num++;
   }
   for (auto & thread : model_update_threads)
   {
     thread.join();
   }
+
+  
+  Eigen::IOFormat tab_format(Eigen::FullPrecision, 0, "\t", "\n");
+  int q_num = 0;
+
+  // // ONE ARM
+  // Eigen::Matrix<double, 7, 1> q_total;
+  // q_total.segment<7>(q_num * 7) = arms_data_["panda_right"] -> q_;
+  // q_num++;
+  
+  // ALL ARM
+  Eigen::Matrix<double, 21, 1> q_total;
+  for (auto& arm : arms_data_)
+  {
+    q_total.segment<7>(q_num * 7) = arm.second->q_;
+    q_num++;
+  }
+
   // debug_file_q << q_total.transpose().format(tab_format) << std::endl;
+
   t[1] = sb_.elapsedAndReset();
 
   int ctr_index = 2;
