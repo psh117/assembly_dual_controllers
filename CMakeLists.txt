@@ -99,7 +99,9 @@ add_library(assembly_controller_common_lib
   src/servers/assemble_bolting_ready_action_server.cpp
   src/model/franka_panda_model.cpp
   src/servers/assemble_GMM_spiral_action_server.cpp
-  src/utils/control/EM_GMM_estimator.cpp
+  src/utils/scontrol/EM_GMM_estimator.cpp
+  src/servers/assemble_triple_hold_action_server.cpp
+
 )
 
 add_library(${PROJECT_NAME}
