@@ -60,6 +60,8 @@ class AssembleSpiralActionServer : public ActionServerBase
   double global_target_;
   bool use_global_depth_;
 
+  double force_error_sum_;
+
   Eigen::Vector3d flange_to_assembly_point_;
   Eigen::Quaterniond flange_to_assembly_quat_;
 
@@ -83,8 +85,11 @@ class AssembleSpiralActionServer : public ActionServerBase
   std::ofstream spiral_search {"spiral_search.txt"};
   std::ofstream twist_search {"twist_search.txt"};
   std::ofstream spiral_arm_position {"spiral_arm_position.txt"};
-  std::ofstream force_spiral_cmd {"force_spiral_cmd.txt"}; 
-      
+  std::ofstream force_spiral_cmd {"force_spiral_cmd.txt"};
+  std::ofstream contact_force{"contact_force.txt"};
+  std::ofstream controller_debug {"controller_debug.txt"};
+  std::ofstream save_torque{"save_joint_torque.txt"};    
+
 public:
   AssembleSpiralActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu);

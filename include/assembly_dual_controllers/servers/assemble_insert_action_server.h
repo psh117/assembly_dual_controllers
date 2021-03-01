@@ -47,6 +47,7 @@ class AssembleInsertActionServer : public ActionServerBase
     double yaw_up_limit_ = 2.8973;
 
     double wiggle_angle_;
+    double wiggle_angle_2_;
     double wiggle_angular_vel_;
 
     CONTROL_TYPE mode_;
@@ -67,6 +68,7 @@ class AssembleInsertActionServer : public ActionServerBase
     std::ofstream save_insertion_vel{"insertion_vel_data.txt"};
     std::ofstream save_rotation_error{"insertion_rotation_error.txt"};
     std::ofstream save_reaction_force{"insertion_reaction_force.txt"};
+    std::ofstream save_insertion_cmd{"insertion_cmd.txt"};
 
     struct wiggle_z_axis{
       int a;

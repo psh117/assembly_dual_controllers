@@ -233,6 +233,7 @@ bool AssembleGMMSpiralActionServer::computeTaskArm(ros::Time time, FrankaModelUp
     arm.task_start_time_ = time;
     task_arm_origin_ = arm.transform_;
     is_mode_changed_ = false;    
+    std::cout<<"GMM SPIRAL STATE IS CHANGED!!"<<std::endl;
   }
 
   switch (state_)
@@ -250,6 +251,8 @@ bool AssembleGMMSpiralActionServer::computeTaskArm(ros::Time time, FrankaModelUp
       accumulated_wrench_a_.tail<3>() = T_WA_task_.linear().inverse() * accumulated_wrench_.tail<3>();
       std::cout << "output for compensation: " << accumulated_wrench_.transpose() << std::endl;
       std::cout << "start spiral search" << std::endl;
+      time_delay_ = time.toSec() - arm.task_start_time_.toSec();
+      std::cout<<"time delay : "<< time_delay_<<std::endl;
     }
 
     f_star_motion = PegInHole::keepCurrentPose(task_arm_origin_, task_arm_current_, xd, 1000, 10, 2000, 20).head<3>(); //w.r.t {W}
@@ -267,7 +270,7 @@ bool AssembleGMMSpiralActionServer::computeTaskArm(ros::Time time, FrankaModelUp
       setAborted();
     }
 
-    run_time = time.toSec() - arm.task_start_time_.toSec();
+    run_time = time.toSec() - arm.task_start_time_.toSec() - time_delay_;
     spiral_elapsed_time_ = run_time;
     if (run_time > 0.5 && detectHole(task_arm_origin_, task_arm_current_, f_ext.head<3>() - accumulated_wrench_.head<3>(), T_WA_task_, friction_))
     {
@@ -276,9 +279,10 @@ bool AssembleGMMSpiralActionServer::computeTaskArm(ros::Time time, FrankaModelUp
       break;
     }
 
-    f_star = PegInHole::generateSpiralEE2(task_arm_origin_, task_arm_current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_task_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
+    f_star = PegInHole::generateSpiralEE2(task_arm_origin_, task_arm_current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_task_, time.toSec(), arm.task_start_time_.toSec(), arm.task_start_time_.toSec() + spiral_duration_);
     f_star_motion = f_star.head<3>();
     f_star_active_force = f_star.tail<3>();
+    save_task_arm_command_local << f_star_motion.transpose()<<" "<<f_star_active_force.transpose()<<std::endl;
     f_star_motion = T_WA_task_.linear() * f_star_motion;
     f_star_active_force = T_WA_task_.linear() * f_star_active_force;
     
@@ -310,8 +314,8 @@ bool AssembleGMMSpiralActionServer::computeTaskArm(ros::Time time, FrankaModelUp
   save_task_arm_force << reaction_force.transpose() << std::endl; // w.r.t {7}
   save_task_arm_pose << pos.transpose()<<" "<< rot.transpose()<<std::endl; // w.r.t {7}
   save_task_arm_torque << arm.tau_ext_filtered_.transpose() << std::endl; 
-  save_task_arm_joint << arm.q_.transpose()<<std::endl;
-
+  save_task_arm_joint << arm.q_.transpose()<<std::endl;  
+  save_task_arm_command_global << f_star_motion.transpose()<<" "<<f_star_active_force.transpose()<<std::endl;
   torque_captured_.head<7>() = arm.tau_ext_filtered_;
   position_captured_.head<1>() = pos.tail<1>();
 
@@ -451,15 +455,15 @@ bool AssembleGMMSpiralActionServer::estimateContactState()
   }    
 
   save_contact_estimation << (int) CS << std::endl;
-  save_captured_torque << torque_input.transpose()<<std::endl;
-  save_captured_position << position_input.transpose()<<std::endl;
-  std::cout<<" ================================ "<<std::endl;
-  std::cout<<" torque   : "<< torque_label<<std::endl;
-  std::cout<<" position : " << position_label<<std::endl;
-  if (CS == SEARCH)           std::cout << "Current Contact State : "<< CS << std::endl;
-  else if (CS == CROSSING)      std::cout << "Current Contact State : "<< CS << std::endl;
-  else if (CS == INSERTION)   std::cout << "Current Contact State : "<< CS << std::endl;
-  else if (CS == DEVIATION)   std::cout << "Current Contact State : "<< CS << std::endl;
+  save_captured_torque << torque_captured_.transpose()<<std::endl;
+  save_captured_position << position_captured_.transpose()<<std::endl;
+  // std::cout<<" ================================ "<<std::endl;
+  // std::cout<<" torque   : "<< torque_label<<std::endl;
+  // std::cout<<" position : " << position_label<<std::endl;
+  // if (CS == SEARCH)           std::cout << "Current Contact State : "<< CS << std::endl;
+  // else if (CS == CROSSING)      std::cout << "Current Contact State : "<< CS << std::endl;
+  // else if (CS == INSERTION)   std::cout << "Current Contact State : "<< CS << std::endl;
+  // else if (CS == DEVIATION)   std::cout << "Current Contact State : "<< CS << std::endl;
     
 
   return true;

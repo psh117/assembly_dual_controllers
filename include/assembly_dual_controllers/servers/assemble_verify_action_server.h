@@ -53,6 +53,8 @@ class AssembleVerifyActionServer : public ActionServerBase
     double search_range_;
     double search_duration_;
     
+    Eigen::Vector2d max_f_detection_;
+
     // !!! DO NOT USE RAW POINTER OF FILE !!!
     // FILE *save_data_fm;
     std::ofstream verify_pr_data {"verify_pr_data.txt"};

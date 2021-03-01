@@ -467,4 +467,29 @@ namespace PegInHole
                                                     const double kwp = 1000,
                                                     const double kwv = 7.5);
 
+    // Eigen::Vector6d detachBoltForce(const Eigen::Isometry3d &origin,
+    //                                 const Eigen::Isometry3d &current,
+    //                                 const Eigen::Ref<const Eigen::Vector6d> &xd,
+    //                                 const Eigen::Ref<const Eigen::Vector6d> &f_ext,
+    //                                 const Eigen::Isometry3d &T_7a,
+    //                                 const double force,
+    //                                 const double angle,
+    //                                 const double t,
+    //                                 const double t_0,
+    //                                 const double duration,
+    //                                 const double kp = 700,
+    //                                 const double kv = 20);
+
+    // Eigen::Vector6d detachBoltMoment(const Eigen::Isometry3d &origin,
+    //                                  const Eigen::Isometry3d &current,
+    //                                  const Eigen::Ref<const Eigen::Vector6d> &xd,
+    //                                  const Eigen::Ref<const Eigen::Vector6d> &f_ext,
+    //                                  const Eigen::Isometry3d &T_7a,
+    //                                  const double moment,
+    //                                  const double angle,
+    //                                  const double t,
+    //                                  const double t_0,
+    //                                  const double duration,
+    //                                  const double kp = 1000,
+    //                                  const double kv = 7.5);
 }; // namespace PegInHole

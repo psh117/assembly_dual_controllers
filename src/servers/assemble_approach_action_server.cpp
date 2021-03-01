@@ -122,12 +122,12 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   f_ext = arm.f_ext_;
   current_ = arm.transform_;
   
-  int cnt_max = 400;
+  int cnt_max = 500;
   int cnt_start = 200;
   if(count_ < cnt_max)
   { 
     // f_star = PegInHole::keepCurrentPose(origin_, current_, xd, 600, 20, 2000, 15).head<3>(); //w.r.t {W}
-    f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 800, 10);
+    f_star = PegInHole::keepCurrentPosition(origin_, current_, xd, 1000, 20);
     // m_star = PegInHole::keepCurrentPose(origin_, current_, xd, 800, 40, 2000, 15).tail<3>();
     m_star = PegInHole::rotateWithMat(origin_, current_, xd, origin_.linear(), time.toSec(), arm.task_start_time_.toSec(), cnt_max/1000, 3500, 20);
     

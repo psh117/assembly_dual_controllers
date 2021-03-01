@@ -41,8 +41,6 @@ void AssembleVerifyActionServer::goalCallback()
   T_7A_.translation() = flange_to_assembly_point_;
   
   T_WA_ = origin_*T_7A_;
-  
-  control_running_ = true;
 
   verify_origin_ = T_WA_.translation();
 
@@ -61,7 +59,8 @@ void AssembleVerifyActionServer::goalCallback()
   search_range_ = goal_->search_range;
   search_duration_ = goal_->search_duration;
    
-
+  max_f_detection_.setZero();
+  
   std::cout<<"T_7A_: \n"<<T_7A_.matrix()<<std::endl;
   std::cout<<"T_WA_: \n"<<T_WA_.matrix()<<std::endl;
   std::cout<<"T_WE_: \n"<<origin_.linear()<<std::endl;
@@ -69,6 +68,9 @@ void AssembleVerifyActionServer::goalCallback()
   // std::cout << "origin_: " << origin_.translation().transpose() << std::endl;
   std::cout << "search dir: " << search_dir_.transpose() << std::endl;
   std::cout<<"detection threshold: "<<threshold_<<std::endl;
+
+  control_running_ = true;
+
 }
 
 void AssembleVerifyActionServer::preemptCallback()
@@ -124,6 +126,8 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   Eigen::Vector6d f_star_zero, f_ext;
   double run_time, backward_dist;
   int cnt_start, cnt_max;
+  double f_detect_mean, f_detect_diff;
+
   cnt_start = 100;
   cnt_max = 150;
 
@@ -168,7 +172,7 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
 
     case FORWARD:
 
-      f_detection = f_ext.head<3>() - accumulated_wrench_.head<3>();
+      f_detection = f_ext.head<3>() - accumulated_wrench_.head<3>();      
 
       if(run_time > search_duration_)
       //if (timeOut(time.toSec(), arm.task_start_time_.toSec(), search_duration_))
@@ -176,7 +180,9 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         is_mode_changed_ = true;
         detect_object_(search_index_) = 0; //no object
         state_ = BACKWARD;
-
+        f_detection = T_WA_.linear().inverse()*f_detection;
+        max_f_detection_(search_index_) = sqrt(f_detection(0)*f_detection(0) + f_detection(1)*f_detection(1));
+        std::cout<<"under threshold: "<<max_f_detection_.transpose()<<std::endl;
         target_.setZero();
         target_(search_index_) = search_dir_(search_index_) * (-search_range_);
         std::cout << "no object in this direction" <<std::endl;
@@ -187,7 +193,10 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         is_mode_changed_ = true;
         detect_object_(search_index_) = 1; //there exist object
         state_ = BACKWARD;
-
+        
+        f_detection = T_WA_.linear().inverse()*f_detection;
+        max_f_detection_(search_index_) = threshold_;
+        std::cout<<"over threshold: "<<max_f_detection_.transpose()<<std::endl;
         target_.setZero();
         target_(search_index_) = search_dir_(search_index_) * (-search_range_ / 1.5);
         std::cout << "detect an object in this direction"<<std::endl;
@@ -195,11 +204,12 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
       }
 
       f_star = PegInHole::threeDofMoveEE(origin_, current_, target_, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), search_duration_, 3000, 50);
-      f_star = T_WA_.linear() * (f_star) + force_compensation;
+      f_star = T_WA_.linear() * (f_star);// + force_compensation;
       break;
 
     case BACKWARD:
       f_detection = f_ext.head<3>() - accumulated_wrench_.head<3>();
+      
 
       if (timeOut(time.toSec(), arm.task_start_time_.toSec(), search_duration_ + 0.005))
       {
@@ -216,10 +226,32 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
         std::cout << "detect object during backward" << std::endl;
       }
 
-      detectObjectLocation();
+      // detectObjectLocation();
+      if(search_index_ == 2)
+      {
+        f_detect_mean = (max_f_detection_(0) + max_f_detection_(1))/2;
+        f_detect_diff = abs(max_f_detection_(0) - max_f_detection_(1));
+
+        if(f_detect_mean > 5.0 && f_detect_diff < 2.0)
+        {
+          std::cout<<"DETECT HOLE!!"<<std::endl;
+          std::cout<<"f_detect_mean : "<< f_detect_mean<<std::endl;
+          std::cout<<"f_detect_diff : "<< f_detect_diff<<std::endl;
+          std::cout<<"max_f_detection_ : "<< max_f_detection_.transpose()<<std::endl;
+          setSucceeded();
+        }
+        else
+        {
+          std::cout<<"FAILE TO DETECT HOLE"<<std::endl;
+          std::cout<<"f_detect_mean : "<< f_detect_mean<<std::endl;
+          std::cout<<"f_detect_diff : "<< f_detect_diff<<std::endl;
+          std::cout<<"max_f_detection_ : "<< max_f_detection_.transpose()<<std::endl;
+          setAborted();
+        }
+      }
       
       f_star = PegInHole::threeDofMoveEE(origin_, current_, target_, xd, T_7A_, time.toSec(), arm.task_start_time_.toSec(), search_duration_, 3000, 50);
-      f_star = T_WA_.linear() * (f_star) + force_compensation;
+      f_star = T_WA_.linear() * (f_star);// + force_compensation;
       break;
   }
 
@@ -240,7 +272,7 @@ bool AssembleVerifyActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   // if(cnt_ < cnt_max)  verify_ft_data << (f_ext.head<3>()).transpose() << std::endl;
   // else verify_ft_data << f_detection.transpose() << std::endl;
 
-  if(state_ == FORWARD) verify_ft_data<<(T_WA_.linear().inverse()*f_detection).transpose()<<std::endl;
+  if(state_ == FORWARD) verify_ft_data<<f_detection.transpose()<<std::endl;
   
   prev_state_ = state_;
   return true;

@@ -328,6 +328,8 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_retreat_bolt_control", node_handle, arms_data_);  
   task_space_move_action_server_ = std::make_shared<TaskSpaceMoveActionServer>
   ("/assembly_dual_controller/task_space_move", node_handle, arms_data_);
+  task_space_multiple_move_action_server_ = std::make_shared<TaskSpaceMultipleMoveActionServer>
+  ("/assembly_dual_controller/task_space_multiple_move", node_handle, arms_data_);
   assemble_probe_edge_action_server_ = std::make_shared<AssembleProbeEdgeActionServer>
   ("/assembly_dual_controller/assemble_probe_edge_control", node_handle, arms_data_);
   assemble_triple_move_action_server_ = std::make_shared<AssembleTripleMoveActionServer>
@@ -344,8 +346,13 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   ("/assembly_dual_controller/assemble_GMM_spiral_control", node_handle, arms_data_);
   assemble_triple_hold_action_server_ = std::make_shared<AssembleTripleHoldActionServer>
   ("/assembly_dual_controller/assemble_triple_hold", node_handle, arms_data_);
+  joint_limit_avoidance_action_server_ = std::make_shared<JointLimitAvoidanceActionServer>
+  ("/assembly_dual_controller/joint_limit_avoidance_control", node_handle, arms_data_);
+
   // single_peginhole_action_server_ = std::make_shared<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
+
+
 
   action_servers_.push_back(assemble_approach_action_server_);
   action_servers_.push_back(assemble_spiral_action_server_);
@@ -360,6 +367,7 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   action_servers_.push_back(assemble_approach_bolt_action_server_);
   action_servers_.push_back(assemble_retreat_bolt_action_server_);
   action_servers_.push_back(task_space_move_action_server_);
+  action_servers_.push_back(task_space_multiple_move_action_server_);
   action_servers_.push_back(assemble_probe_edge_action_server_);
   action_servers_.push_back(assemble_triple_move_action_server_);
   action_servers_.push_back(assemble_approach_hip_action_server_);
@@ -368,6 +376,7 @@ bool AssemblyTripleController::init(hardware_interface::RobotHW* robot_hw,
   action_servers_.push_back(assemble_bolting_ready_action_server_);
   action_servers_.push_back(assemble_GMM_spiral_action_server_);
   action_servers_.push_back(assemble_triple_hold_action_server_);
+  action_servers_.push_back(joint_limit_avoidance_action_server_);
   
   std::string homedir = getenv("HOME");
   

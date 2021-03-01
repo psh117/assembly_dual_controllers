@@ -49,6 +49,7 @@ class AssembleGMMSpiralActionServer : public ActionServerBase
     bool is_mode_changed_;
     ASSEMBLY_STATE state_;
     int count_;
+    double time_delay_;
     Eigen::Vector6d accumulated_wrench_;
     Eigen::Vector6d accumulated_wrench_a_;
 
@@ -79,6 +80,8 @@ class AssembleGMMSpiralActionServer : public ActionServerBase
     std::ofstream save_task_arm_pose {"gmm_task_arm_pose.txt"};
     std::ofstream save_task_arm_force {"gmm_task_arm_force.txt"};
     std::ofstream save_task_arm_joint {"gmm_task_arm_joint.txt"};
+    std::ofstream save_task_arm_command_local {"gmm_task_arm_command_force.txt"};
+    std::ofstream save_task_arm_command_global {"gmm_task_arm_global_command_force.txt"};
 
     std::ofstream save_assist_arm_torque {"gmm_assist_arm_torque.txt"};
     std::ofstream save_assist_arm_pose {"gmm_assist_arm_pose.txt"};

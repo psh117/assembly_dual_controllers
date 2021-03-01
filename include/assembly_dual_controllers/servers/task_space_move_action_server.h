@@ -192,9 +192,6 @@ public:
     } subTask_[2];
 
     // For convinient
-#define _task1 subTask_[0]
-#define _task2 subTask_[1]
-
 protected:
   void setSucceeded() override {};
   void setAborted() override {};

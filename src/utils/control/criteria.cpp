@@ -445,3 +445,33 @@ bool Criteria::checkForceDivergence(const Eigen::Vector3d &f,
 
     return result;
 }
+
+bool Criteria::checkJointLimit(const Eigen::Ref<const Eigen::Matrix<double, 7, 2>> &joint_limit_info,
+                               const Eigen::Ref<const Eigen::Vector7d> &joint_angle,
+                               const double angle_margin) // radian
+{
+    bool result; // True :: joint state near joint limitation!    
+    Eigen::Vector7d joint_lb, joint_ub, joint_margin;
+    
+    joint_margin = joint_margin.setOnes() * angle_margin;
+
+    joint_lb = joint_limit_info.col(0) + joint_margin;
+    joint_ub = joint_limit_info.col(1) - joint_margin;
+
+    for (int i = 0; i < 7; i++)
+    {
+        if (joint_angle(i) >= joint_ub(i))
+        {
+            result = true;
+            break;
+        }
+        else if (joint_angle(i) <= joint_lb(i))
+        {
+            result = true;
+            break;
+        }
+        else    result = false;
+    }
+
+    return result;
+}

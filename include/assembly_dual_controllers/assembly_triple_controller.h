@@ -35,6 +35,7 @@
 #include <assembly_dual_controllers/servers/assemble_approach_bolt_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_retreat_bolt_action_server.h>
 #include <assembly_dual_controllers/servers/task_space_move_action_server.h>
+#include <assembly_dual_controllers/servers/task_space_multiple_move_action_server.h>
 #include <assembly_dual_controllers/servers/idle_control_server.h>
 #include <assembly_dual_controllers/servers/assemble_probe_edge_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_triple_move_action_server.h>
@@ -44,7 +45,7 @@
 #include <assembly_dual_controllers/servers/assemble_bolting_ready_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_GMM_spiral_action_server.h>
 #include <assembly_dual_controllers/servers/assemble_triple_hold_action_server.h>
-
+#include <assembly_dual_controllers/servers/joint_limit_avoidance_action_server.h>
 
 // #include <assembly_dual_controllers/single_peginhole_action_server.h>
 #include <tf/transform_listener.h>
@@ -97,6 +98,7 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   std::shared_ptr<AssembleApproachBoltActionServer> assemble_approach_bolt_action_server_;
   std::shared_ptr<AssembleRetreatBoltActionServer> assemble_retreat_bolt_action_server_;
   std::shared_ptr<TaskSpaceMoveActionServer> task_space_move_action_server_;
+  std::shared_ptr<TaskSpaceMultipleMoveActionServer> task_space_multiple_move_action_server_;
   std::shared_ptr<AssembleProbeEdgeActionServer> assemble_probe_edge_action_server_;
   std::shared_ptr<AssembleTripleMoveActionServer> assemble_triple_move_action_server_;
   std::shared_ptr<AssembleApproachHipActionServer> assemble_approach_hip_action_server_;
@@ -106,6 +108,9 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
   std::shared_ptr<AssembleGMMSpiralActionServer> assemble_GMM_spiral_action_server_;
   std::shared_ptr<AssembleTripleHoldActionServer> assemble_triple_hold_action_server_;
   std::shared_ptr<IdleControlServer> idle_control_server_;
+  std::shared_ptr<JointLimitAvoidanceActionServer> joint_limit_avoidance_action_server_;
+
+
   
   std::vector<std::shared_ptr<ActionServerBase>> action_servers_;
 

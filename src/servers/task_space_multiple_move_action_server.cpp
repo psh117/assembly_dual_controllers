@@ -1,84 +1,89 @@
-#include <assembly_dual_controllers/servers/task_space_move_action_server.h>
+#include <assembly_dual_controllers/servers/task_space_multiple_move_action_server.h>
 
 #define EYE(X) Eigen::Matrix<double, X, X>::Identity()
 
-TaskSpaceMoveActionServer::TaskSpaceMoveActionServer(std::string name, ros::NodeHandle &nh, 
+TaskSpaceMultipleMoveActionServer::TaskSpaceMultipleMoveActionServer(std::string name, ros::NodeHandle &nh, 
                                 std::map<std::string, std::shared_ptr<FrankaModelUpdater> > &mu)
 : ActionServerBase(name,nh,mu),
 as_(nh,name,false)
 {
-  as_.registerGoalCallback(boost::bind(&TaskSpaceMoveActionServer::goalCallback, this));
-  as_.registerPreemptCallback(boost::bind(&TaskSpaceMoveActionServer::preemptCallback, this));
+  as_.registerGoalCallback(boost::bind(&TaskSpaceMultipleMoveActionServer::goalCallback, this));
+  as_.registerPreemptCallback(boost::bind(&TaskSpaceMultipleMoveActionServer::preemptCallback, this));
   as_.start();
-  auto & _task1 = subTask_[0];
-  auto & _task2 = subTask_[1];
-  _task1.resize(2,dof);
-  _task2.resize(6,dof);
+  
+  for (auto & arm : mu)
+  {
+    const auto & arm_name = arm.first;
+    sub_tasks_1_[arm_name] = SubTaskState();
+    sub_tasks_2_[arm_name] = SubTaskState();
+
+    sub_tasks_1_[arm_name].resize(2,dof);
+    sub_tasks_2_[arm_name].resize(6,dof);
+  }
 }
 
-void TaskSpaceMoveActionServer::goalCallback()
+void TaskSpaceMultipleMoveActionServer::goalCallback()
 {
   feedback_header_stamp_ = 0;
   goal_ = as_.acceptNewGoal();
 
-  ROS_INFO("[TaskSpaceMoveActionServer::goalCallback] Joint trajectory goal has been received.");
-  Eigen::Isometry3d target_relative_pose;
-  tf::poseMsgToEigen(goal_->target_pose, target_relative_pose);
-  std::cout<<goal_->target_pose.orientation.x<<std::endl;
-  std::cout<<goal_->target_pose.orientation.y<<std::endl;
-  std::cout<<goal_->target_pose.orientation.z<<std::endl;
-  std::cout<<goal_->target_pose.orientation.w<<std::endl;
-  if (target_relative_pose.translation().norm() > 0.4)
-  {
-    ROS_WARN("[TaskSpaceMoveActionServer::goalCallback] DO NOT USE THIS ACTION with over 40 cm movement goal. Just passing it.");
-    as_.setAborted();
-    return; 
-  }
-  if (Eigen::Quaterniond(target_relative_pose.linear()).angularDistance(Eigen::Quaterniond::Identity()) > 1.560796)
-  {
-    ROS_WARN("[TaskSpaceMoveActionServer::goalCallback] DO NOT USE THIS ACTION with over 90 degree rotation goal. Just passing it.");
-    as_.setAborted();
-    return; 
-  }
+  ROS_INFO("[TaskSpaceMultipleMoveActionServer::goalCallback] Joint trajectory goal has been received.");
+  int len_arms = goal_->arm_names.size();
 
-  start_time_ = ros::Time::now();
 
-  bool find_arm = false;
-  for (auto iter = mu_.begin(); iter != mu_.end(); iter++)
+  bool active_more_than_one_arm {false};
+  Eigen::Isometry3d target_relative_pose[3];
+
+  for (int i=0; i< len_arms; ++i)
   {
-    // Find 'panda_left' in 'panda_left_joint1' 
-    // ROS_INFO("%s ",goal_->trajectory.joint_names[0].c_str());
-    // ROS_INFO("%s ",iter->first.c_str());
-    // ROS_INFO("%d ", goal_->trajectory.joint_names[0].find(iter->first));
-    if (goal_->arm_name == iter->first)
+    auto & arm_name = goal_->arm_names[i];
+    auto & target_pose = goal_->target_poses[i];
+    auto it = mu_.find(arm_name);
+
+    if (it == mu_.end())
     {
-      ROS_INFO("[TaskSpaceMoveActionServer::goalCallback] target arm: %s.", iter->first.c_str());
-      active_arm_ = iter->first;
-      q_desired_ = mu_[active_arm_]->initial_q_;
-      qd_desired_.setZero(q_desired_.size());
-      qdd_desired_.setZero(q_desired_.size());
-      target_pose_ = mu_[active_arm_]->initial_transform_ * target_relative_pose;
-      control_running_ = true;
-      find_arm = true;
+      ROS_WARN("[TaskSpaceMultipleMoveActionServer::goalCallback] Arm name %s does not exist in the arm names. Just passing it.", arm_name.c_str());
+      as_.setAborted();
+      return; 
     }
+    tf::poseMsgToEigen(target_pose, target_relative_pose[i]);
+    std::cout<<target_pose.orientation.x<<std::endl;
+    std::cout<<target_pose.orientation.y<<std::endl;
+    std::cout<<target_pose.orientation.z<<std::endl;
+    std::cout<<target_pose.orientation.w<<std::endl;
+    if (target_relative_pose[i].translation().norm() > 0.5)
+    {
+      ROS_WARN("[TaskSpaceMultipleMoveActionServer::goalCallback] DO NOT USE THIS ACTION with over 50 cm movement goal. Just passing it.");
+      as_.setAborted();
+      return; 
+    }
+    if (Eigen::Quaterniond(target_relative_pose[i].linear()).angularDistance(Eigen::Quaterniond::Identity()) > 1.560796)
+    {
+      ROS_WARN("[TaskSpaceMultipleMoveActionServer::goalCallback] DO NOT USE THIS ACTION with over 90 degree rotation goal. Just passing it.");
+      as_.setAborted();
+      return; 
+    }
+    active_arms_[arm_name] = true;
+    target_poses_[arm_name] = mu_[arm_name]->initial_transform_ * target_relative_pose[i];
+    active_more_than_one_arm = true;
   }
-  // trajectory_data_.resize(goal_->trajectory.joint_names.size(), goal_->trajectory.points.size());
-
-  if (find_arm == false)
+  if ( ! active_more_than_one_arm) 
   {
-    ROS_ERROR("[TaskSpaceMoveActionServer::goalCallback] the name %s is not in the arm list.", goal_->arm_name.c_str());
     as_.setAborted();
     return;
   }
+  
+  control_running_ = true;
+  start_time_ = ros::Time::now();
 }
 
-void TaskSpaceMoveActionServer::preemptCallback()
+void TaskSpaceMultipleMoveActionServer::preemptCallback()
 {
   ROS_INFO("[%s] Preempted", action_name_.c_str());
   as_.setPreempted();
 }
 
-bool TaskSpaceMoveActionServer::compute(ros::Time time)
+bool TaskSpaceMultipleMoveActionServer::compute(ros::Time time)
 {
   if (!as_.isActive())
       return false; 
@@ -86,13 +91,21 @@ bool TaskSpaceMoveActionServer::compute(ros::Time time)
   if(!control_running_)  // wait for acceptance of the goal, active but not accepted
     return false; 
   
-  computeArm(time, *mu_[active_arm_]);
+  for (auto & active_arm : active_arms_)
+  {
+    if (active_arm.second == true)
+    {
+      computeArm(time, active_arm.first);
+    }
+  }
   return false;
 }
 
 
-bool TaskSpaceMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &arm)
+bool TaskSpaceMultipleMoveActionServer::computeArm(ros::Time time, const std::string &arm_name)
 {
+  FrankaModelUpdater &arm = *mu_[arm_name];
+  auto & target_pose = target_poses_[arm_name];
   Eigen::Matrix<double, 7, 1> desired_torque;
   ros::Duration passed_time = time - start_time_;
 
@@ -105,7 +118,7 @@ bool TaskSpaceMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &a
   {
     auto result = dyros_math::quinticSpline(passed_time.toSec(), 0, goal_->execution_time,  
           arm.initial_transform_.translation()(i), 0, 0, 
-          target_pose_.translation()(i), 0, 0);
+          target_pose.translation()(i), 0, 0);
 
     p(i) = result(0);
     p_dot(i) = result(1);
@@ -117,7 +130,7 @@ bool TaskSpaceMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &a
 
   Eigen::Matrix3d desired_rotation;
   Eigen::Vector3d r_error, omega, omega_dot;
-  dyros_math::rotationQuinticZero(passed_time.toSec(), 0, goal_->execution_time, arm.rotation_, target_pose_.linear(), desired_rotation, omega, omega_dot);
+  dyros_math::rotationQuinticZero(passed_time.toSec(), 0, goal_->execution_time, arm.rotation_, target_pose.linear(), desired_rotation, omega, omega_dot);
 
   r_error = - 0.5 * dyros_math::getPhi(arm.rotation_, desired_rotation);
   // std::cout << "p: " << p.transpose() << std::endl
@@ -139,9 +152,8 @@ bool TaskSpaceMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &a
 
   ////////////////////////////////// Task Transition /////////////////////////////////////////
   Eigen::MatrixXd A_inv_ = arm.modified_mass_matrix_.inverse();
-
-  auto & _task1 = subTask_[0];
-  auto & _task2 = subTask_[1];
+  auto & _task1 = sub_tasks_1_[arm_name];
+  auto & _task2 = sub_tasks_2_[arm_name];
 
   _task1.J.setZero();
   _task1.J(0, 0) = 1.0;
@@ -207,14 +219,31 @@ bool TaskSpaceMoveActionServer::computeArm(ros::Time time, FrankaModelUpdater &a
 
   if(time.toSec() > (start_time_.toSec() +  goal_->execution_time + 0.8))
   {
-    ROS_INFO("[TaskSpaceMoveActionServer::goalCallback] arriving to the goal");
-    std::cout << "position error: " << (target_pose_.translation() -  arm.position_).transpose() << std::endl;
+    ROS_INFO("[TaskSpaceMultipleMoveActionServer::goalCallback] arriving to the goal");
+    std::cout << "position error: " << (target_pose.translation() -  arm.position_).transpose() << std::endl;
     std::cout << "rotational error: " << r_error.transpose() << std::endl;
-    as_.setSucceeded();
-    arm.setInitialValues(target_pose_);
+    arm.setInitialValues(target_pose);
     arm.idle_controlled_ = true;
     arm.setTorque(desired_torque, true);
-    control_running_ = false;
+
+    active_arms_[arm_name] = false;
+    
+    // check processing all arm is finished 
+    bool finished_all = true;
+    for (auto & active_arm : active_arms_)
+    {
+      if (active_arm.second)
+      {
+        finished_all = false;
+      }
+    }
+
+    // final arm
+    if (finished_all)
+    {
+      control_running_ = false;
+      as_.setSucceeded();
+    }
     return true;
   }
 

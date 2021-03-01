@@ -5,6 +5,7 @@
 #include <assembly_dual_controllers/utils/dyros_math.h>
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 #include <assembly_dual_controllers/utils/control/criteria.h>
+#include <string>
 
 using namespace dyros_math;
 using namespace Criteria;
@@ -56,10 +57,14 @@ class AssembleRetreatBoltActionServer : public ActionServerBase
 
     std::ofstream reaction_force {"retreat_reaction_force.txt"};
     std::ofstream command_force {"command_force.txt"};
+    std::ofstream command_moment {"command_moment.txt"};
+    std::ofstream command_wrench {"command_wrench.txt"};
     std::ofstream tau_ext {"tau_ext.txt"};
     std::ofstream tau_measured {"tau_measured.txt"};
     std::ofstream force_vibration{"force_vibration.txt"};
-
+    std::ofstream save_f_ext_a{"save_f_ext_a.txt"};
+    std::ofstream save_command_tau{"command_tau.txt"};
+    
     Eigen::Vector7d tau_measured_;
     Eigen::Vector7d tau_ext_;
     Eigen::Vector6d f_ext_lpf_;

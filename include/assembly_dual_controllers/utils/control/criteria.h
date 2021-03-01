@@ -93,4 +93,8 @@ namespace Criteria
                                 const Eigen::Matrix3d &r_cur,
                                 const double threshold);
 
+    bool checkJointLimit(const Eigen::Ref<const Eigen::Matrix<double, 7, 2>> &joint_limit_info,
+                         const Eigen::Ref<const Eigen::Vector7d> &joint_angle,
+                         const double angle_margin);
+
 }; // namespace Criteria

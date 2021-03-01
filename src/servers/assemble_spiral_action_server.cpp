@@ -88,6 +88,7 @@ void AssembleSpiralActionServer::goalCallback()
     std::cout << "dual peg in hole" << std::endl;
 
   count_ = 0;
+  force_error_sum_ = 0.0;
 
   state_ = READY;
   is_mode_changed_ = true;
@@ -147,7 +148,8 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   auto &xd = arm.xd_; //velocity
 
   Eigen::Vector3d f_star, m_star, m_tilt;
-  Eigen::Vector6d f_star_zero, f_ext;
+  Eigen::Vector6d f_star_zero, f_d, f_ext;
+  Eigen::Vector3d f_star_motion, f_star_active_force;
 
   double run_time;
   int cnt_max = 150;
@@ -157,6 +159,10 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   f_ext = arm.f_ext_;
   current_ = arm.transform_;
   global_depth_change = global_target_ - origin_.translation()(2);
+
+  f_star_motion.setZero();
+  f_star_active_force.setZero();
+  f_d.setZero();
   // position_change = (T_WA_.inverse()*current_*T_7A_).translation();
 
   auto & spiral_gain_set = arm_gain_map_[arm.arm_name_];
@@ -259,30 +265,70 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
           break; 
         }
       }
+
       //single peg in hole
       if (mode_ == 1)
       {
         if (set_tilt_)  m_star = PegInHole::generateMoment(origin_, current_, T_7A_, xd, 1.50*M_PI/180, time.toSec(), arm.task_start_time_.toSec(), 1.0, 2000, 30);       
-        else      m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, kp_o, kv_o);     
+        else            m_star = PegInHole::keepCurrentOrientation(origin_, current_, xd, kp_o, kv_o);     
         
-        f_star = PegInHole::generateSpiralEE(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, 
-                                             time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec(), 5.0, 
-                                             set_tilt_, kp, kv);
-        
-        // if(flange_to_assembly_point_distance_ == flange_to_drill_distance_)
-        // { 
-        //   Eigen::Vector3d f_asm, m_a, m_compensation, p_ae;
-        //   f_asm << 0.0, 0.0, f_star(2); // f_star is still represented w.r.t {A}
-        //   p_ae = T_7A_.inverse().translation();
-        //   m_a = -3.0*p_ae.cross(f_asm);
-        //   m_compensation = T_WA_.linear().inverse()*m_a;
-        //   m_star = m_star + m_compensation;
-        // }
+        // f_star = PegInHole::generateSpiralEE(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, 
+        //                                      time.toSec(), arm.task_start_time_.toSec(), arm.task_start_time_.toSec() + spiral_duration_, 5.0, 
+        //                                      set_tilt_, kp, kv);
+        // f_star = T_WA_.linear()*f_star;
 
-        f_star = T_WA_.linear()*f_star;
+        Eigen::Vector6d f_spiral_a;
+        f_spiral_a = PegInHole::generateSpiralEE2(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_,
+                                              time.toSec(), arm.task_start_time_.toSec(), arm.task_start_time_.toSec() + spiral_duration_, 5.0, 
+                                              set_tilt_, kp, kv);
+        f_star_motion = f_spiral_a.head<3>();
+        f_star_motion(2) = 0.0;
+        f_star_active_force = f_spiral_a.tail<3>();
+
+        // ============================ P controller w.r.t {A} ============================
+        Eigen::Vector3d p_init_a, p_cur_a, v_cur_a, f_feedback;
+        Eigen::Vector3d z_axis, z_axis_w;
+        double z_target, z_local;
         
-        spiral_pos_save_ = PegInHole::generateSpiralEE_datasave(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, time.toSec(), arm.task_start_time_.toSec(), arm.task_end_time_.toSec());
+        z_target = 1.0;
+        
+        p_init_a = T_WA_.linear().inverse()*origin_.translation();
+        p_cur_a = T_WA_.linear().inverse()*current_.translation();
+        v_cur_a = T_WA_.linear().inverse()*xd.head<3>();
+
+        z_axis = (origin_.linear()).block<3,1>(0,2);
+        z_axis_w = Eigen::Vector3d::UnitZ();
+
+        
+        z_local = p_cur_a(2) - p_init_a(2);
+        f_feedback.setZero();
+        if(z_axis.transpose()*z_axis_w > 0)
+        {
+          if(z_local < 0)  f_feedback(2) = 3.0*(z_target-z_local) -1000.0*z_local;
+          else             f_feedback(2) = 3.0*(z_target-z_local);
+        } 
+        else
+        {
+          if(z_local < 0)  f_feedback(2) = -1000.0*z_local;
+        }
+        
+                
+        controller_debug << f_star_motion.transpose() <<" "<< (f_star_active_force + f_feedback).transpose()<<std::endl;
+        // spiral_arm_position << z_local<<std::endl;
+        // =================================================================================
+
+        f_star_motion = T_WA_.linear() * f_star_motion;
+        f_star_active_force = T_WA_.linear() * (f_star_active_force + f_feedback);
+
+        f_star = f_star_motion;
+        f_d.head<3>() = f_star_active_force;
+        
+        // f_d.setZero();
+        
+        spiral_pos_save_ = PegInHole::generateSpiralEE_datasave(origin_, current_, xd, pitch_, lin_vel_, pressing_force_, T_7A_, time.toSec(), arm.task_start_time_.toSec(), arm.task_start_time_.toSec() + spiral_duration_);
+        spiral_arm_position << spiral_pos_save_.transpose()<<std::endl;
       }
+
       //dual peg in hole
       else if (mode_ == 2)
       {
@@ -325,29 +371,36 @@ bool AssembleSpiralActionServer::computeArm(ros::Time time, FrankaModelUpdater &
   // std::cout << "det(j)=" << arm.jacobian_.determinant() << std::endl;
   // std::cout<<"================="<<std::endl;
   
-
+  // std::cout<<arm.f_ext_env_(2)<<std::endl;
   
   // f_star_zero.setZero();
 
-  
-  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * arm.modified_lambda_matrix_ *f_star_zero;
+  save_torque << arm.tau_ext_filtered_.transpose()<<" "<<arm.tau_desired_read_.transpose()<<std::endl;
+  force_spiral_cmd << f_star.transpose()<<" "<<f_d.head<3>().transpose()<<" "<<(arm.modified_lambda_matrix_ *f_star_zero + f_d).transpose()<<std::endl;
+  contact_force<<(T_WA_.linear().inverse()*arm.f_ext_.head<3>()).transpose()<<" "<<arm.f_ext_.head<3>().transpose()<<std::endl;
+
+
+  Eigen::Matrix<double, 7, 1> desired_torque = jacobian.transpose() * (arm.modified_lambda_matrix_ *f_star_zero + f_d);  
+  // desired_torque.setZero();
   arm.setTorque(desired_torque);
   
+  
+
   if(state_ == (ASSEMBLY_STATE) EXEC)
   {
     Eigen::Vector6d f_contact;
     f_contact.head<3>() = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_a_.head<3>();
     f_contact.tail<3>() = T_WA_.linear().inverse()*f_ext.tail<3>() - accumulated_wrench_a_.tail<3>();
-    force_spiral_cmd<< f_contact.transpose()<<std::endl;
+    // force_spiral_cmd<< f_contact.transpose()<<std::endl;
 
-    spiral_search << spiral_pos_save_.transpose()<<std::endl;
-    if(mode_ == 2) twist_search << twist_pos_save_.transpose() <<std::endl;
+    // spiral_search << spiral_pos_save_.transpose()<<std::endl;
+    // if(mode_ == 2) twist_search << twist_pos_save_.transpose() <<std::endl;
     
   }
 
-  Eigen::Vector6d traj;
-  traj << position, (current_*T_7A_).translation();
-  spiral_arm_position << traj.transpose()<<std::endl;
+  // Eigen::Vector6d traj;
+  // traj << position, (current_*T_7A_).translation();
+  // spiral_arm_position << traj.transpose()<<std::endl;
 
   return true;
 }
