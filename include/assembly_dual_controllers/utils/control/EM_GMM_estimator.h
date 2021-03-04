@@ -17,23 +17,25 @@ namespace Estimator
     {
         SEARCH = 1,
         CROSSING = 2,
-        INSERTION = 3,
-        DEVIATION = 4
+        TRANSITION = 3,
+        INSERTION = 4,
+        DEVIATION = 5
     };
 
     enum LABEL : int
     {
         READY_FOR_ESTIMATION = 0,
-        SMALL = 1,
-        MEDIUM = 2,
-        LARGE = 3
+        ZERO = 1,
+        SMALL = 2,
+        MEDIUM = 3,
+        LARGE = 4
     };
 
     struct GMM_model
     {
         Eigen::VectorXd mu;
-        Eigen::MatrixXd Sigma;
-        double probability;
+        Eigen::MatrixXd Sigma;        
+        double pi;
     };
 
     int countCurrentSpiralLaps(const double pitch,
@@ -49,9 +51,10 @@ namespace Estimator
                                      const struct GMM_model model_2);
 
     Estimator::LABEL positionEstimator(const Eigen::VectorXd &position_data,
-                                       const struct GMM_model model_1,
-                                       const struct GMM_model model_2,
-                                       const struct GMM_model model_3);
+                                       const struct GMM_model model_zero,             
+                                       const struct GMM_model model_small,
+                                       const struct GMM_model model_medium,
+                                       const struct GMM_model model_large);
 
     Estimator::CONTACT_STATE contactStateTable(const Estimator::LABEL torque_label,
                                                const Estimator::LABEL position_label);

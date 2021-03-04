@@ -1,7 +1,7 @@
 #pragma once
 
 #include <assembly_dual_controllers/servers/action_server_base.h>
-#include <assembly_msgs/AssembleDualArmSpiralAction.h>
+#include <assembly_msgs/AssembleGMMDualArmSpiralAction.h>
 #include <assembly_dual_controllers/utils/dyros_math.h>
 #include <assembly_dual_controllers/utils/control/peg_in_hole_base.h>
 #include <assembly_dual_controllers/utils/control/criteria.h>
@@ -20,11 +20,11 @@ class AssembleGMMSpiralActionServer : public ActionServerBase
     EXEC = 1,
     RETURN = 2
   };
-    actionlib::SimpleActionServer<assembly_msgs::AssembleDualArmSpiralAction> as_;
+    actionlib::SimpleActionServer<assembly_msgs::AssembleGMMDualArmSpiralAction> as_;
 
-    assembly_msgs::AssembleDualArmSpiralFeedback feedback_;
-    assembly_msgs::AssembleDualArmSpiralResult result_;
-    assembly_msgs::AssembleDualArmSpiralGoalConstPtr goal_;
+    assembly_msgs::AssembleGMMDualArmSpiralFeedback feedback_;
+    assembly_msgs::AssembleGMMDualArmSpiralResult result_;
+    assembly_msgs::AssembleGMMDualArmSpiralGoalConstPtr goal_;
 
     void goalCallback() override;
     void preemptCallback() override;
@@ -37,14 +37,11 @@ class AssembleGMMSpiralActionServer : public ActionServerBase
     // parameters from .action file ---
     double lin_vel_;
     double pitch_;
-    int mode_;
-    double depth_;
     double friction_;
     double pressing_force_;
     double spiral_duration_;
-    double range_;
-    double twist_duration_;
-    int assist_arm_action_;
+    
+    bool set_tilt_;
 
     bool is_mode_changed_;
     ASSEMBLY_STATE state_;
@@ -71,10 +68,14 @@ class AssembleGMMSpiralActionServer : public ActionServerBase
 
     Estimator::GMM_model torque_model_small_;
     Estimator::GMM_model torque_model_large_;
+    Estimator::GMM_model position_model_zero_;
     Estimator::GMM_model position_model_small_;
     Estimator::GMM_model position_model_medium_;
     Estimator::GMM_model position_model_large_;
 
+    Eigen::VectorXd joint_list_;
+    int torque_data_dimension_ {9};
+    int position_data_dimension_ {2};
 
     std::ofstream save_task_arm_torque {"gmm_task_arm_torque.txt"};
     std::ofstream save_task_arm_pose {"gmm_task_arm_pose.txt"};
@@ -91,6 +92,9 @@ class AssembleGMMSpiralActionServer : public ActionServerBase
     std::ofstream save_contact_estimation{"gmm_contact_state_estimation.txt"};
     std::ofstream save_captured_torque{"gmm_captured_torque.txt"};
     std::ofstream save_captured_position{"gmm_captured_position.txt"};
+    std::ofstream save_torque_label{"gmm_torque_label.txt"};
+    std::ofstream save_position_label{"gmm_position_label.txt"};
+
 
 public:
   AssembleGMMSpiralActionServer(std::string name, ros::NodeHandle &nh, 
@@ -100,6 +104,7 @@ public:
   bool computeTaskArm(ros::Time time, FrankaModelUpdater &arm);
   bool computeAssistArm(ros::Time time, FrankaModelUpdater &arm);
   bool estimateContactState();
+  void initializeGMMModels();
 
 protected:
   void setSucceeded() override;
