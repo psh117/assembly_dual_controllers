@@ -241,22 +241,22 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
     }
   }
 
-  if(state_ == (ASSEMBLY_STATE) EXEC)
-  {
-    Eigen::Vector6d f_contact;
-    f_contact.head<3>() = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_a_.head<3>();
-    f_contact.tail<3>() = force;
-    force_moment<< f_contact.transpose()<<std::endl;
-    approach_pose_data << arm.position_.transpose()<<std::endl;
-  }
+  // if(state_ == (ASSEMBLY_STATE) EXEC)
+  // {
+  //   Eigen::Vector6d f_contact;
+  //   f_contact.head<3>() = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_a_.head<3>();
+  //   f_contact.tail<3>() = force;
+  //   force_moment<< f_contact.transpose()<<std::endl;
+  //   approach_pose_data << arm.position_.transpose()<<std::endl;
+  // }
 
-  if(state_ == (ASSEMBLY_STATE) TILT_BACK)
-  {
-    Eigen::Vector6d f_contact;
-    f_contact.head<3>() = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_a_.head<3>();
-    f_contact.tail<3>() = T_WA_.linear().inverse()*f_ext.tail<3>() - accumulated_wrench_a_.tail<3>();
-    force_moment_tilt_back<< f_contact.transpose()<<std::endl;
-  }
+  // if(state_ == (ASSEMBLY_STATE) TILT_BACK)
+  // {
+  //   Eigen::Vector6d f_contact;
+  //   f_contact.head<3>() = T_WA_.linear().inverse()*f_ext.head<3>() - accumulated_wrench_a_.head<3>();
+  //   f_contact.tail<3>() = T_WA_.linear().inverse()*f_ext.tail<3>() - accumulated_wrench_a_.tail<3>();
+  //   force_moment_tilt_back<< f_contact.transpose()<<std::endl;
+  // }
 
   f_star_zero.head<3>() = f_star;
   f_star_zero.tail<3>() = m_star;
@@ -268,7 +268,7 @@ bool AssembleApproachActionServer::computeArm(ros::Time time, FrankaModelUpdater
   // std::cout<<"f_measured: "<<f_measured_.transpose()<<std::endl;
   // std::cout<<"f_filtered: "<<f_ext.transpose()<<std::endl;
 
-  tau_null_cmd_ = PegInHole::nullSpaceJointTorque(arm.q_, q_init_, q_null_target_, arm.qd_, time.toSec(), total_action_start_time_, 2.5, 75, 1);
+  // tau_null_cmd_ = PegInHole::nullSpaceJointTorque(arm.q_, q_init_, q_null_target_, arm.qd_, time.toSec(), total_action_start_time_, 2.5, 75, 1);
   Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() *arm.modified_lambda_matrix_* f_star_zero;// + arm.null_projector_*tau_null_cmd_;
   // Eigen::Matrix<double,7,1> desired_torque = jacobian.transpose() * f_star_zero;// + arm.null_projector_*tau_null_cmd_;
   // std::cout<<"tau_null_cmd : "<< tau_null_cmd_.transpose()<<std::endl;
