@@ -85,7 +85,7 @@ void AssembleGMMSpiralActionServer::goalCallback()
      
 
   // INITIALIZE THE GMM MODELS
-  AssembleGMMSpiralActionServer::initializeGMMModels();
+  // AssembleGMMSpiralActionServer::initializeGMMModels();
 
 
   std::cout << "sprial origin: " << task_arm_origin_.translation().transpose() << std::endl;
@@ -335,147 +335,147 @@ bool AssembleGMMSpiralActionServer::computeAssistArm(ros::Time time, FrankaModel
   return true;
 }
 
-bool AssembleGMMSpiralActionServer::estimateContactState()
-{
-  int n_laps;
-  Estimator::LABEL torque_label, position_label;
-  Estimator::CONTACT_STATE CS;
-  double t_2pi, t_4pi;
-  Eigen::VectorXd torque_input_all, torque_input_selected, position_input;
+// bool AssembleGMMSpiralActionServer::estimateContactState()
+// {
+//   int n_laps;
+//   Estimator::LABEL torque_label, position_label;
+//   Estimator::CONTACT_STATE CS;
+//   double t_2pi, t_4pi;
+//   Eigen::VectorXd torque_input_all, torque_input_selected, position_input;
 
 
-  t_2pi = pow((2 * M_PI), 2) * pitch_ / (4 * lin_vel_ * M_PI);
-  t_4pi = pow((4 * M_PI), 2) * pitch_ / (4 * lin_vel_ * M_PI);
+//   t_2pi = pow((2 * M_PI), 2) * pitch_ / (4 * lin_vel_ * M_PI);
+//   t_4pi = pow((4 * M_PI), 2) * pitch_ / (4 * lin_vel_ * M_PI);
 
-  torque_input_all.resize(14);
-  position_input.resize(position_data_dimension_);
-  torque_input_selected.resize(torque_data_dimension_);
-  torque_input_all.setZero();
-  position_init_.setZero();
-  torque_input_selected.setZero();
+//   torque_input_all.resize(14);
+//   position_input.resize(position_data_dimension_);
+//   torque_input_selected.resize(torque_data_dimension_);
+//   torque_input_all.setZero();
+//   position_init_.setZero();
+//   torque_input_selected.setZero();
 
-  if (spiral_elapsed_time_ > t_2pi && spiral_elapsed_time_ <= t_4pi)
-  {
-    torque_init_ += torque_captured_;
-    position_init_ += position_captured_;
+//   if (spiral_elapsed_time_ > t_2pi && spiral_elapsed_time_ <= t_4pi)
+//   {
+//     torque_init_ += torque_captured_;
+//     position_init_ += position_captured_;
 
-    if ( t_4pi - spiral_elapsed_time_ < 0.001)
-    {
-      torque_init_ = torque_init_ / ((t_4pi - t_2pi) * 1000);
-      position_init_ = position_init_ / ((t_4pi - t_2pi) * 1000);
-      std::cout << "=====================" << std::endl;
-      std::cout << "torque init for the task arm   : " << torque_init_.head<7>().transpose() << std::endl;
-      std::cout << "torque init for the assist arm : " << torque_init_.tail<7>().transpose() << std::endl;
-      std::cout << "position init for the both arm : " << position_init_.transpose() << std::endl;
-    }
-  }
+//     if ( t_4pi - spiral_elapsed_time_ < 0.001)
+//     {
+//       torque_init_ = torque_init_ / ((t_4pi - t_2pi) * 1000);
+//       position_init_ = position_init_ / ((t_4pi - t_2pi) * 1000);
+//       std::cout << "=====================" << std::endl;
+//       std::cout << "torque init for the task arm   : " << torque_init_.head<7>().transpose() << std::endl;
+//       std::cout << "torque init for the assist arm : " << torque_init_.tail<7>().transpose() << std::endl;
+//       std::cout << "position init for the both arm : " << position_init_.transpose() << std::endl;
+//     }
+//   }
 
-  n_laps = Estimator::countCurrentSpiralLaps(pitch_, lin_vel_, spiral_elapsed_time_);
+//   n_laps = Estimator::countCurrentSpiralLaps(pitch_, lin_vel_, spiral_elapsed_time_);
 
-  if (n_laps <= 2)
-  {
-    CS = SEARCH;     
-    torque_label = READY_FOR_ESTIMATION;
-    position_label = READY_FOR_ESTIMATION;
-  } 
-  else
-  {
-    for (int i = 0; i < 14; i++)    torque_input_all(i) = abs(torque_captured_(i) - torque_init_(i));    
-    for(int i = 0; i < torque_data_dimension_; i++) torque_input_selected(i) = torque_input_all(joint_list_(i));    
-    position_input = (position_captured_ - position_init_);
+//   if (n_laps <= 2)
+//   {
+//     CS = SEARCH;     
+//     torque_label = READY_FOR_ESTIMATION;
+//     position_label = READY_FOR_ESTIMATION;
+//   } 
+//   else
+//   {
+//     for (int i = 0; i < 14; i++)    torque_input_all(i) = abs(torque_captured_(i) - torque_init_(i));    
+//     for(int i = 0; i < torque_data_dimension_; i++) torque_input_selected(i) = torque_input_all(joint_list_(i));    
+//     position_input = (position_captured_ - position_init_);
 
-    torque_label = Estimator::torqueEstimator(torque_input_selected, torque_model_small_, torque_model_large_);
-    position_label = Estimator::positionEstimator(position_input, position_model_zero_, position_model_small_, position_model_medium_, position_model_large_);
-    CS = Estimator::contactStateTable(torque_label, position_label);
-  }    
+//     torque_label = Estimator::torqueEstimator(torque_input_selected, torque_model_small_, torque_model_large_);
+//     position_label = Estimator::positionEstimator(position_input, position_model_zero_, position_model_small_, position_model_medium_, position_model_large_);
+//     CS = Estimator::contactStateTable(torque_label, position_label);
+//   }    
 
-  save_contact_estimation << (int) CS << std::endl;
-  save_captured_torque << torque_captured_.transpose()<<std::endl;
-  save_captured_position << position_captured_.transpose()<<std::endl;
-  save_torque_label << torque_label<<std::endl;
-  save_position_label << position_label<<std::endl;
-  // std::cout<<" ================================ "<<std::endl;
-  // std::cout<<" torque   : "<< torque_label<<std::endl;
-  // std::cout<<" position : " << position_label<<std::endl;
-  // if (CS == SEARCH)           std::cout << "Current Contact State : "<< CS << std::endl;
-  // else if (CS == CROSSING)      std::cout << "Current Contact State : "<< CS << std::endl;
-  // else if (CS == INSERTION)   std::cout << "Current Contact State : "<< CS << std::endl;
-  // else if (CS == DEVIATION)   std::cout << "Current Contact State : "<< CS << std::endl;
+//   save_contact_estimation << (int) CS << std::endl;
+//   save_captured_torque << torque_captured_.transpose()<<std::endl;
+//   save_captured_position << position_captured_.transpose()<<std::endl;
+//   save_torque_label << torque_label<<std::endl;
+//   save_position_label << position_label<<std::endl;
+//   // std::cout<<" ================================ "<<std::endl;
+//   // std::cout<<" torque   : "<< torque_label<<std::endl;
+//   // std::cout<<" position : " << position_label<<std::endl;
+//   // if (CS == SEARCH)           std::cout << "Current Contact State : "<< CS << std::endl;
+//   // else if (CS == CROSSING)      std::cout << "Current Contact State : "<< CS << std::endl;
+//   // else if (CS == INSERTION)   std::cout << "Current Contact State : "<< CS << std::endl;
+//   // else if (CS == DEVIATION)   std::cout << "Current Contact State : "<< CS << std::endl;
     
 
-  return true;
-}
+//   return true;
+// }
 
-void AssembleGMMSpiralActionServer::initializeGMMModels()
-{
-  torque_model_small_.mu.resize(torque_data_dimension_);
-  torque_model_small_.Sigma.resize(torque_data_dimension_,torque_data_dimension_);   
+// void AssembleGMMSpiralActionServer::initializeGMMModels()
+// {
+//   torque_model_small_.mu.resize(torque_data_dimension_);
+//   torque_model_small_.Sigma.resize(torque_data_dimension_,torque_data_dimension_);   
 
-  torque_model_large_.mu.resize(torque_data_dimension_);
-  torque_model_large_.Sigma.resize(torque_data_dimension_,torque_data_dimension_);
+//   torque_model_large_.mu.resize(torque_data_dimension_);
+//   torque_model_large_.Sigma.resize(torque_data_dimension_,torque_data_dimension_);
   
-  position_model_zero_.mu.resize(position_data_dimension_);
-  position_model_zero_.Sigma.resize(position_data_dimension_,position_data_dimension_);
+//   position_model_zero_.mu.resize(position_data_dimension_);
+//   position_model_zero_.Sigma.resize(position_data_dimension_,position_data_dimension_);
   
-  position_model_small_.mu.resize(position_data_dimension_);
-  position_model_small_.Sigma.resize(position_data_dimension_,position_data_dimension_);
+//   position_model_small_.mu.resize(position_data_dimension_);
+//   position_model_small_.Sigma.resize(position_data_dimension_,position_data_dimension_);
   
-  position_model_medium_.mu.resize(position_data_dimension_);
-  position_model_medium_.Sigma.resize(position_data_dimension_,position_data_dimension_);
+//   position_model_medium_.mu.resize(position_data_dimension_);
+//   position_model_medium_.Sigma.resize(position_data_dimension_,position_data_dimension_);
   
-  position_model_large_.mu.resize(position_data_dimension_);
-  position_model_large_.Sigma.resize(position_data_dimension_,position_data_dimension_);
+//   position_model_large_.mu.resize(position_data_dimension_);
+//   position_model_large_.Sigma.resize(position_data_dimension_,position_data_dimension_);
   
 
-  torque_model_small_.mu << 0.7469, 0.6586, 0.7049, 0.2329, 0.2959, 0.3148, 0.2074, 0.2401, 0.1279;
-  torque_model_large_.mu << 3.7412, 3.5535, 2.5854, 1.1819, 1.3607, 0.3651, 0.9599, 1.3707, 0.8865;
+//   torque_model_small_.mu << 0.7469, 0.6586, 0.7049, 0.2329, 0.2959, 0.3148, 0.2074, 0.2401, 0.1279;
+//   torque_model_large_.mu << 3.7412, 3.5535, 2.5854, 1.1819, 1.3607, 0.3651, 0.9599, 1.3707, 0.8865;
 
 
-  torque_model_small_.Sigma <<0.4838,    0.0757,    0.3237,    0.0458,    0.0249,    0.0017,    0.0458,    0.0946,    0.0351,
-                              0.0757,    0.5693,    0.1032,    0.0261,    0.0421,   -0.0184,    0.1285,    0.0437,    0.0335,
-                              0.3237,    0.1032,    0.3641,    0.0402,    0.0247,    0.0102,    0.0560,    0.0733,    0.0379,
-                              0.0458,    0.0261,    0.0402,    0.0448,    0.0236,    0.0027,    0.0193,    0.0167,    0.0143,
-                              0.0249,    0.0421,    0.0247,    0.0236,    0.0732,   -0.0006,    0.0137,    0.0141,    0.0222,
-                              0.0017,   -0.0184,    0.0102,    0.0027,   -0.0006,    0.0277,   -0.0009,    0.0039,    0.0031,
-                              0.0458,    0.1285,    0.0560,    0.0193,    0.0137,   -0.0009,    0.0715,    0.0160,    0.0179,
-                              0.0946,    0.0437,    0.0733,    0.0167,    0.0141,    0.0039,    0.0160,    0.0486,    0.0202,
-                              0.0351,    0.0335,    0.0379,    0.0143,    0.0222,    0.0031,    0.0179,    0.0202,    0.0236;
+//   torque_model_small_.Sigma <<0.4838,    0.0757,    0.3237,    0.0458,    0.0249,    0.0017,    0.0458,    0.0946,    0.0351,
+//                               0.0757,    0.5693,    0.1032,    0.0261,    0.0421,   -0.0184,    0.1285,    0.0437,    0.0335,
+//                               0.3237,    0.1032,    0.3641,    0.0402,    0.0247,    0.0102,    0.0560,    0.0733,    0.0379,
+//                               0.0458,    0.0261,    0.0402,    0.0448,    0.0236,    0.0027,    0.0193,    0.0167,    0.0143,
+//                               0.0249,    0.0421,    0.0247,    0.0236,    0.0732,   -0.0006,    0.0137,    0.0141,    0.0222,
+//                               0.0017,   -0.0184,    0.0102,    0.0027,   -0.0006,    0.0277,   -0.0009,    0.0039,    0.0031,
+//                               0.0458,    0.1285,    0.0560,    0.0193,    0.0137,   -0.0009,    0.0715,    0.0160,    0.0179,
+//                               0.0946,    0.0437,    0.0733,    0.0167,    0.0141,    0.0039,    0.0160,    0.0486,    0.0202,
+//                               0.0351,    0.0335,    0.0379,    0.0143,    0.0222,    0.0031,    0.0179,    0.0202,    0.0236;
 
-  torque_model_large_.Sigma <<3.8540,    1.2100,    1.5035,    0.3556,    0.6036,   -0.0359,   -0.2067,    0.9505,    0.4476,
-                              1.2100,    2.6122,    1.0508,    0.0580,    0.4573,   -0.0523,    0.1062,    0.2737,    0.1214,
-                              1.5035,    1.0508,    2.8728,    0.1283,    0.3947,   -0.0202,    0.3997,    0.3967,    0.0474,
-                              0.3556,    0.0580,    0.1283,    0.3421,   -0.1360,    0.0472,    0.0656,   -0.0622,   -0.1021,
-                              0.6036,    0.4573,    0.3947,   -0.1360,    0.8161,   -0.0395,   -0.1359,    0.6037,    0.4991,
-                             -0.0359,   -0.0523,   -0.0202,    0.0472,   -0.0395,    0.0268,   -0.0042,   -0.0193,   -0.0120,
-                             -0.2067,    0.1062,    0.3997,    0.0656,   -0.1359,   -0.0042,    0.5839,   -0.1346,   -0.1823,
-                              0.9505,    0.2737,    0.3967,   -0.0622,    0.6037,   -0.0193,   -0.1346,    0.8136,    0.5459,
-                              0.4476,    0.1214,    0.0474,   -0.1021,    0.4991,   -0.0120,   -0.1823,    0.5459,    0.4627;
+//   torque_model_large_.Sigma <<3.8540,    1.2100,    1.5035,    0.3556,    0.6036,   -0.0359,   -0.2067,    0.9505,    0.4476,
+//                               1.2100,    2.6122,    1.0508,    0.0580,    0.4573,   -0.0523,    0.1062,    0.2737,    0.1214,
+//                               1.5035,    1.0508,    2.8728,    0.1283,    0.3947,   -0.0202,    0.3997,    0.3967,    0.0474,
+//                               0.3556,    0.0580,    0.1283,    0.3421,   -0.1360,    0.0472,    0.0656,   -0.0622,   -0.1021,
+//                               0.6036,    0.4573,    0.3947,   -0.1360,    0.8161,   -0.0395,   -0.1359,    0.6037,    0.4991,
+//                              -0.0359,   -0.0523,   -0.0202,    0.0472,   -0.0395,    0.0268,   -0.0042,   -0.0193,   -0.0120,
+//                              -0.2067,    0.1062,    0.3997,    0.0656,   -0.1359,   -0.0042,    0.5839,   -0.1346,   -0.1823,
+//                               0.9505,    0.2737,    0.3967,   -0.0622,    0.6037,   -0.0193,   -0.1346,    0.8136,    0.5459,
+//                               0.4476,    0.1214,    0.0474,   -0.1021,    0.4991,   -0.0120,   -0.1823,    0.5459,    0.4627;
   
-  torque_model_small_.pi = 0.5575;
-  torque_model_large_.pi = 0.4425;
+//   torque_model_small_.pi = 0.5575;
+//   torque_model_large_.pi = 0.4425;
 
-  position_model_zero_.mu<< 0.3965, 0.3424;  
-  position_model_small_.mu <<  1.8437,  0.2280;
-  position_model_medium_.mu << 16.1345,  0.3255;
-  position_model_large_.mu << 21.1101,  0.8137;
+//   position_model_zero_.mu<< 0.3965, 0.3424;  
+//   position_model_small_.mu <<  1.8437,  0.2280;
+//   position_model_medium_.mu << 16.1345,  0.3255;
+//   position_model_large_.mu << 21.1101,  0.8137;
 
-  position_model_zero_.Sigma << 0.0758,    0.0028,
-                                0.0028,    0.0121;
+//   position_model_zero_.Sigma << 0.0758,    0.0028,
+//                                 0.0028,    0.0121;
     
-  position_model_small_.Sigma << 2.1027,    0.0709,
-                                 0.0709,    0.4017;
+//   position_model_small_.Sigma << 2.1027,    0.0709,
+//                                  0.0709,    0.4017;
 
-  position_model_medium_.Sigma << 15.6573,    0.6824,
-                                  0.6824,    0.8896;
+//   position_model_medium_.Sigma << 15.6573,    0.6824,
+//                                   0.6824,    0.8896;
 
-  position_model_large_.Sigma <<  5.8626,    2.8290,
-                                  2.8290,    1.7458;
+//   position_model_large_.Sigma <<  5.8626,    2.8290,
+//                                   2.8290,    1.7458;
   
-  position_model_zero_.pi = 0.436459;
-  position_model_small_.pi = 0.243843;
-  position_model_medium_.pi = 0.233072;
-  position_model_large_.pi = 0.086626;
-}
+//   position_model_zero_.pi = 0.436459;
+//   position_model_small_.pi = 0.243843;
+//   position_model_medium_.pi = 0.233072;
+//   position_model_large_.pi = 0.086626;
+// }
 
 void AssembleGMMSpiralActionServer::setSucceeded()
 {

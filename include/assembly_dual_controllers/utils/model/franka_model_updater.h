@@ -48,6 +48,7 @@ struct FrankaModelUpdater
   Eigen::Matrix<double, 3, 1> position_lpf_;
   Eigen::Matrix<double, 3, 3> rotation_;
   Eigen::Isometry3d transform_;
+  Eigen::Isometry3d transform_without_calibration_;
   Eigen::Isometry3d transform_long_drill_;
   Eigen::Matrix<double, 6, 1> xd_;
   Eigen::Matrix<double, 6, 1> xd_long_drill_;

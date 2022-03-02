@@ -467,6 +467,9 @@ namespace PegInHole
                                                     const double kwp = 1000,
                                                     const double kwv = 7.5);
 
+    double getSpiralTheta(const double p,
+                          const double v,
+                          const double t);
     // Eigen::Vector6d detachBoltForce(const Eigen::Isometry3d &origin,
     //                                 const Eigen::Isometry3d &current,
     //                                 const Eigen::Ref<const Eigen::Vector6d> &xd,

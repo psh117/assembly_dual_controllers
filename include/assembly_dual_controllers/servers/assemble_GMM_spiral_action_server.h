@@ -10,7 +10,7 @@
 using namespace dyros_math;
 using namespace Criteria;
 using namespace PegInHole;
-using namespace Estimator;
+// using namespace Estimator;
 
 class AssembleGMMSpiralActionServer : public ActionServerBase
 { 
@@ -66,12 +66,12 @@ class AssembleGMMSpiralActionServer : public ActionServerBase
 
     double spiral_elapsed_time_;
 
-    Estimator::GMM_model torque_model_small_;
-    Estimator::GMM_model torque_model_large_;
-    Estimator::GMM_model position_model_zero_;
-    Estimator::GMM_model position_model_small_;
-    Estimator::GMM_model position_model_medium_;
-    Estimator::GMM_model position_model_large_;
+    // Estimator::GMM_model torque_model_small_;
+    // Estimator::GMM_model torque_model_large_;
+    // Estimator::GMM_model position_model_zero_;
+    // Estimator::GMM_model position_model_small_;
+    // Estimator::GMM_model position_model_medium_;
+    // Estimator::GMM_model position_model_large_;
 
     Eigen::VectorXd joint_list_;
     int torque_data_dimension_ {9};
@@ -105,7 +105,7 @@ public:
   bool computeAssistArm(ros::Time time, FrankaModelUpdater &arm);
   bool estimateContactState();
   void initializeGMMModels();
-
+  
 protected:
   void setSucceeded() override;
   void setAborted() override;

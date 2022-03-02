@@ -50,22 +50,22 @@ double Estimator::getGaussianDistribution(const Eigen::VectorXd &x,
     return p;
 }
 
-Estimator::LABEL Estimator::torqueEstimator(const Eigen::VectorXd &torque_data,
-                                            const struct GMM_model model_1,
-                                            const struct GMM_model model_2)
+Estimator::TORQUE_LABEL Estimator::torqueEstimator(const Eigen::VectorXd &torque_data,
+                                                   const struct GMM_model model_1,
+                                                   const struct GMM_model model_2)
 {
     Eigen::Vector2d p;
     Eigen::Vector2d responsibility;
-    Estimator::LABEL torque_state;
+    Estimator::TORQUE_LABEL torque_state;
     double summation;
 
     p(0) = Estimator::getGaussianDistribution(torque_data, model_1.mu, model_1.Sigma);
     p(1) = Estimator::getGaussianDistribution(torque_data, model_2.mu, model_2.Sigma);
 
-    summation = model_1.pi*p(0) + model_2.pi*p(1);
+    summation = model_1.pi * p(0) + model_2.pi * p(1);
 
-    responsibility(0) = model_1.pi*p(0)/summation;
-    responsibility(1) = model_1.pi*p(1)/summation;
+    responsibility(0) = model_1.pi * p(0) / summation;
+    responsibility(1) = model_1.pi * p(1) / summation;
 
     if (responsibility(0) >= responsibility(1))
         torque_state = SMALL;
@@ -75,28 +75,28 @@ Estimator::LABEL Estimator::torqueEstimator(const Eigen::VectorXd &torque_data,
     return torque_state;
 }
 
-Estimator::LABEL Estimator::positionEstimator(const Eigen::VectorXd &position_data,
-                                              const struct GMM_model model_zero,
-                                              const struct GMM_model model_small,
-                                              const struct GMM_model model_medium,
-                                              const struct GMM_model model_large)
+Estimator::POS_VEL_LABEL Estimator::positionEstimator(const Eigen::VectorXd &position_data,
+                                                      const struct GMM_model model_surface,
+                                                      const struct GMM_model model_shallow,
+                                                      const struct GMM_model model_floating,
+                                                      const struct GMM_model model_deep)
 {
     Eigen::Vector4d p, responsibility;
-    Estimator::LABEL position_state;
+    Estimator::POS_VEL_LABEL position_state;
     double summation, max_val;
     int max_index;
 
-    p(0) = Estimator::getGaussianDistribution(position_data, model_zero.mu, model_zero.Sigma);
-    p(1) = Estimator::getGaussianDistribution(position_data, model_small.mu, model_small.Sigma);
-    p(2) = Estimator::getGaussianDistribution(position_data, model_medium.mu, model_medium.Sigma);
-    p(3) = Estimator::getGaussianDistribution(position_data, model_large.mu, model_large.Sigma);
+    p(0) = Estimator::getGaussianDistribution(position_data, model_surface.mu, model_surface.Sigma);
+    p(1) = Estimator::getGaussianDistribution(position_data, model_shallow.mu, model_shallow.Sigma);
+    p(2) = Estimator::getGaussianDistribution(position_data, model_floating.mu, model_floating.Sigma);
+    p(3) = Estimator::getGaussianDistribution(position_data, model_deep.mu, model_deep.Sigma);
 
-    summation = model_zero.pi*p(0) + model_small.pi*p(1) + model_medium.pi*p(2) + model_large.pi*p(3);
+    summation = model_surface.pi*p(0) + model_shallow.pi*p(1) + model_floating.pi*p(2) + model_deep.pi*p(3);
     
-    responsibility(0) = model_zero.pi*p(0)/summation;
-    responsibility(1) = model_small.pi*p(1)/summation;
-    responsibility(2) = model_medium.pi*p(2)/summation;
-    responsibility(3) = model_large.pi*p(3)/summation;
+    responsibility(0) = model_surface.pi*p(0)/summation;
+    responsibility(1) = model_shallow.pi*p(1)/summation;
+    responsibility(2) = model_floating.pi*p(2)/summation;
+    responsibility(3) = model_deep.pi*p(3)/summation;
     
     max_val = responsibility.maxCoeff();
     for(int i = 0; i < 4; i++)
@@ -104,35 +104,161 @@ Estimator::LABEL Estimator::positionEstimator(const Eigen::VectorXd &position_da
         if(responsibility(i) == max_val)    max_index = i;             
     }
     
-    position_state = Estimator::LABEL (max_index+1);
+    position_state = Estimator::POS_VEL_LABEL (max_index+1);
 
-    std::cout<<"====================="<<std::endl;
-    std::cout<<p.transpose()<<std::endl;
-    std::cout<<position_state<<std::endl;
+    // std::cout<<"====================="<<std::endl;
+    // std::cout<<p.transpose()<<std::endl;
+    // std::cout<<position_state<<std::endl;
 
     return position_state;
 }
 
-Estimator::CONTACT_STATE Estimator::contactStateTable(const Estimator::LABEL torque_label,
-                                                      const Estimator::LABEL position_label)
+Estimator::CONTACT_STATE Estimator::contactStateTable(const Estimator::TORQUE_LABEL torque_label,
+                                                      const Estimator::POS_VEL_LABEL position_label)
 {
     Estimator::CONTACT_STATE contact_state;
 
-    if (torque_label == SMALL && position_label == ZERO)
+    if (torque_label == SMALL && position_label == SURFACE)
         contact_state = SEARCH;
-    else if (torque_label == SMALL && position_label == SMALL)
+    else if (torque_label == SMALL && position_label == SHALLOW)
         contact_state = SEARCH;
-    else if (torque_label == SMALL && position_label == MEDIUM)
+    else if (torque_label == SMALL && position_label == FLOATING)
         contact_state = TRANSITION;
-    else if (torque_label == SMALL && position_label == LARGE)
+    else if (torque_label == SMALL && position_label == DEEP)
         contact_state = DEVIATION;
-    else if (torque_label == LARGE && position_label == ZERO)
+    else if (torque_label == LARGE && position_label == SURFACE)
         contact_state = SEARCH;
-    else if (torque_label == LARGE && position_label == SMALL)
+    else if (torque_label == LARGE && position_label == SHALLOW)
         contact_state = CROSSING;
-    else if (torque_label == LARGE && position_label == MEDIUM)
+    else if (torque_label == LARGE && position_label == FLOATING)
         contact_state = TRANSITION;
-    else if (torque_label == LARGE && position_label == LARGE)
+    else if (torque_label == LARGE && position_label == DEEP)
         contact_state = INSERTION;
+    return contact_state;
+}
+
+// FOR TRIPLE ARM CASE
+Estimator::TORQUE_LABEL_TRIPLE Estimator::torqueEstimatorTriple(const Eigen::VectorXd &torque_data,
+                                                                const struct GMM_model model_1,
+                                                                const struct GMM_model model_2,
+                                                                const struct GMM_model model_3)
+{
+    Eigen::Vector3d p;
+    Eigen::Vector3d r; // responsibility
+    Estimator::TORQUE_LABEL_TRIPLE torque_state;
+    double summation, max_val;
+    int max_index;
+
+    p(0) = Estimator::getGaussianDistribution(torque_data, model_1.mu, model_1.Sigma);
+    p(1) = Estimator::getGaussianDistribution(torque_data, model_2.mu, model_2.Sigma);
+    p(2) = Estimator::getGaussianDistribution(torque_data, model_3.mu, model_3.Sigma);
+
+    summation = model_1.pi * p(0) + model_2.pi * p(1) + model_3.pi * p(2);
+
+    r(0) = model_1.pi * p(0) / summation;
+    r(1) = model_2.pi * p(1) / summation;
+    r(2) = model_3.pi * p(2) / summation;
+    max_val = r.maxCoeff();
+    for (int i = 0; i < 3; i++)
+    {
+        if (r(i) == max_val)
+            max_index = i;
+    }
+
+    torque_state = Estimator::TORQUE_LABEL_TRIPLE(max_index + 1);
+
+    return torque_state;
+}
+
+Estimator::POS_VEL_LABEL_TRIPLE Estimator::positionEstimatorTriple(const Eigen::VectorXd &position_data,
+                                                                   const struct GMM_model model_surface,
+                                                                   const struct GMM_model model_shallow,
+                                                                   const struct GMM_model model_floating,
+                                                                   const struct GMM_model model_moderate,
+                                                                   const struct GMM_model model_deep)
+{
+    Eigen::Vector5d p, r;
+    Estimator::POS_VEL_LABEL_TRIPLE position_state;
+    double summation, max_val;
+    int max_index;
+
+    p(0) = Estimator::getGaussianDistribution(position_data, model_surface.mu, model_surface.Sigma);
+    p(1) = Estimator::getGaussianDistribution(position_data, model_shallow.mu, model_shallow.Sigma);
+    p(2) = Estimator::getGaussianDistribution(position_data, model_floating.mu, model_floating.Sigma);
+    p(3) = Estimator::getGaussianDistribution(position_data, model_moderate.mu, model_moderate.Sigma);
+    p(4) = Estimator::getGaussianDistribution(position_data, model_deep.mu, model_deep.Sigma);
+
+
+    summation = (model_surface.pi * p(0) + model_shallow.pi * p(1) +
+                model_floating.pi * p(2) + model_moderate.pi * p(3) + 
+                model_deep.pi * p(4));
+
+    r(0) = model_surface.pi * p(0) / summation;
+    r(1) = model_shallow.pi * p(1) / summation;
+    r(2) = model_floating.pi * p(2) / summation;
+    r(3) = model_moderate.pi * p(3) / summation;
+    r(4) = model_deep.pi * p(4) / summation;
+    // std::cout<<"--------------------"<<std::endl;
+    // std::cout<<"surface   det : "<< model_surface.Sigma.determinant()<<std::endl;
+    // std::cout<<"shallow   det : "<< model_shallow.Sigma.determinant()<<std::endl;
+    // std::cout<<"floating  det : "<< model_floating.Sigma.determinant()<<std::endl;
+    // std::cout<<"moderate  det : "<< model_moderate.Sigma.determinant()<<std::endl;
+    // std::cout<<"deep      det : "<< model_deep.Sigma.determinant()<<std::endl;
+    // std::cout<<"p : "<<p.transpose()<<std::endl;
+    // std::cout<<"r: "<< r.transpose()<<std::endl;
+    max_val = r.maxCoeff();
+    for (int i = 0; i < 5; i++)
+    {
+        if (r(i) == max_val)
+            max_index = i;
+    }
+
+    position_state = Estimator::POS_VEL_LABEL_TRIPLE(max_index + 1);
+
+    // std::cout<<"====================="<<std::endl;
+    // std::cout<<p.transpose()<<std::endl;
+    // std::cout<<position_state<<std::endl;
+
+    return position_state;
+}
+
+Estimator::CONTACT_STATE Estimator::contactStateTableTriple(const Estimator::TORQUE_LABEL_TRIPLE torque_label,
+                                                            const Estimator::POS_VEL_LABEL_TRIPLE position_label)
+{
+    Estimator::CONTACT_STATE contact_state;
+
+    if (torque_label == SMALL_T && position_label == SURFACE_T)
+        contact_state = SEARCH;
+    else if (torque_label == SMALL_T && position_label == SHALLOW_T)
+        contact_state = SEARCH;
+    else if (torque_label == SMALL_T && position_label == FLOATING_T)
+        contact_state = TRANSITION;
+    else if (torque_label == SMALL_T && position_label == MODERATE_T)
+        contact_state = DEVIATION;
+    else if (torque_label == SMALL_T && position_label == DEEP_T)
+        contact_state = DEVIATION;
+
+    else if (torque_label == MEDIUM_T && position_label == SURFACE_T)
+        contact_state = SEARCH;
+    else if (torque_label == MEDIUM_T && position_label == SHALLOW_T)
+        contact_state = CROSSING;
+    else if (torque_label == MEDIUM_T && position_label == FLOATING_T)
+        contact_state = TRANSITION;
+    else if (torque_label == MEDIUM_T && position_label == MODERATE_T)
+        contact_state = DEVIATION; //INSERTION;
+    else if (torque_label == MEDIUM_T && position_label == DEEP_T)
+        contact_state = INSERTION;
+
+    else if (torque_label == LARGE_T && position_label == SURFACE_T)
+        contact_state = SEARCH;
+    else if (torque_label == LARGE_T && position_label == SHALLOW_T)
+        contact_state = CROSSING;
+    else if (torque_label == LARGE_T && position_label == FLOATING_T)
+        contact_state = TRANSITION;
+    else if (torque_label == LARGE_T && position_label == MODERATE_T)
+        contact_state = DEVIATION;
+    else if (torque_label == LARGE_T && position_label == DEEP_T)
+        contact_state = DEVIATION;
+
     return contact_state;
 }

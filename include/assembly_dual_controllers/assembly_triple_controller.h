@@ -138,6 +138,7 @@ class AssemblyTripleController : public controller_interface::MultiInterfaceCont
 
   void writeDebugInfos(const std::string &title, const std::string &context);
   std::ofstream debug_file_q{"q.txt"};
+  std::ofstream debug_file_q_record_calib_compare{"q_record_calib_compare.txt"};
   std::ofstream debug_file_fuck{"f.txt"};
   std::ofstream debug_file_qd{"qd.txt"};
   std::ofstream debug_file_qdd{"qdd.txt"};

@@ -76,6 +76,7 @@ void FrankaModelUpdater::updateModel()
   // transform_ = rbdl_model_.getTransform(q_ + q_offset_);
   // jacobian_ = rbdl_model_.getJacobianMatrix(q_ + q_offset_);
   transform_ = rbdl_model_.getTransform(q_);
+  transform_without_calibration_ = Eigen::Matrix4d::Map(robot_state.O_T_EE.data());
   jacobian_ = rbdl_model_.getJacobianMatrix(q_);
   Eigen::Vector3d long_drill_pos_(-0.1645, 0, 0.125);
   transform_long_drill_ = rbdl_model_.getTransform(q_, long_drill_pos_);

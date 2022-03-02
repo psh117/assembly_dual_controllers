@@ -2168,6 +2168,16 @@ Eigen::Vector6d PegInHole::generateRotationToDisassembleEE(const Eigen::Isometry
   return f_star_zero_a;
 }
 
+double PegInHole::getSpiralTheta(const double p,
+                                 const double v,
+                                 const double t)
+{
+  double theta;
+
+  theta = sqrt(4 * M_PI * v * t / p);
+
+  return theta;
+}
 // Eigen::Vector6d PegInHole::detachBoltForce(const Eigen::Isometry3d &origin,
 //                                            const Eigen::Isometry3d &current,
 //                                            const Eigen::Ref<const Eigen::Vector6d> &xd,
