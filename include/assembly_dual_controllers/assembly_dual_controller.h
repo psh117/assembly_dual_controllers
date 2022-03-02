@@ -90,7 +90,7 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   std::unique_ptr<IdleControlServer> idle_control_server_;
   
   std::map<std::string, std::shared_ptr<FrankaModelUpdater> >  arms_data_; ///< Holds all relevant data for both arms.
-  std::string left_arm_id_;   ///< Name of the left arm, retreived from the parameter server.
+  std::string top_arm_id_;   ///< Name of the top arm, retreived from the parameter server.
   std::string right_arm_id_;  ///< Name of the right arm, retreived from the parameter server.
   // std::string top_arm_id_;  ///< Name of the top arm, retreived from the parameter server.
   
@@ -98,7 +98,7 @@ class AssemblyDualController : public controller_interface::MultiInterfaceContro
   Eigen::Isometry3d Ol_T_Or_;  // NOLINT (readability-identifier-naming)
   ///< Target transformation between the two endeffectors.
   Eigen::Isometry3d EEr_T_EEl_;  // NOLINT (readability-identifier-naming)
-  ///< Transformation from the centering frame to the left endeffector.
+  ///< Transformation from the centering frame to the top endeffector.
   Eigen::Isometry3d EEl_T_C_;
 
   ros::Time start_time_;

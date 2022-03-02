@@ -92,18 +92,18 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   }
 
   init_load_.mass = 0.0;
-  ros::service::call("/panda_dual/panda_left/set_load",init_load_,load_response_);
+  ros::service::call("/panda_dual/panda_top/set_load",init_load_,load_response_);
   ros::service::call("/panda_dual/panda_right/set_load",init_load_,load_response_);
 
-  if (!node_handle.getParam("left/arm_id", left_arm_id_)) {
+  if (!node_handle.getParam("top/arm_id", top_arm_id_)) {
     ROS_ERROR_STREAM(
-        "AssemblyDualController: Could not read parameter left_arm_id_");
+        "AssemblyDualController: Could not read parameter top_arm_id_");
     return false;
   }
-  std::vector<std::string> left_joint_names;
-  if (!node_handle.getParam("left/joint_names", left_joint_names) || left_joint_names.size() != 7) {
+  std::vector<std::string> top_joint_names;
+  if (!node_handle.getParam("top/joint_names", top_joint_names) || top_joint_names.size() != 7) {
     ROS_ERROR(
-        "AssemblyDualController: Invalid or no left_joint_names parameters "
+        "AssemblyDualController: Invalid or no top_joint_names parameters "
         "provided, "
         "aborting controller init!");
     return false;
@@ -125,26 +125,26 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
     return false;
   }
 
-  // ROS_INFO("1: %s \n 2: %s",left_arm_id_.c_str(), right_arm_id_.c_str());
+  // ROS_INFO("1: %s \n 2: %s",top_arm_id_.c_str(), right_arm_id_.c_str());
   
-  bool left_success = initArm(robot_hw, left_arm_id_, left_joint_names);
+  bool top_success = initArm(robot_hw, top_arm_id_, top_joint_names);
   bool right_success = initArm(robot_hw, right_arm_id_, right_joint_names);
-  // arms_data_["panda_left"]->q_offset_ << -0.00209657, -0.0103961,-0.00302744,-0.00134568, 0.00393938, -0.0253182 -7.66409e-12;
+  // arms_data_["panda_top"]->q_offset_ << -0.00209657, -0.0103961,-0.00302744,-0.00134568, 0.00393938, -0.0253182 -7.66409e-12;
   // arms_data_["panda_right"]->q_offset_ << -0.00113419,  -0.00316993,  0.000600501,  -0.00200384,  0.000897991,  -0.00657346, -2.02488e-12;
   // arms_data_["panda_right"]->q_offset_ << -0.00130828, -0.00322306, 0.000850395, -0.00201338,  0.00523785,  -0.0057014, -0.00770664;
-  // Get the transformation from right_O_frame to left_O_frame
+  // Get the transformation from right_O_frame to top_O_frame
   // tf::StampedTransform transform;
   // tf::TransformListener listener;
   // try {
-  //   if (listener.waitForTransform(left_arm_id_ + "_link0", right_arm_id_ + "_link0", 
+  //   if (listener.waitForTransform(top_arm_id_ + "_link0", right_arm_id_ + "_link0", 
   //                                 ros::Time(0), ros::Duration(4.0))) {
-  //     listener.lookupTransform(left_arm_id_ + "_link0", right_arm_id_ + "_link0",
+  //     listener.lookupTransform(top_arm_id_ + "_link0", right_arm_id_ + "_link0",
   //                                 ros::Time(0), transform);
   //   } else {
   //     ROS_ERROR(
   //         "AssemblyDualController: Failed to read transform from %s to %s. "
   //         "Aborting init!",
-  //         (right_arm_id_ + "_link0").c_str(), (left_arm_id_ + "_link0").c_str());
+  //         (right_arm_id_ + "_link0").c_str(), (top_arm_id_ + "_link0").c_str());
   //     return false;
   //   }
   // } catch (tf::TransformException& ex) {
@@ -196,7 +196,7 @@ bool AssemblyDualController::init(hardware_interface::RobotHW* robot_hw,
   // single_peginhole_action_server_ = std::make_unique<SinglePegInHoleActionServer>
   // ("/assembly_dual_controller/single_peg_in_hole_control", node_handle, dual_arm_info_);
 
-  return left_success && right_success;
+  return top_success && right_success;
 }
 
 
@@ -222,9 +222,9 @@ void AssemblyDualController::starting(const ros::Time& time) {
   }
   // franka::RobotState robot_state_right =
   //     arms_data_.at(right_arm_id_).state_handle_->getRobotState();
-  // franka::RobotState robot_state_left = arms_data_.at(left_arm_id_).state_handle_->getRobotState();
+  // franka::RobotState robot_state_top = arms_data_.at(top_arm_id_).state_handle_->getRobotState();
   // Eigen::Isometry3d Ol_T_EEl(Eigen::Matrix4d::Map(  // NOLINT (readability-identifier-naming)
-  //     robot_state_left.O_T_EE.data()));           // NOLINT (readability-identifier-naming)
+  //     robot_state_top.O_T_EE.data()));           // NOLINT (readability-identifier-naming)
   // Eigen::Isometry3d Or_T_EEr(Eigen::Matrix4d::Map(  // NOLINT (readability-identifier-naming)
   //     robot_state_right.O_T_EE.data()));          // NOLINT (readability-identifier-naming)
   // EEr_T_EEl_ =
@@ -304,7 +304,7 @@ void AssemblyDualController::update(const ros::Time& time, const ros::Duration& 
   //     arms_data_[right_arm_id_].joint_handles_[i].setCommand(tau_cmd(i));
   //   }
   // for (size_t i = 0; i < 7; ++i) {
-  //   arms_data_[left_arm_id_].joint_handles_[i].setCommand(tau_cmd(i));
+  //   arms_data_[top_arm_id_].joint_handles_[i].setCommand(tau_cmd(i));
   // }
 ///////////////////////////////////////////////
 }
